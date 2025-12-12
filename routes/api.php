@@ -15,15 +15,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-Route::prefix('queues')->group(function () {
-    Route::get('/', [QueueController::class, 'index']);
-    Route::get('/stats', [QueueController::class, 'stats']);
-    Route::post('/{id}/update-status', [QueueController::class, 'updateStatus']); // ← THIS ONE
-});
+// Queue Management routes
+Route::get('/queues', [QueueController::class, 'index']);
+Route::get('/queues/stats', [QueueController::class, 'stats']);
+Route::post('/queues/{id}/update-status', [QueueController::class, 'updateStatus']);
 
-Route::prefix('prescriptions')->group(function () {
-    Route::get('/{id}/items', [PrescriptionController::class, 'getPrescribedItems']);
-});
+// Prescription routes
+Route::get('/prescriptions/{id}/items', [PrescriptionController::class, 'getPrescribedItems']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();
