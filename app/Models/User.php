@@ -82,4 +82,12 @@ class User extends Authenticatable
     {
         return 'web';
     }
+
+    /**
+     * Get the access tokens that belong to model.
+     */
+    public function tokens()
+    {
+        return $this->morphMany(PersonalAccessToken::class, 'tokenable');
+    }
 }

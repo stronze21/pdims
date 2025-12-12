@@ -1,9 +1,29 @@
 <?php
 
+use App\Http\Controllers\Api\ApiAuthController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
+use App\Http\Controllers\Api\QueueController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+
+
+
+
+
+
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+// Queue Management
+Route::get('/queues', [QueueController::class, 'index']);
+Route::get('/queues/stats', [QueueController::class, 'stats']);
+Route::post('/queues/{id}/update-status', [QueueController::class, 'updateStatus']);
 
 Route::get('/user', function (Request $request) {
     return $request->user();
