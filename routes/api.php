@@ -15,10 +15,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-// Queue Management
-Route::get('/queues', [QueueController::class, 'index']);
-Route::get('/queues/stats', [QueueController::class, 'stats']);
-Route::post('/queues/{id}/update-status', [QueueController::class, 'updateStatus']);
+Route::prefix('queues')->group(function () {
+    Route::get('/', [QueueController::class, 'index']);
+    Route::get('/stats', [QueueController::class, 'stats']);
+    Route::post('/{id}/update-status', [QueueController::class, 'updateStatus']); // ← THIS ONE
+});
 
 Route::prefix('prescriptions')->group(function () {
     Route::get('/{id}/items', [PrescriptionController::class, 'getPrescribedItems']);
