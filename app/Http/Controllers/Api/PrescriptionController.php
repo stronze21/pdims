@@ -36,15 +36,6 @@ class PrescriptionController extends Controller
             ORDER BY pd.created_at ASC
         ", [$prescriptionId]));
 
-            // Debug: Log the raw data types
-            if ($items->isNotEmpty()) {
-                $firstItem = $items->first();
-                \Log::info('Raw item data types:', [
-                    'id' => gettype($firstItem->id) . ' = ' . $firstItem->id,
-                    'qty' => gettype($firstItem->qty) . ' = ' . $firstItem->qty,
-                    'total_issued' => gettype($firstItem->total_issued) . ' = ' . $firstItem->total_issued,
-                ]);
-            }
 
             $processedItems = $items->map(function ($item) {
                 $parts = explode('_,', $item->drug_concat ?? '');
