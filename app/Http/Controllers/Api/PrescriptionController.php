@@ -31,7 +31,7 @@ class PrescriptionController extends Controller
                     FROM webapp.dbo.prescription_data_issued WITH (NOLOCK)
                     GROUP BY presc_data_id
                 ) pdi ON pd.id = pdi.presc_data_id
-                WHERE pd.prescription_id = ?
+                WHERE pd.presc_id = ?
                     AND pd.stat = 'A'
                 ORDER BY pd.created_at ASC
             ", [$prescriptionId]));
