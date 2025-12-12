@@ -23,9 +23,6 @@ Route::post('/queues/{id}/update-status', [QueueController::class, 'updateStatus
 // Prescription routes
 Route::get('/prescriptions/{id}/items', [PrescriptionController::class, 'getPrescribedItems']);
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
 
 Route::prefix('prescription-queue')->middleware(['api', 'throttle:60,1'])->group(function () {
 
@@ -36,7 +33,7 @@ Route::prefix('prescription-queue')->middleware(['api', 'throttle:60,1'])->group
     Route::get('/{queueId}', [PrescriptionQueueApiController::class, 'show']);
 
     // Update queue status
-    Route::put('/{queueId}/status', [PrescriptionQueueApiController::class, 'updateStatus']);
+    // Route::put('/{queueId}/status', [PrescriptionQueueApiController::class, 'updateStatus']);
 
     // Get location statistics
     Route::get('/stats/{locationCode}', [PrescriptionQueueApiController::class, 'stats']);
