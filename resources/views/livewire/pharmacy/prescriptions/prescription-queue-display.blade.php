@@ -1,6 +1,6 @@
 <div class="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10" x-data="{ time: new Date() }"
-    x-init="setInterval(() => { time = new Date() }, 1000);
-    setInterval(() => { $wire.call('loadQueues') }, {{ $displaySettings->auto_refresh_seconds * 1000 }});">
+    x-init="setInterval(() => { time = new Date() }, 500);
+    setInterval(() => { $wire.call('loadQueues') }, {{ $displaySettings->auto_refresh_seconds * 500 }});">
 
     {{-- Header --}}
     <div class="shadow-lg bg-primary text-primary-content">

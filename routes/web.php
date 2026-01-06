@@ -39,6 +39,11 @@ Route::middleware([
             ->name('queue.index');
     });
 
+    // Public Queue Display (can be accessed without auth for TV displays)
+    Route::get('/queue-display/{locationCode?}', PrescriptionQueueDisplay::class)
+        ->name('queue.display')
+        ->middleware('throttle:60,1'); // Rate limit for security
+
     // User Management Routes
     Route::get('/users', ManageUsers::class)
         ->name('users.index');
@@ -51,8 +56,3 @@ Route::middleware([
     Route::get('/permissions', ManagePermissions::class)
         ->name('permissions.index');
 });
-
-// Public Queue Display (can be accessed without auth for TV displays)
-Route::get('/queue-display/{locationCode?}', PrescriptionQueueDisplay::class)
-    ->name('queue.display')
-    ->middleware('throttle:60,1'); // Rate limit for security
