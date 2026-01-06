@@ -26,8 +26,12 @@ Route::get('/prescriptions/{id}/items', [PrescriptionController::class, 'getPres
 
 Route::prefix('prescription-queue')->middleware(['api', 'throttle:60,1'])->group(function () {
 
+    Route::get('health', function () {
+        return response()->json(['status' => 'ok', 'time' => now()]);
+    });
+    Route::post('create', [PrescriptionQueueApiController::class, 'create']);
     // Create new queue (from EMR)
-    Route::post('/create', [PrescriptionQueueApiController::class, 'create']);
+    // Route::post('/create', [PrescriptionQueueApiController::class, 'create']);
 
     // Get queue details
     Route::get('/{queueId}', [PrescriptionQueueApiController::class, 'show']);

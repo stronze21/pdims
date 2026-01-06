@@ -1,27 +1,27 @@
 <div x-data="{ autoRefresh: @entangle('autoRefresh') }" x-init="if (autoRefresh) {
     setInterval(() => { $wire.call('refreshQueue') }, 30000);
 }">
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="text-sm breadcrumbs">
-                <ul>
-                    <li class="font-bold text-primary">
-                        <x-mary-icon name="o-building-office-2" class="inline w-5 h-5" />
-                        {{ session('pharm_location_name') }}
-                    </li>
-                    <li>
-                        <x-mary-icon name="o-queue-list" class="inline w-5 h-5" />
-                        Prescription Queue
-                    </li>
-                </ul>
-            </div>
-            <div class="flex gap-2">
-                <x-mary-toggle wire:model.live="autoRefresh" label="Auto-refresh" />
-                <x-mary-button icon="o-arrow-path" wire:click="refreshQueue" spinner="refreshQueue"
-                    class="btn-sm btn-ghost" tooltip="Refresh" />
-            </div>
+    <div class="flex items-center justify-between">
+        <div class="text-sm breadcrumbs">
+            <ul>
+                <li class="font-bold text-primary">
+                    <x-mary-icon name="o-building-office-2" class="inline w-5 h-5" />
+                    {{ session('pharm_location_name') }}
+                </li>
+                <li>
+                    <x-mary-icon name="o-queue-list" class="inline w-5 h-5" />
+                    Prescription Queue
+                </li>
+            </ul>
         </div>
-    </x-slot>
+        <div class="flex gap-2">
+            <x-mary-toggle wire:model.live="autoRefresh" label="Auto-refresh" />
+            <x-mary-button icon="o-arrow-path" wire:click="refreshQueue" spinner="refreshQueue" class="btn-sm btn-ghost"
+                tooltip="Refresh" />
+            <x-mary-button label="Test API" icon="o-beaker" wire:click="openTestApiModal" class="btn-outline btn-sm"
+                tooltip="Test queue creation API" />
+        </div>
+    </div>
 
     <div class="container px-4 py-4 mx-auto space-y-4">
 
@@ -177,8 +177,8 @@
                                 @endif
 
                                 @if ($queue->isPreparing())
-                                    <button class="btn btn-success btn-sm" wire:click="markReady({{ $queue->id }})"
-                                        wire:loading.attr="disabled">
+                                    <button class="btn btn-success btn-sm"
+                                        wire:click="markReady({{ $queue->id }})" wire:loading.attr="disabled">
                                         <i class="las la-check"></i> Ready
                                     </button>
                                 @endif
@@ -629,6 +629,71 @@
             <x-mary-button label="Close" wire:click="$set('showNotesModal', false)" />
             <x-mary-button label="Save" wire:click="saveNotes" class="btn-primary" spinner="saveNotes" />
         </x-slot:actions>
+    </x-mary-modal>
+
+    {{-- Test API Modal --}}
+    <x-mary-modal wire:model="showTestApiModal" title="Test Queue API" class="backdrop-blur" box-class="max-w-2xl">
+        <x-mary-form wire:submit="submitTestApi">
+            {{-- Add Debug Info Section at the top --}}
+            <div class="mb-4 p-3 bg-info/10 rounded-lg text-sm">
+                <p><strong>API Endpoint:</strong> {{ config('app.url') }}/api/prescription-queue/create</p>
+                <p><strong>Environment:</strong> {{ config('app.env') }}</p>
+                <p class="text-xs opacity-75 mt-2">Check Laravel logs for detailed error information</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <x-mary-input label="Prescription ID *" wire:model="testPrescriptionId" type="number"
+                    icon="o-document-text" required />
+
+                <x-mary-input label="Encounter Code *" wire:model="testEnccode" icon="o-clipboard-document-list"
+                    required />
+
+                <x-mary-input label="Hospital Number *" wire:model="testHpercode" icon="o-user" required />
+
+                <x-mary-input label="Location Code *" wire:model="testLocationCode" icon="o-map-pin" required />
+
+                <x-mary-select label="Priority *" wire:model="testPriority" :options="[
+                    ['id' => 'normal', 'name' => 'Normal'],
+                    ['id' => 'urgent', 'name' => 'Urgent'],
+                    ['id' => 'stat', 'name' => 'STAT'],
+                ]" icon="o-flag"
+                    required />
+
+                <x-mary-input label="Queue Prefix" wire:model="testQueuePrefix" icon="o-hashtag"
+                    hint="Optional (e.g., OPD, ER)" />
+
+                <x-mary-input label="Created By" wire:model="testCreatedBy" icon="o-user-circle"
+                    hint="Employee ID" />
+
+                <x-mary-input label="Created From" wire:model="testCreatedFrom" icon="o-computer-desktop"
+                    hint="Source system" />
+
+                <div class="md:col-span-2">
+                    <x-mary-textarea label="Remarks" wire:model="testRemarks" rows="3"
+                        hint="Optional notes" />
+                </div>
+            </div>
+
+            <div class="mt-4 p-4 bg-warning/10 rounded-lg">
+                <div class="flex items-start gap-2">
+                    <x-mary-icon name="o-information-circle" class="w-5 h-5 text-warning" />
+                    <div class="text-sm">
+                        <p class="font-semibold mb-1">API Test Mode</p>
+                        <p class="text-xs opacity-75">This will make a real API call to create a queue entry. Use valid
+                            data or click "Fill Sample" button.</p>
+                    </div>
+                </div>
+            </div>
+
+
+            <x-slot:actions>
+                <x-mary-button label="Test Connection" wire:click="testApiConnection" class="btn-ghost btn-sm"
+                    icon="o-signal" />
+                <x-mary-button label="Fill Sample" wire:click="fillSampleData" class="btn-ghost" icon="o-beaker" />
+                <x-mary-button label="Cancel" wire:click="$set('showTestApiModal', false)" class="btn-ghost" />
+                <x-mary-button label="Create Queue" type="submit" class="btn-primary" spinner="submitTestApi"
+                    icon="o-plus-circle" />
+            </x-slot:actions>
+        </x-mary-form>
     </x-mary-modal>
 
     @script

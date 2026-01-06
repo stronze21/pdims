@@ -2,14 +2,16 @@
 
 namespace App\Livewire\Pharmacy\Prescriptions;
 
-use Carbon\Carbon;
-use Mary\Traits\Toast;
-use Livewire\Component;
-use Livewire\Attributes\On;
-use Illuminate\Support\Facades\DB;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
-use App\Models\Pharmacy\Prescriptions\PrescriptionQueueLog;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
+use App\Models\Pharmacy\Prescriptions\PrescriptionQueueLog;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\On;
+use Livewire\Component;
+use Mary\Traits\Toast;
 
 class PrescriptionQueueManagement extends Component
 {
@@ -47,6 +49,193 @@ class PrescriptionQueueManagement extends Component
 
     // Auto-refresh
     public $autoRefresh = true;
+
+    // Add these properties to the class
+    public $showTestApiModal = false;
+
+    // Test API form data
+    public $testPrescriptionId = '';
+    public $testEnccode = '';
+    public $testHpercode = '';
+    public $testLocationCode = '';
+    public $testPriority = 'normal';
+    public $testQueuePrefix = '';
+    public $testRemarks = '';
+    public $testCreatedBy = '';
+    public $testCreatedFrom = 'Manual Test';
+
+    // Add this method to open the modal
+    public function openTestApiModal()
+    {
+        // Pre-fill with user's location
+        $this->testLocationCode = auth()->user()->pharm_location_id;
+        $this->testCreatedBy = auth()->user()->employeeid;
+        $this->testPriority = 'normal';
+        $this->testCreatedFrom = 'Manual Test';
+
+        // Reset other fields
+        $this->testPrescriptionId = '';
+        $this->testEnccode = '';
+        $this->testHpercode = '';
+        $this->testQueuePrefix = '';
+        $this->testRemarks = '';
+
+        $this->showTestApiModal = true;
+    }
+
+    public function testApiConnection()
+    {
+        try {
+            $url = config('app.url') . '/api/prescription-queue/create';
+
+            $response = Http::timeout(10)->get(config('app.url') . '/api/health');
+
+            if ($response->successful()) {
+                $this->success('API is reachable');
+            } else {
+                $this->warning('API returned status: ' . $response->status());
+            }
+
+            Log::info('API Connection Test', [
+                'url' => $url,
+                'status' => $response->status(),
+            ]);
+        } catch (\Exception $e) {
+            $this->error('Cannot reach API: ' . $e->getMessage());
+            Log::error('API Connection Test Failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function submitTestApi()
+    {
+        $this->validate([
+            'testPrescriptionId' => 'required|integer',
+            'testEnccode' => 'required|string|max:50',
+            'testHpercode' => 'required|string|max:50',
+            'testLocationCode' => 'required|string|max:20',
+            'testPriority' => 'required|in:normal,urgent,stat',
+            'testQueuePrefix' => 'nullable|string|max:10',
+            'testRemarks' => 'nullable|string',
+            'testCreatedBy' => 'nullable|string|max:20',
+            'testCreatedFrom' => 'nullable|string|max:50',
+        ]);
+
+        try {
+            $url = config('app.url') . '/api/prescription-queue/create';
+
+            $payload = [
+                'prescription_id' => $this->testPrescriptionId,
+                'enccode' => $this->testEnccode,
+                'hpercode' => $this->testHpercode,
+                'location_code' => $this->testLocationCode,
+                'priority' => $this->testPriority,
+            ];
+
+            if ($this->testQueuePrefix) {
+                $payload['queue_prefix'] = $this->testQueuePrefix;
+            }
+            if ($this->testRemarks) {
+                $payload['remarks'] = $this->testRemarks;
+            }
+            if ($this->testCreatedBy) {
+                $payload['created_by'] = $this->testCreatedBy;
+            }
+            if ($this->testCreatedFrom) {
+                $payload['created_from'] = $this->testCreatedFrom;
+            }
+
+            Log::info('Queue API Test Request', [
+                'url' => $url,
+                'payload' => $payload
+            ]);
+
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($url, $payload);
+
+            Log::info('Queue API Test Response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            $data = $response->json();
+
+            if ($response->successful()) {
+                if (isset($data['success']) && $data['success']) {
+                    $queueNumber = $data['data']['queue_number'] ?? 'N/A';
+                    $position = $data['data']['position'] ?? 'N/A';
+                    $waitTime = $data['data']['estimated_wait_minutes'] ?? 'N/A';
+
+                    $this->success(
+                        "Queue created! Number: {$queueNumber} | Position: {$position} | Wait: {$waitTime} min"
+                    );
+                    $this->showTestApiModal = false;
+                    $this->loadStats();
+                    $this->dispatch('refresh-queue');
+                    return;
+                }
+            }
+
+            $errorMsg = 'Unknown error';
+
+            if (isset($data['message'])) {
+                $errorMsg = $data['message'];
+            } elseif (isset($data['error'])) {
+                $errorMsg = is_array($data['error']) ? json_encode($data['error']) : $data['error'];
+            } elseif ($response->status() >= 400) {
+                $errorMsg = "HTTP {$response->status()}: " . $response->body();
+            }
+
+            $this->error("API Error: {$errorMsg}");
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            $this->error('Connection failed: Cannot reach API endpoint. Check if the server is running.');
+            Log::error('Queue API Connection Error', ['error' => $e->getMessage()]);
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            $this->error('Request failed: ' . $e->getMessage());
+            Log::error('Queue API Request Error', ['error' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            $this->error('Unexpected error: ' . $e->getMessage());
+            Log::error('Queue API Unexpected Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    public function fillSampleData()
+    {
+        try {
+            $sample = DB::connection('webapp')->select("
+            SELECT TOP 1
+                p.id as prescription_id,
+                p.enccode,
+                p.hpercode
+            FROM webapp.dbo.prescriptions p WITH (NOLOCK)
+            WHERE p.created_at >= DATEADD(day, -7, GETDATE())
+            ORDER BY p.created_at DESC
+        ");
+
+            if (!empty($sample)) {
+                $this->testPrescriptionId = $sample[0]->prescription_id;
+                $this->testEnccode = $sample[0]->enccode;
+                $this->testHpercode = $sample[0]->hpercode;
+                $this->info('Sample data loaded from recent prescription');
+            } else {
+                $this->testPrescriptionId = '12345';
+                $this->testEnccode = '000004012345TEST' . date('mdYHis');
+                $this->testHpercode = 'TEST' . date('Y') . sprintf('%07d', rand(1, 9999999));
+                $this->warning('Using dummy data - no recent prescriptions found');
+            }
+        } catch (\Exception $e) {
+            $this->testPrescriptionId = '12345';
+            $this->testEnccode = '000004012345TEST' . date('mdYHis');
+            $this->testHpercode = 'TEST' . date('Y') . sprintf('%07d', rand(1, 9999999));
+            $this->warning('Using dummy data');
+        }
+    }
 
     public function mount()
     {

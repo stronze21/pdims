@@ -56,6 +56,7 @@
                 <x-mary-menu-item title="Inventory" icon="o-cube" link="/inventory" />
                 <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list" link="/dispensing" />
                 <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+                <x-mary-menu-item title="Queueing" icon="o-clock" link="{{ route('prescriptions.queue.index') }}" />
                 <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
                 <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
                     <x-mary-menu-item title="Users" icon="o-user-group" link="{{ route('users.index') }}" />
