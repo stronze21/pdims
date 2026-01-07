@@ -59,16 +59,50 @@
             <div class="p-4 shadow-lg card bg-base-100">
                 <h3 class="mb-3 text-sm font-bold">Quick Actions</h3>
                 <div class="space-y-2">
-                    <x-mary-button label="Batch Create Queues" icon="o-plus-circle"
-                        class="w-full btn-primary touch-target" wire:click="openBatchCreateModal">
-                        <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
-                            class="loading-spinner loading-sm" />
+                    <x-mary-button label="Call Next" icon="o-megaphone" class="w-full btn-success touch-target"
+                        wire:click="callNextQueue">
+                        <x-mary-loading wire:loading wire:target="callNextQueue" class="loading-spinner loading-sm" />
                     </x-mary-button>
+
+                    @can('manual-queue')
+                        <x-mary-button label="Batch Create Queues" icon="o-plus-circle"
+                            class="w-full btn-primary touch-target" wire:click="openBatchCreateModal">
+                            <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
+                                class="loading-spinner loading-sm" />
+                        </x-mary-button>
+                    @endcan
 
                     <x-mary-button label="Refresh Queues" icon="o-arrow-path" class="w-full btn-ghost touch-target"
                         wire:click="$refresh">
                         <x-mary-loading wire:loading wire:target="$refresh" class="loading-spinner loading-sm" />
                     </x-mary-button>
+                </div>
+            </div>
+
+            {{-- Window Selection --}}
+            <div class="p-4 shadow-lg card bg-base-100">
+                <h3 class="mb-3 text-sm font-bold">Dispensing Window</h3>
+                <div class="space-y-3">
+                    <select class="w-full select select-bordered" wire:model.live="selectedWindow">
+                        <option value="">All Windows</option>
+                        @foreach (range(1, $maxWindows) as $windowNum)
+                            <option value="{{ $windowNum }}">Window {{ $windowNum }}</option>
+                        @endforeach
+                    </select>
+
+                    @if ($selectedWindow)
+                        <div class="p-3 rounded-lg bg-primary/10">
+                            <div class="text-xs opacity-70">Current Window</div>
+                            <div class="text-2xl font-bold text-primary">Window {{ $selectedWindow }}</div>
+                            <div class="mt-2 text-xs">
+                                You will only see queues assigned to this window.
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="text-xs opacity-70">
+                        💡 Select your window to avoid conflicts with other pharmacists
+                    </div>
                 </div>
             </div>
 
@@ -179,7 +213,7 @@
 
                                         {{-- Action Buttons --}}
                                         <div class="grid grid-cols-2 gap-2">
-                                            <button class="btn btn-xs btn-ghost touch-target"
+                                            <button class="btn btn-xs btn-ghost btn-outline touch-target"
                                                 wire:click="viewQueue({{ $queue->id }})">
                                                 <x-mary-icon name="o-eye" class="w-4 h-4" />
                                                 View
@@ -297,7 +331,7 @@
     {{-- Queue Details Modal --}}
     @if ($selectedQueue)
         <x-mary-modal wire:model="showDetailsModal" title="Queue Details" class="backdrop-blur"
-            box-class="max-w-3xl">
+            box-class="max-w-5xl">
             <div class="space-y-4">
                 {{-- Queue Info --}}
                 <div class="p-4 rounded-lg bg-base-200">

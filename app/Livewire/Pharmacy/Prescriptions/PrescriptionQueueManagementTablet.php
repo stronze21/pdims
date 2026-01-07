@@ -6,48 +6,54 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\Layout;
 use Mary\Traits\Toast;
 use Illuminate\Support\Facades\DB;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\PharmLocation;
-use Livewire\Attributes\Layout;
 
+#[Layout('layouts.queue-controller')]
 class PrescriptionQueueManagementTablet extends Component
 {
     use WithPagination, Toast;
+
+    protected $queueService;
 
     // Filters
     public $search = '';
     public $statusFilter = '';
     public $priorityFilter = '';
     public $dateFilter;
-    public $perPage = 25;
+    public $perPage = 12;
 
-    // Batch creation
+    // Window System
+    public $selectedWindow = null;
+    public $maxWindows = 4; // Configurable: 1-8 windows
+
+    // Modals
     public $showBatchCreateModal = false;
+    public $showDetailsModal = false;
+    public $showStatusModal = false;
+
+    // Batch Create
     public $batchDate;
-    public $batchLocation;
-    public $batchTypes = ['OPD'];
+    public $batchTypes = [];
     public $availableTypes = [
         'OPD' => 'Out-Patient',
         'ER' => 'Emergency Room',
-        'ADM' => 'Admission',
         'ERADM' => 'ER to Admission',
+        'ADM' => 'Admission',
         'OPDAD' => 'OPD to Admission',
     ];
 
-    // Selected queue
-    public $selectedQueueId;
-    public $showDetailsModal = false;
-    public $selectedQueue;
+    // Selected Queue
+    public $selectedQueueId = null;
+    public $selectedQueue = null;
 
-    // Status update
-    public $showStatusModal = false;
-    public $newStatus;
-    public $statusRemarks;
-
-    protected $queueService;
+    // Status Update
+    public $newStatus = null;
+    public $statusRemarks = '';
 
     public function boot(PrescriptionQueueService $queueService)
     {
@@ -58,294 +64,212 @@ class PrescriptionQueueManagementTablet extends Component
     {
         $this->dateFilter = today()->format('Y-m-d');
         $this->batchDate = today()->format('Y-m-d');
-        $this->batchLocation = auth()->user()->pharm_location_id;
+
+        // Auto-assign window if not set
+        if (!session('queue_window')) {
+            $this->autoAssignWindow();
+        } else {
+            $this->selectedWindow = session('queue_window');
+        }
     }
 
-    public function updatingSearch()
+    protected function autoAssignWindow()
     {
+        // Find the window with the least active queues
+        $windowLoads = [];
+        for ($i = 1; $i <= $this->maxWindows; $i++) {
+            $count = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+                ->whereIn('queue_status', ['preparing', 'ready'])
+                ->where('assigned_window', $i)
+                ->count();
+            $windowLoads[$i] = $count;
+        }
+
+        asort($windowLoads);
+        $this->selectedWindow = array_key_first($windowLoads);
+        session(['queue_window' => $this->selectedWindow]);
+    }
+
+    public function updatedSelectedWindow($value)
+    {
+        session(['queue_window' => $value]);
         $this->resetPage();
     }
 
-    public function updatingStatusFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingPriorityFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingDateFilter()
-    {
-        $this->resetPage();
-    }
-
-    /**
-     * Get queues for display
-     */
     public function getQueuesProperty()
     {
-        return PrescriptionQueue::query()
-            ->with(['patient', 'prescription', 'preparer', 'dispenser'])
-            ->when($this->search, function ($query) {
-                $query->where(function ($q) {
-                    $q->where('queue_number', 'like', '%' . $this->search . '%')
+        $query = PrescriptionQueue::query()
+            ->with(['patient', 'prescription', 'logs'])
+            ->where('location_code', auth()->user()->pharm_location_id)
+            ->when($this->search, function ($q) {
+                $q->where(function ($query) {
+                    $query->where('queue_number', 'like', '%' . $this->search . '%')
                         ->orWhere('hpercode', 'like', '%' . $this->search . '%')
                         ->orWhere('enccode', 'like', '%' . $this->search . '%');
                 });
             })
-            ->when($this->statusFilter, function ($query) {
-                $query->where('queue_status', $this->statusFilter);
+            ->when($this->statusFilter, fn($q) => $q->where('queue_status', $this->statusFilter))
+            ->when(!$this->statusFilter, fn($q) => $q->whereNot('queue_status', 'dispensed'))
+            ->when($this->priorityFilter, fn($q) => $q->where('priority', $this->priorityFilter))
+            ->when($this->dateFilter, function ($q) {
+                $q->whereDate('queued_at', $this->dateFilter);
             })
-            ->when($this->priorityFilter, function ($query) {
-                $query->where('priority', $this->priorityFilter);
+            ->when($this->selectedWindow, function ($q) {
+                // Only show unassigned or this window's queues
+                $q->where(function ($query) {
+                    $query->where('assigned_window', $this->selectedWindow)
+                        ->orWhereNull('assigned_window');
+                });
             })
-            ->when($this->dateFilter, function ($query) {
-                $query->whereDate('queued_at', $this->dateFilter);
-            })
-            ->forLocation(auth()->user()->pharm_location_id)
-            ->orderByPriority()
+            ->orderByRaw("
+                CASE
+                    WHEN priority = 'stat' THEN 1
+                    WHEN priority = 'urgent' THEN 2
+                    ELSE 3
+                END
+            ")
+            ->orderBy('queued_at', 'asc')
             ->paginate($this->perPage);
+
+        return $query;
     }
 
-    /**
-     * Get statistics for the current filters
-     */
     public function getStatsProperty()
     {
-        return $this->queueService->getLocationStats(
-            auth()->user()->pharm_location_id,
-            $this->dateFilter ? \Carbon\Carbon::parse($this->dateFilter) : today()
-        );
+        $baseQuery = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->whereDate('queued_at', $this->dateFilter ?: today());
+
+        if ($this->selectedWindow) {
+            $baseQuery->where(function ($q) {
+                $q->where('assigned_window', $this->selectedWindow)
+                    ->orWhereNull('assigned_window');
+            });
+        }
+
+        return [
+            'total' => $baseQuery->count(),
+            'waiting' => (clone $baseQuery)->where('queue_status', 'waiting')->count(),
+            'preparing' => (clone $baseQuery)->where('queue_status', 'preparing')->count(),
+            'ready' => (clone $baseQuery)->where('queue_status', 'ready')->count(),
+            'dispensed' => (clone $baseQuery)->where('queue_status', 'dispensed')->count(),
+            'cancelled' => (clone $baseQuery)->where('queue_status', 'cancelled')->count(),
+            'avg_waiting_time' => (clone $baseQuery)
+                ->where('queue_status', '!=', 'waiting')
+                ->whereNotNull('preparing_at')
+                ->selectRaw('AVG(DATEDIFF(MINUTE, queued_at, preparing_at)) as avg_time')
+                ->value('avg_time') ?? 0,
+            'avg_preparing_time' => (clone $baseQuery)
+                ->where('queue_status', '!=', 'preparing')
+                ->whereNotNull('ready_at')
+                ->selectRaw('AVG(DATEDIFF(MINUTE, preparing_at, ready_at)) as avg_time')
+                ->value('avg_time') ?? 0,
+            'avg_ready_time' => (clone $baseQuery)
+                ->where('queue_status', 'dispensed')
+                ->whereNotNull('dispensed_at')
+                ->selectRaw('AVG(DATEDIFF(MINUTE, ready_at, dispensed_at)) as avg_time')
+                ->value('avg_time') ?? 0,
+            'avg_total_time' => (clone $baseQuery)
+                ->where('queue_status', 'dispensed')
+                ->whereNotNull('dispensed_at')
+                ->selectRaw('AVG(DATEDIFF(MINUTE, queued_at, dispensed_at)) as avg_time')
+                ->value('avg_time') ?? 0,
+        ];
     }
 
-    /**
-     * Get available locations
-     */
     public function getLocationsProperty()
     {
         return PharmLocation::orderBy('description')->get();
     }
 
-    /**
-     * Open batch create modal
-     */
-    public function openBatchCreateModal()
-    {
-        $this->batchDate = today()->format('Y-m-d');
-        $this->batchLocation = auth()->user()->pharm_location_id;
-        $this->batchTypes = ['OPD'];
-        $this->showBatchCreateModal = true;
-    }
-
-    /**
-     * Preview prescriptions that will be queued
-     */
     #[Locked]
-    public function previewBatchCreate()
+    public function callNextQueue()
     {
-        try {
-            $prescriptions = $this->getPrescriptionsForQueue(
-                $this->batchDate,
-                $this->batchLocation,
-                $this->batchTypes
-            );
-
-            $this->dispatch('show-preview', [
-                'count' => $prescriptions->count(),
-                'prescriptions' => $prescriptions->take(10)->toArray()
-            ]);
-        } catch (\Exception $e) {
-            $this->error('Error previewing prescriptions: ' . $e->getMessage());
+        if (!$this->selectedWindow) {
+            $this->error('Please select a window first');
+            return;
         }
-    }
 
-    /**
-     * Execute batch queue creation
-     */
-    #[Locked]
-    public function executeBatchCreate()
-    {
-        try {
-            DB::beginTransaction();
+        // Get the next waiting queue (prioritized)
+        $nextQueue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->where('queue_status', 'waiting')
+            ->whereNull('assigned_window')
+            ->orderByRaw("
+                CASE
+                    WHEN priority = 'stat' THEN 1
+                    WHEN priority = 'urgent' THEN 2
+                    ELSE 3
+                END
+            ")
+            ->orderBy('queued_at', 'asc')
+            ->first();
 
-            $prescriptions = $this->getPrescriptionsForQueue(
-                $this->batchDate,
-                $this->batchLocation,
-                $this->batchTypes
-            );
+        if (!$nextQueue) {
+            $this->warning('No waiting queues available');
+            return;
+        }
 
-            if ($prescriptions->isEmpty()) {
-                $this->warning('No prescriptions found to queue.');
-                return;
-            }
+        // Assign to window and start preparing
+        $result = $this->queueService->updateQueueStatus(
+            $nextQueue->id,
+            'preparing',
+            auth()->user()->employeeid,
+            "Called to Window {$this->selectedWindow}"
+        );
 
-            $stats = [
-                'created' => 0,
-                'skipped' => 0,
-                'errors' => 0,
-            ];
-
-            foreach ($prescriptions as $prescription) {
-                // Check if queue already exists
-                $existingQueue = PrescriptionQueue::where('prescription_id', $prescription->prescription_id)
-                    ->whereIn('queue_status', ['waiting', 'preparing', 'ready'])
-                    ->first();
-
-                if ($existingQueue) {
-                    $stats['skipped']++;
-                    continue;
-                }
-
-                // Create queue
-                $result = $this->queueService->createQueue([
-                    'prescription_id' => $prescription->prescription_id,
-                    'enccode' => $prescription->enccode,
-                    'hpercode' => $prescription->hpercode,
-                    'location_code' => $prescription->location_code,
-                    'priority' => $prescription->priority,
-                    'queue_prefix' => $prescription->queue_prefix,
-                    'created_by' => $prescription->created_by,
-                    'created_from' => $prescription->created_from,
+        if ($result['success']) {
+            // Update window assignment
+            DB::connection('webapp')->table('prescription_queues')
+                ->where('id', $nextQueue->id)
+                ->update([
+                    'assigned_window' => $this->selectedWindow,
+                    'prepared_by' => auth()->user()->employeeid,
                 ]);
 
-                if ($result['success']) {
-                    $stats['created']++;
-                } else {
-                    $stats['errors']++;
-                }
-            }
-
-            DB::commit();
-
-            $this->showBatchCreateModal = false;
-
-            $message = "Batch creation completed: {$stats['created']} created, {$stats['skipped']} skipped";
-            if ($stats['errors'] > 0) {
-                $message .= ", {$stats['errors']} errors";
-            }
-
-            $this->success($message);
-            $this->dispatch('refresh-queues');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->error('Error creating queues: ' . $e->getMessage());
+            $this->success("Queue {$nextQueue->queue_number} called to Window {$this->selectedWindow}");
+            $this->dispatch('queue-called', queueNumber: $nextQueue->queue_number);
+        } else {
+            $this->error($result['message']);
         }
     }
 
-    /**
-     * Get prescriptions for queue creation
-     */
-    private function getPrescriptionsForQueue($date, $locationCode, $encounterTypes)
-    {
-        $encounterTypesStr = "'" . implode("','", $encounterTypes) . "'";
-
-        // Use BETWEEN for precise date filtering (single day)
-        $dateStart = $date . ' 00:00:00';
-        $dateEnd = $date . ' 23:59:59';
-
-        $query = "
-            SELECT
-                presc.id AS prescription_id,
-                enc.enccode,
-                enc.hpercode,
-                '{$locationCode}' AS location_code,
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM webapp.dbo.prescription_data pd
-                        WHERE pd.presc_id = presc.id
-                          AND pd.priority = 'U'
-                          AND pd.stat = 'A'
-                    )
-                    THEN 'stat'
-                    ELSE 'normal'
-                END AS priority,
-                enc.toecode AS queue_prefix,
-                presc.empid AS created_by,
-                opd.tscode AS created_from,
-                pat.patlast + ', ' + pat.patfirst AS patient_name,
-                enc.encdate,
-                presc.created_at AS prescription_time
-            FROM hospital.dbo.henctr enc
-                INNER JOIN hospital.dbo.hopdlog opd ON enc.enccode = opd.enccode
-                INNER JOIN webapp.dbo.prescription presc ON enc.enccode = presc.enccode
-                INNER JOIN hospital.dbo.hperson pat ON enc.hpercode = pat.hpercode
-            WHERE
-                enc.encdate BETWEEN '{$dateStart}' AND '{$dateEnd}'
-                AND enc.toecode IN ({$encounterTypesStr})
-                AND EXISTS (
-                    SELECT 1
-                    FROM webapp.dbo.prescription_data pd
-                    WHERE pd.presc_id = presc.id
-                      AND pd.stat = 'A'
-                )
-            ORDER BY
-                CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM webapp.dbo.prescription_data pd
-                        WHERE pd.presc_id = presc.id
-                          AND pd.priority = 'U'
-                          AND pd.stat = 'A'
-                    )
-                    THEN 1
-                    ELSE 2
-                END,
-                enc.encdate DESC,
-                presc.created_at DESC
-        ";
-
-        return collect(DB::select($query));
-    }
-
-    /**
-     * View queue details
-     */
     #[Locked]
     public function viewQueue($queueId)
     {
+        $this->selectedQueueId = $queueId;
         $this->selectedQueue = PrescriptionQueue::with([
             'patient',
             'prescription',
-            'preparer',
-            'dispenser',
             'logs.changer'
-        ])->findOrFail($queueId);
+        ])->find($queueId);
 
-        // Get prescription items using raw query to avoid Compoships composite key issue
-        if ($this->selectedQueue->prescription) {
-            $prescriptionItems = DB::connection('webapp')->select("
+        if ($this->selectedQueue && $this->selectedQueue->prescription_id) {
+            $prescriptionItems = collect(DB::connection('webapp')->select("
                 SELECT
                     pd.id,
+                    pd.dmdcomb,
+                    pd.dmdctr,
                     pd.qty,
-                    pd.stat,
                     pd.order_type,
-                    pd.frequency,
-                    pd.duration,
                     pd.remark,
                     pd.addtl_remarks,
                     pd.tkehome,
+                    pd.frequency,
+                    pd.duration,
                     dm.drug_concat
-                FROM webapp.dbo.prescription_data pd
-                INNER JOIN hospital.dbo.hdmhdr dm
-                    ON pd.dmdcomb = dm.dmdcomb
-                    AND pd.dmdctr = dm.dmdctr
+                FROM prescription_data pd
+                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
                 WHERE pd.presc_id = ?
-                  AND pd.stat = 'A'
-                ORDER BY pd.created_at DESC
-            ", [$this->selectedQueue->prescription_id]);
+                    AND pd.stat = 'A'
+                ORDER BY pd.created_at ASC
+            ", [$this->selectedQueue->prescription_id]));
 
-            $this->selectedQueue->prescription_items = collect($prescriptionItems);
+            $this->selectedQueue->prescription_items = $prescriptionItems;
         }
 
         $this->showDetailsModal = true;
     }
 
-    /**
-     * Open status update modal
-     */
+    #[Locked]
     public function openStatusModal($queueId, $status)
     {
         $this->selectedQueueId = $queueId;
@@ -354,15 +278,22 @@ class PrescriptionQueueManagementTablet extends Component
         $this->showStatusModal = true;
     }
 
-    /**
-     * Update queue status
-     */
     #[Locked]
     public function updateStatus()
     {
-        $this->validate([
-            'newStatus' => 'required|in:waiting,preparing,ready,dispensed,cancelled',
-        ]);
+        if (!$this->selectedQueueId || !$this->newStatus) {
+            $this->error('Invalid status update');
+            return;
+        }
+
+        $queue = PrescriptionQueue::find($this->selectedQueueId);
+
+        // Auto-assign window if starting to prepare
+        if ($this->newStatus === 'preparing' && !$queue->assigned_window && $this->selectedWindow) {
+            DB::connection('webapp')->table('prescription_queues')
+                ->where('id', $this->selectedQueueId)
+                ->update(['assigned_window' => $this->selectedWindow]);
+        }
 
         $result = $this->queueService->updateQueueStatus(
             $this->selectedQueueId,
@@ -374,67 +305,113 @@ class PrescriptionQueueManagementTablet extends Component
         if ($result['success']) {
             $this->success($result['message']);
             $this->showStatusModal = false;
-            $this->dispatch('refresh-queues');
-            $this->dispatch('refresh-display'); // Update display screen
+            $this->resetStatusForm();
         } else {
             $this->error($result['message']);
         }
     }
 
-    /**
-     * Call queue (mark as ready)
-     */
     #[Locked]
     public function callQueue($queueId)
     {
+        $queue = PrescriptionQueue::find($queueId);
+
+        if (!$queue || !$queue->isPreparing()) {
+            $this->error('Queue must be in preparing status');
+            return;
+        }
+
         $result = $this->queueService->updateQueueStatus(
             $queueId,
             'ready',
             auth()->user()->employeeid,
-            'Called for pickup'
+            'Queue called for pickup'
         );
 
         if ($result['success']) {
-            $this->success('Queue called successfully');
-            $this->dispatch('refresh-queues');
-            $this->dispatch('refresh-display');
+            $this->success("Queue {$queue->queue_number} is ready for pickup!");
+            $this->dispatch('queue-ready', queueNumber: $queue->queue_number);
         } else {
             $this->error($result['message']);
         }
     }
 
-    /**
-     * Cancel queue
-     */
     #[On('cancel-queue')]
     #[Locked]
-    public function cancelQueue($queueId, $reason = null)
+    public function cancelQueue($queueId)
     {
         $result = $this->queueService->updateQueueStatus(
             $queueId,
             'cancelled',
             auth()->user()->employeeid,
-            $reason ?? 'Cancelled by user'
+            'Cancelled by pharmacist'
         );
 
         if ($result['success']) {
-            $this->success('Queue cancelled');
-            $this->dispatch('refresh-queues');
+            $this->success($result['message']);
         } else {
             $this->error($result['message']);
         }
     }
 
-    /**
-     * Refresh queues
-     */
-    #[On('refresh-queues')]
-    public function refresh()
+    public function openBatchCreateModal()
     {
-        // Component will auto-refresh
+        $this->showBatchCreateModal = true;
     }
 
-    #[Layout('layouts.queue-controller')]
+    public function previewBatchCreate()
+    {
+        if (empty($this->batchTypes)) {
+            $this->warning('Please select at least one encounter type');
+            return;
+        }
+
+        $count = $this->queueService->countPendingPrescriptions(
+            auth()->user()->pharm_location_id,
+            $this->batchDate,
+            $this->batchTypes
+        );
+
+        $this->info("Found {$count} prescription(s) ready to be queued");
+    }
+
+    #[Locked]
+    public function executeBatchCreate()
+    {
+        if (empty($this->batchTypes)) {
+            $this->warning('Please select at least one encounter type');
+            return;
+        }
+
+        $result = $this->queueService->batchCreateQueues(
+            auth()->user()->pharm_location_id,
+            $this->batchDate,
+            $this->batchTypes,
+            auth()->user()->employeeid
+        );
+
+        if ($result['success']) {
+            $this->success($result['message']);
+            $this->showBatchCreateModal = false;
+            $this->resetBatchForm();
+        } else {
+            $this->error($result['message']);
+        }
+    }
+
+    private function resetStatusForm()
+    {
+        $this->selectedQueueId = null;
+        $this->newStatus = null;
+        $this->statusRemarks = '';
+    }
+
+    private function resetBatchForm()
+    {
+        $this->batchDate = today()->format('Y-m-d');
+        $this->batchTypes = [];
+    }
+
     public function render()
     {
         return view('livewire.pharmacy.prescriptions.prescription-queue-management-tablet', [

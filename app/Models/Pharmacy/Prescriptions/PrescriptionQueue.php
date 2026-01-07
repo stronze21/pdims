@@ -41,6 +41,7 @@ class PrescriptionQueue extends Model
         'remarks',
         'estimated_wait_minutes',
         'created_from',
+        'assigned_window',
     ];
 
     protected $casts = [
@@ -296,5 +297,33 @@ class PrescriptionQueue extends Model
 
         // Average 10 minutes per prescription
         return $aheadCount * 10;
+    }
+
+    public function getWindowBadgeClass()
+    {
+        if (!$this->assigned_window) return 'badge-ghost';
+
+        $colors = [
+            1 => 'badge-primary',
+            2 => 'badge-secondary',
+            3 => 'badge-accent',
+            4 => 'badge-info',
+            5 => 'badge-success',
+            6 => 'badge-warning',
+            7 => 'badge-error',
+            8 => 'badge-neutral',
+        ];
+
+        return $colors[$this->assigned_window] ?? 'badge-ghost';
+    }
+
+    public function isAssignedToWindow($windowNumber)
+    {
+        return $this->assigned_window === $windowNumber;
+    }
+
+    public function getWindowDisplay()
+    {
+        return $this->assigned_window ? "Window {$this->assigned_window}" : 'Unassigned';
     }
 }

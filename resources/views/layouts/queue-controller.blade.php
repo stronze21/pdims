@@ -71,7 +71,9 @@
 
                 {{-- Center: Live Clock --}}
                 <div class="text-center">
-                    <div class="text-2xl font-bold tabular-nums" id="queue-clock"></div>
+                    <div class="text-2xl font-bold tabular-nums" id="queue-clock">
+                        {{ now()->format('h:i:s A') }}
+                    </div>
                     <div class="text-xs opacity-70">{{ now()->format('D, M j, Y') }}</div>
                 </div>
 
