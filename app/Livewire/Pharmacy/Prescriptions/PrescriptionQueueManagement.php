@@ -5,6 +5,7 @@ namespace App\Livewire\Pharmacy\Prescriptions;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueLog;
+use App\Models\Record\Prescriptions\Prescription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -528,6 +529,10 @@ class PrescriptionQueueManagement extends Component
                 return;
             }
 
+            // $queue->prescription->update([
+            //     'stat' => 'I'
+            // ]);
+
             $oldStatus = $queue->queue_status;
             $queue->update([
                 'queue_status' => 'dispensed',
@@ -541,6 +546,7 @@ class PrescriptionQueueManagement extends Component
                 'status_to' => 'dispensed',
                 'changed_by' => auth()->user()->employeeid,
             ]);
+
 
             DB::connection('webapp')->commit();
             $this->success('Prescription dispensed: ' . $queue->queue_number);

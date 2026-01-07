@@ -27,7 +27,7 @@ class PrescriptionQueueApiController extends Controller
             'enccode' => 'required|string|max:50',
             'hpercode' => 'required|string|max:50',
             'location_code' => 'required|string|max:20',
-            'priority' => 'sometimes|in:normal,urgent,stat',
+            'priority' => 'sometimes|in:normal,stat',
             'queue_prefix' => 'sometimes|string|max:10',
             'remarks' => 'sometimes|string',
             'created_by' => 'sometimes|string|max:20',

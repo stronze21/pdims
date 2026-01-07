@@ -269,9 +269,8 @@ class PrescriptionQueue extends Model
 
         // Format: RX-20250103-0001 or STAT-20250103-0001
         $queueNumber = sprintf(
-            '%s-%s-%04d',
+            '%s-%04d',
             $prefix,
-            $date->format('Ymd'),
             $sequenceNumber
         );
 

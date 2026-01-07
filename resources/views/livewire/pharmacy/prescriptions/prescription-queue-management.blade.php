@@ -190,13 +190,13 @@
                                     </button>
                                 @endif
 
-                                {{-- NEW: Dispensing Window Button --}}
+                                {{-- NEW: Dispensing Window Button
                                 @if ($queue->isActive())
                                     <button class="btn btn-accent btn-sm"
                                         wire:click="openDispensingWindow({{ $queue->id }})">
                                         <i class="las la-prescription-bottle"></i> Dispense
                                     </button>
-                                @endif
+                                @endif --}}
 
                                 <button class="btn btn-ghost btn-sm" wire:click="viewDetails({{ $queue->id }})">
                                     <i class="las la-info-circle"></i> Details
