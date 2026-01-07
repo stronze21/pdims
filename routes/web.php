@@ -1,14 +1,16 @@
 <?php
 
-use App\Livewire\Roles\ManageRoles;
-use App\Livewire\Users\ManageUsers;
-use Illuminate\Support\Facades\Route;
-use App\Livewire\Records\PatientsList;
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagementTablet;
+use App\Livewire\Records\PatientsList;
+use App\Livewire\Roles\ManageRoles;
+use App\Livewire\Users\ManageUsers;
+use Illuminate\Support\Facades\Route;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -39,12 +41,8 @@ Route::middleware([
         Route::get('/queue', PrescriptionQueueManagement::class)
             ->name('queue.index');
         Route::get('/queue/controller', PrescriptionQueueManagementTablet::class)->name('queue.controller');
+        Route::get('/queue/controller/v2', PrescriptionQueueController::class)->name('queue.controller2');
     });
-
-    // Public Queue Display (can be accessed without auth for TV displays)
-    Route::get('/queue-display/{locationCode?}', PrescriptionQueueDisplay::class)
-        ->name('queue.display')
-        ->middleware('throttle:60,1'); // Rate limit for security
 
     // User Management Routes
     Route::get('/users', ManageUsers::class)
@@ -58,3 +56,8 @@ Route::middleware([
     Route::get('/permissions', ManagePermissions::class)
         ->name('permissions.index');
 });
+
+// Public Queue Display (can be accessed without auth for TV displays)
+Route::get('/queue-display/{locationCode?}', PrescriptionQueueDisplay::class)
+    ->name('queue.display')
+    ->middleware('throttle:60,1'); // Rate limit for security

@@ -31,28 +31,34 @@ class PrescriptionQueue extends Model
         'queued_at',
         'called_at',
         'preparing_at',
+        'charging_at',
         'ready_at',
         'dispensed_at',
         'cancelled_at',
         'prepared_by',
+        'charged_by',
         'dispensed_by',
         'cancelled_by',
+        'charge_slip_no',
         'cancellation_reason',
         'remarks',
         'estimated_wait_minutes',
         'created_from',
         'assigned_window',
+        'skip_count',
     ];
 
     protected $casts = [
         'queued_at' => 'datetime',
         'called_at' => 'datetime',
         'preparing_at' => 'datetime',
+        'charging_at' => 'datetime',
         'ready_at' => 'datetime',
         'dispensed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'estimated_wait_minutes' => 'integer',
         'sequence_number' => 'integer',
+        'skip_count' => 'integer',
     ];
 
     // ==========================================
@@ -72,6 +78,11 @@ class PrescriptionQueue extends Model
     public function preparer()
     {
         return $this->belongsTo(Employee::class, 'prepared_by', 'employeeid');
+    }
+
+    public function charger()
+    {
+        return $this->belongsTo(Employee::class, 'charged_by', 'employeeid');
     }
 
     public function dispenser()
@@ -108,6 +119,11 @@ class PrescriptionQueue extends Model
         return $query->where('queue_status', 'preparing');
     }
 
+    public function scopeCharging($query)
+    {
+        return $query->where('queue_status', 'charging');
+    }
+
     public function scopeReady($query)
     {
         return $query->where('queue_status', 'ready');
@@ -115,7 +131,7 @@ class PrescriptionQueue extends Model
 
     public function scopeActive($query)
     {
-        return $query->whereIn('queue_status', ['waiting', 'preparing', 'ready']);
+        return $query->whereIn('queue_status', ['waiting', 'preparing', 'charging', 'ready']);
     }
 
     public function scopeToday($query)
@@ -148,6 +164,7 @@ class PrescriptionQueue extends Model
         return match ($this->queue_status) {
             'waiting' => 'badge-warning',
             'preparing' => 'badge-info',
+            'charging' => 'badge-secondary',
             'ready' => 'badge-success',
             'dispensed' => 'badge-ghost',
             'cancelled' => 'badge-error',
@@ -170,27 +187,25 @@ class PrescriptionQueue extends Model
         $endTime = match ($this->queue_status) {
             'waiting' => now(),
             'preparing' => $this->preparing_at ?? now(),
+            'charging' => $this->charging_at ?? now(),
             'ready' => $this->ready_at ?? now(),
             'dispensed' => $this->dispensed_at ?? now(),
             'cancelled' => $this->cancelled_at ?? now(),
             default => now(),
         };
 
-        // Return whole minutes using floor()
         return floor($this->queued_at->diffInMinutes($endTime));
     }
 
     public function getProcessingTimeMinutes()
     {
         if (!$this->preparing_at || !$this->ready_at) return null;
-        // Return whole minutes using floor()
         return floor($this->preparing_at->diffInMinutes($this->ready_at));
     }
 
     public function getTotalTimeMinutes()
     {
         if (!$this->queued_at || !$this->dispensed_at) return null;
-        // Return whole minutes using floor()
         return floor($this->queued_at->diffInMinutes($this->dispensed_at));
     }
 
@@ -202,6 +217,11 @@ class PrescriptionQueue extends Model
     public function isPreparing()
     {
         return $this->queue_status === 'preparing';
+    }
+
+    public function isCharging()
+    {
+        return $this->queue_status === 'charging';
     }
 
     public function isReady()
@@ -221,12 +241,11 @@ class PrescriptionQueue extends Model
 
     public function isActive()
     {
-        return in_array($this->queue_status, ['waiting', 'preparing', 'ready']);
+        return in_array($this->queue_status, ['waiting', 'preparing', 'charging', 'ready']);
     }
 
     public function getDisplayName()
     {
-        // For privacy, only show partial name or queue number
         if (!$this->patient) return 'Queue ' . $this->queue_number;
 
         return mb_substr($this->patient->patfirst, 0, 1) . '*** ' .
@@ -239,91 +258,58 @@ class PrescriptionQueue extends Model
 
     public static function generateQueueNumber($locationCode, $prefix = 'RX', $priority = 'normal')
     {
-        $date = today();
+        $date = today()->format('Ymd');
+        $priorityPrefix = $priority === 'stat' ? 'S-' : '';
 
-        // Get or create sequence
-        $sequence = \DB::connection('webapp')->table('prescription_queue_sequences')
-            ->where('sequence_date', $date)
-            ->where('location_code', $locationCode)
+        $lastSequence = self::where('location_code', $locationCode)
             ->where('queue_prefix', $prefix)
-            ->lockForUpdate()
-            ->first();
+            ->whereDate('queued_at', today())
+            ->max('sequence_number') ?? 0;
 
-        if (!$sequence) {
-            \DB::connection('webapp')->table('prescription_queue_sequences')->insert([
-                'sequence_date' => $date,
-                'location_code' => $locationCode,
-                'queue_prefix' => $prefix,
-                'last_sequence' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $sequenceNumber = 1;
-        } else {
-            $sequenceNumber = $sequence->last_sequence + 1;
-            \DB::connection('webapp')->table('prescription_queue_sequences')
-                ->where('id', $sequence->id)
-                ->update([
-                    'last_sequence' => $sequenceNumber,
-                    'updated_at' => now(),
-                ]);
-        }
-
-        // Format: RX-20250103-0001 or STAT-20250103-0001
-        $queueNumber = sprintf(
-            '%s-%04d',
-            $prefix,
-            $sequenceNumber
-        );
+        $nextSequence = $lastSequence + 1;
+        $queueNumber = "{$prefix}-{$date}-{$priorityPrefix}" . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
 
         return [
             'queue_number' => $queueNumber,
-            'sequence_number' => $sequenceNumber,
+            'sequence_number' => $nextSequence,
         ];
     }
 
     public static function estimateWaitTime($locationCode, $priority = 'normal')
     {
-        // Get count of active queues ahead
-        $aheadCount = self::where('location_code', $locationCode)
-            ->whereIn('queue_status', ['waiting', 'preparing'])
-            ->when($priority === 'stat', function ($q) {
-                return $q->where('priority', 'stat');
-            })
-            ->when($priority === 'urgent', function ($q) {
-                return $q->whereIn('priority', ['stat', 'urgent']);
-            })
+        $waitingCount = self::forLocation($locationCode)
+            ->waiting()
+            ->whereDate('queued_at', today())
             ->count();
 
-        // Average 10 minutes per prescription
-        return $aheadCount * 10;
-    }
+        $preparingCount = self::forLocation($locationCode)
+            ->preparing()
+            ->whereDate('queued_at', today())
+            ->count();
 
-    public function getWindowBadgeClass()
-    {
-        if (!$this->assigned_window) return 'badge-ghost';
+        $chargingCount = self::forLocation($locationCode)
+            ->charging()
+            ->whereDate('queued_at', today())
+            ->count();
 
-        $colors = [
-            1 => 'badge-primary',
-            2 => 'badge-secondary',
-            3 => 'badge-accent',
-            4 => 'badge-info',
-            5 => 'badge-success',
-            6 => 'badge-warning',
-            7 => 'badge-error',
-            8 => 'badge-neutral',
-        ];
+        $avgProcessingTime = self::forLocation($locationCode)
+            ->where('queue_status', 'dispensed')
+            ->whereDate('queued_at', today())
+            ->whereNotNull('dispensed_at')
+            ->get()
+            ->avg(function ($queue) {
+                return $queue->getTotalTimeMinutes();
+            }) ?? 15;
 
-        return $colors[$this->assigned_window] ?? 'badge-ghost';
-    }
+        $queueAhead = $waitingCount + $preparingCount + $chargingCount;
+        $estimatedWait = ceil($queueAhead * $avgProcessingTime);
 
-    public function isAssignedToWindow($windowNumber)
-    {
-        return $this->assigned_window === $windowNumber;
-    }
+        if ($priority === 'stat') {
+            $estimatedWait = ceil($estimatedWait * 0.3);
+        } elseif ($priority === 'urgent') {
+            $estimatedWait = ceil($estimatedWait * 0.6);
+        }
 
-    public function getWindowDisplay()
-    {
-        return $this->assigned_window ? "Window {$this->assigned_window}" : 'Unassigned';
+        return max(5, min($estimatedWait, 180));
     }
 }

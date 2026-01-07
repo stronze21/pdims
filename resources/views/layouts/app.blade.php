@@ -61,7 +61,7 @@
                     <x-mary-menu-item title="Desktop View" icon="o-computer-desktop"
                         link="{{ route('prescriptions.queue.index') }}" />
                     <x-mary-menu-item title="Tablet View" icon="o-device-tablet"
-                        link="{{ route('prescriptions.queue.controller') }}" />
+                        link="{{ route('prescriptions.queue.controller2') }}" />
                 </x-mary-menu-sub>
                 <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
                     <x-mary-menu-item title="Users" icon="o-user-group" link="{{ route('users.index') }}" />

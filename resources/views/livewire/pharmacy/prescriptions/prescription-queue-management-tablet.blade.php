@@ -159,7 +159,7 @@
                 {{-- Queue Cards Grid --}}
                 <div class="overflow-y-auto hide-scrollbar" style="height: calc(100vh - 220px);">
                     @if ($queues->count() > 0)
-                        <div class="grid grid-cols-2 gap-3 pb-4">
+                        <div class="grid grid-cols-1 gap-3 pb-4">
                             @foreach ($queues as $queue)
                                 <div
                                     class="border-2 shadow-md card bg-base-50

@@ -10,6 +10,36 @@ use App\Models\Record\Prescriptions\Prescription;
 class PrescriptionQueueService
 {
     /**
+     * Log queue action without changing status
+     */
+    public function logQueueAction($queueId, $userId = null, $remarks = null)
+    {
+        try {
+            $queue = PrescriptionQueue::findOrFail($queueId);
+
+            // Create log entry
+            PrescriptionQueueLog::create([
+                'queue_id' => $queueId,
+                'status_from' => $queue->queue_status,
+                'status_to' => $queue->queue_status, // Same status
+                'changed_by' => $userId,
+                'remarks' => $remarks,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Action logged successfully',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to log action',
+            ];
+        }
+    }
+
+    /**
      * Create a new queue entry for a prescription
      * This is called from EMR or PDIMS when a prescription is created
      */
@@ -95,6 +125,10 @@ class PrescriptionQueueService
                     $updates['preparing_at'] = now();
                     $updates['prepared_by'] = $userId;
                     break;
+                case 'charging':
+                    $updates['charging_at'] = now();
+                    $updates['charged_by'] = $userId;
+                    break;
                 case 'ready':
                     $updates['ready_at'] = now();
                     break;
@@ -113,7 +147,7 @@ class PrescriptionQueueService
 
             // Log status change
             PrescriptionQueueLog::create([
-                'queue_id' => $queue->id,
+                'queue_id' => $queueId,
                 'status_from' => $oldStatus,
                 'status_to' => $newStatus,
                 'changed_by' => $userId,
@@ -125,7 +159,7 @@ class PrescriptionQueueService
             return [
                 'success' => true,
                 'queue' => $queue->fresh(),
-                'message' => 'Queue status updated',
+                'message' => "Queue status updated to {$newStatus}",
             ];
         } catch (\Exception $e) {
             DB::connection('webapp')->rollBack();
@@ -139,7 +173,23 @@ class PrescriptionQueueService
     }
 
     /**
-     * Get queue statistics for a location
+     * Validate queue creation data
+     */
+    private function validateQueueData(array $data)
+    {
+        $required = ['prescription_id', 'enccode', 'hpercode', 'location_code'];
+
+        foreach ($required as $field) {
+            if (!isset($data[$field])) {
+                throw new \InvalidArgumentException("Missing required field: {$field}");
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get location statistics
      */
     public function getLocationStats($locationCode, $date = null)
     {
@@ -155,6 +205,10 @@ class PrescriptionQueueService
                 ->count(),
             'preparing' => PrescriptionQueue::forLocation($locationCode)
                 ->preparing()
+                ->whereDate('queued_at', $date)
+                ->count(),
+            'charging' => PrescriptionQueue::forLocation($locationCode)
+                ->charging()
                 ->whereDate('queued_at', $date)
                 ->count(),
             'ready' => PrescriptionQueue::forLocation($locationCode)
@@ -194,6 +248,91 @@ class PrescriptionQueueService
     }
 
     /**
+     * Count pending prescriptions for batch queue creation
+     */
+    public function countPendingPrescriptions($locationCode, $date, $encounterTypes = [])
+    {
+        $query = DB::connection('webapp')
+            ->table('prescriptions as p')
+            ->join('hospital.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
+            ->whereDate('p.created_at', $date)
+            ->where('p.location_code', $locationCode)
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('prescription_queues')
+                    ->whereColumn('prescription_queues.prescription_id', 'p.id')
+                    ->whereIn('prescription_queues.queue_status', ['waiting', 'preparing', 'charging', 'ready']);
+            });
+
+        if (!empty($encounterTypes)) {
+            $query->whereIn('e.toecode', $encounterTypes);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Batch create queues for pending prescriptions
+     */
+    public function batchCreateQueues($locationCode, $date, $encounterTypes = [], $userId = null)
+    {
+        DB::connection('webapp')->beginTransaction();
+        try {
+            $prescriptions = DB::connection('webapp')
+                ->table('prescriptions as p')
+                ->join('hospital.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
+                ->select('p.id', 'p.enccode', 'e.hpercode')
+                ->whereDate('p.created_at', $date)
+                ->where('p.location_code', $locationCode)
+                ->whereNotExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('prescription_queues')
+                        ->whereColumn('prescription_queues.prescription_id', 'p.id')
+                        ->whereIn('prescription_queues.queue_status', ['waiting', 'preparing', 'charging', 'ready']);
+                });
+
+            if (!empty($encounterTypes)) {
+                $prescriptions->whereIn('e.toecode', $encounterTypes);
+            }
+
+            $prescriptions = $prescriptions->get();
+
+            $created = 0;
+            foreach ($prescriptions as $prescription) {
+                $result = $this->createQueue([
+                    'prescription_id' => $prescription->id,
+                    'enccode' => $prescription->enccode,
+                    'hpercode' => $prescription->hpercode,
+                    'location_code' => $locationCode,
+                    'priority' => 'normal',
+                    'created_by' => $userId,
+                    'created_from' => 'Batch',
+                ]);
+
+                if ($result['success']) {
+                    $created++;
+                }
+            }
+
+            DB::connection('webapp')->commit();
+
+            return [
+                'success' => true,
+                'created_count' => $created,
+                'message' => "Successfully created {$created} queue(s)",
+            ];
+        } catch (\Exception $e) {
+            DB::connection('webapp')->rollBack();
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Failed to create batch queues',
+            ];
+        }
+    }
+
+    /**
      * Clean up old expired queues (run daily)
      */
     public function cleanupOldQueues($daysToKeep = 30)
@@ -224,47 +363,12 @@ class PrescriptionQueueService
         // Archive yesterday's sequences if needed
         DB::connection('webapp')
             ->table('prescription_queue_sequences')
-            ->where('sequence_date', '<', $yesterday->subDays(7))
+            ->whereDate('created_at', '<', $yesterday)
             ->delete();
 
         return [
             'success' => true,
             'message' => 'Daily sequences reset',
         ];
-    }
-
-    /**
-     * Validate queue data
-     */
-    private function validateQueueData(array $data)
-    {
-        $required = ['prescription_id', 'enccode', 'hpercode', 'location_code'];
-
-        foreach ($required as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
-                throw new \InvalidArgumentException("Missing required field: $field");
-            }
-        }
-
-        // Validate priority
-        if (isset($data['priority']) && !in_array($data['priority'], ['normal', 'urgent', 'stat'])) {
-            throw new \InvalidArgumentException("Invalid priority value");
-        }
-
-        // Check if prescription exists
-        if (!Prescription::find($data['prescription_id'])) {
-            throw new \InvalidArgumentException("Prescription not found");
-        }
-
-        // Check for duplicate queue
-        $existing = PrescriptionQueue::where('prescription_id', $data['prescription_id'])
-            ->whereIn('queue_status', ['waiting', 'preparing', 'ready'])
-            ->first();
-
-        if ($existing) {
-            throw new \InvalidArgumentException("Queue already exists for this prescription: " . $existing->queue_number);
-        }
-
-        return $data;
     }
 }

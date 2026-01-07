@@ -25,15 +25,22 @@ class PrescriptionQueueDisplay extends Component
     #[On('refresh-display')]
     public function loadQueues()
     {
-        // Get currently serving (preparing)
+        // Get currently preparing
         $this->currentlyServing = PrescriptionQueue::forLocation($this->locationCode)
             ->preparing()
             ->whereDate('queued_at', today())
             ->orderByPriority()
-            ->limit(3)
             ->get();
 
-        // Get ready for pickup
+        // Get charging (at cashier)
+        $charging = PrescriptionQueue::forLocation($this->locationCode)
+            ->charging()
+            ->whereDate('queued_at', today())
+            ->orderBy('charging_at', 'desc')
+            ->limit($this->displaySettings->display_limit)
+            ->get();
+
+        // Get ready for dispensing
         $ready = PrescriptionQueue::forLocation($this->locationCode)
             ->ready()
             ->whereDate('queued_at', today())
@@ -50,6 +57,7 @@ class PrescriptionQueueDisplay extends Component
             ->get();
 
         $this->showingQueues = [
+            'charging' => $charging,
             'ready' => $ready,
             'waiting' => $waiting,
         ];
@@ -65,6 +73,6 @@ class PrescriptionQueueDisplay extends Component
     public function render()
     {
         return view('livewire.pharmacy.prescriptions.prescription-queue-display')
-            ->layout('layouts.queuing'); // Special fullscreen layout
+            ->layout('layouts.queuing');
     }
 }
