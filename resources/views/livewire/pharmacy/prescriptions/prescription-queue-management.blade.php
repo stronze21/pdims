@@ -1,713 +1,505 @@
-<div x-data="{ autoRefresh: @entangle('autoRefresh') }" x-init="if (autoRefresh) {
-    setInterval(() => { $wire.call('refreshQueue') }, 30000);
-}">
-    <div class="flex items-center justify-between">
-        <div class="text-sm breadcrumbs">
-            <ul>
-                <li class="font-bold text-primary">
-                    <x-mary-icon name="o-building-office-2" class="inline w-5 h-5" />
-                    {{ session('pharm_location_name') }}
-                </li>
-                <li>
-                    <x-mary-icon name="o-queue-list" class="inline w-5 h-5" />
-                    Prescription Queue
-                </li>
-            </ul>
+<div>
+    {{-- Global Loading Indicator --}}
+    <x-mary-hr class="progress-primary" />
+
+    {{-- Header with Stats --}}
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-2xl font-bold">Prescription Queue Management</h1>
+                <p class="text-sm text-gray-500">Manage prescription queues for
+                    {{ auth()->user()->location->description }}</p>
+            </div>
+            <div class="flex gap-4 items-center">
+                {{-- Live Clock --}}
+                <div class="text-right">
+                    <div class="text-lg font-bold" id="live-clock"></div>
+                    <div class="text-xs opacity-70">{{ now()->format('l, F j, Y') }}</div>
+                </div>
+
+                <div class="flex gap-2">
+                    <x-mary-button label="Batch Create Queues" icon="o-plus-circle" class="btn-primary"
+                        wire:click="openBatchCreateModal">
+                        <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
+                            class="loading-spinner loading-sm" />
+                    </x-mary-button>
+
+                    <x-mary-button icon="o-arrow-path" class="btn-ghost" wire:click="$refresh" tooltip="Refresh">
+                        <x-mary-loading wire:loading wire:target="$refresh" class="loading-spinner loading-sm" />
+                    </x-mary-button>
+                </div>
+            </div>
         </div>
-        <div class="flex gap-2">
-            <x-mary-toggle wire:model.live="autoRefresh" label="Auto-refresh" />
-            <x-mary-button icon="o-arrow-path" wire:click="refreshQueue" spinner="refreshQueue" class="btn-sm btn-ghost"
-                tooltip="Refresh" />
-            <x-mary-button label="Test API" icon="o-beaker" wire:click="openTestApiModal" class="btn-outline btn-sm"
-                tooltip="Test queue creation API" />
+
+        {{-- Statistics Cards --}}
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-6">
+            <div class="p-4 shadow-lg card bg-base-100">
+                <div class="text-xs opacity-70">Total</div>
+                <div class="text-2xl font-bold">{{ $stats['total'] }}</div>
+            </div>
+            <div class="p-4 shadow-lg card bg-warning/10">
+                <div class="text-xs opacity-70">Waiting</div>
+                <div class="text-2xl font-bold text-warning">{{ $stats['waiting'] }}</div>
+            </div>
+            <div class="p-4 shadow-lg card bg-info/10">
+                <div class="text-xs opacity-70">Preparing</div>
+                <div class="text-2xl font-bold text-info">{{ $stats['preparing'] }}</div>
+            </div>
+            <div class="p-4 shadow-lg card bg-success/10">
+                <div class="text-xs opacity-70">Ready</div>
+                <div class="text-2xl font-bold text-success">{{ $stats['ready'] }}</div>
+            </div>
+            <div class="p-4 shadow-lg card bg-base-100">
+                <div class="text-xs opacity-70">Dispensed</div>
+                <div class="text-2xl font-bold text-gray-500">{{ $stats['dispensed'] }}</div>
+            </div>
+            <div class="p-4 shadow-lg card bg-error/10">
+                <div class="text-xs opacity-70">Cancelled</div>
+                <div class="text-2xl font-bold text-error">{{ $stats['cancelled'] }}</div>
+            </div>
+        </div>
+
+        {{-- Average Times --}}
+        @if ($stats['avg_wait_time'] > 0)
+            <div class="grid grid-cols-2 gap-4 mt-4">
+                <div class="p-3 shadow card bg-base-100">
+                    <div class="text-xs opacity-70">Avg Total Time</div>
+                    <div class="text-lg font-bold">{{ floor($stats['avg_wait_time']) }} min</div>
+                </div>
+                <div class="p-3 shadow card bg-base-100">
+                    <div class="text-xs opacity-70">Avg Processing Time</div>
+                    <div class="text-lg font-bold">{{ floor($stats['avg_processing_time']) }} min</div>
+                </div>
+            </div>
+        @endif
+    </div>
+
+    {{-- Filters --}}
+    <div class="mb-6 shadow-lg card bg-base-100">
+        <div class="card-body">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+                <x-mary-input wire:model.live.debounce.300ms="search" placeholder="Search queue, patient, encounter..."
+                    icon="o-magnifying-glass" clearable />
+
+                <select class="select select-bordered" wire:model.live="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="waiting">Waiting</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="ready">Ready</option>
+                    <option value="dispensed">Dispensed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+
+                <select class="select select-bordered" wire:model.live="priorityFilter">
+                    <option value="">All Priorities</option>
+                    <option value="normal">Normal</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="stat">STAT</option>
+                </select>
+
+                <x-mary-input type="date" wire:model.live="dateFilter" icon="o-calendar" />
+
+                <select class="select select-bordered" wire:model.live="perPage">
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <div class="container px-4 py-4 mx-auto space-y-4">
-
-        {{-- Stats Cards --}}
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Total Today</div>
-                    <div class="stat-value text-2xl text-primary">{{ $stats['total_today'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Waiting</div>
-                    <div class="stat-value text-2xl text-warning">{{ $stats['waiting'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Preparing</div>
-                    <div class="stat-value text-2xl text-info">{{ $stats['preparing'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Ready</div>
-                    <div class="stat-value text-2xl text-success">{{ $stats['ready'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Dispensed</div>
-                    <div class="stat-value text-2xl">{{ $stats['dispensed'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Cancelled</div>
-                    <div class="stat-value text-2xl text-error">{{ $stats['cancelled'] }}</div>
-                </div>
-            </div>
-            <div class="shadow stats bg-base-100">
-                <div class="stat">
-                    <div class="stat-title text-xs">Avg Wait</div>
-                    <div class="stat-value text-2xl">{{ $stats['avg_wait_time'] }}<span class="text-sm">m</span></div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Filters --}}
-        <x-mary-card shadow class="bg-base-100">
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-6">
-                <x-mary-input wire:model.live.debounce.300ms="searchQueue" placeholder="Search queue, patient..."
-                    icon="o-magnifying-glass" inline clearable />
-
-                <x-mary-input type="date" wire:model.live="dateFilter" label="Date" icon="o-calendar" inline />
-
-                <x-mary-select wire:model.live="statusFilter" inline label="Status" :options="[
-                    ['id' => 'all', 'name' => 'All Status'],
-                    ['id' => 'active', 'name' => 'Active'],
-                    ['id' => 'waiting', 'name' => 'Waiting'],
-                    ['id' => 'preparing', 'name' => 'Preparing'],
-                    ['id' => 'ready', 'name' => 'Ready'],
-                    ['id' => 'dispensed', 'name' => 'Dispensed'],
-                    ['id' => 'cancelled', 'name' => 'Cancelled'],
-                ]" />
-
-                <x-mary-select wire:model.live="priorityFilter" inline label="Priority" :options="[
-                    ['id' => 'all', 'name' => 'All Priority'],
-                    ['id' => 'stat', 'name' => 'STAT'],
-                    ['id' => 'urgent', 'name' => 'Urgent'],
-                    ['id' => 'normal', 'name' => 'Normal'],
-                ]" />
-
-                <div class="flex items-end gap-2 md:col-span-2">
-                    <x-mary-button label="Call Next" icon="o-bell-alert" wire:click="callNext"
-                        class="btn-primary btn-sm flex-1" spinner="callNext" />
-                    <x-mary-button icon="o-adjustments-horizontal" class="btn-ghost btn-sm" tooltip="Settings" />
-                </div>
-            </div>
-        </x-mary-card>
-
-        {{-- Queue List --}}
-        <x-mary-card shadow class="bg-base-100">
-            <x-slot:title>
-                <span class="text-lg font-bold">Queue List</span>
-            </x-slot:title>
-
-            <div class="overflow-y-auto max-h-[calc(100vh-480px)]">
-                @forelse($queues as $queue)
-                    <div wire:key="queue-{{ $queue->id }}"
-                        class="p-4 mb-3 transition-all border rounded-lg
-                            {{ $queue->isWaiting() ? 'border-warning bg-warning/5' : '' }}
-                            {{ $queue->isPreparing() ? 'border-info bg-info/5' : '' }}
-                            {{ $queue->isReady() ? 'border-success bg-success/5 shadow-md' : '' }}
-                            {{ $queue->isDispensed() ? 'border-base-300 bg-base-200' : '' }}
-                            {{ $queue->isCancelled() ? 'border-error bg-error/5' : '' }}
-                            hover:shadow-lg">
-
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <h3 class="text-xl font-bold font-mono">{{ $queue->queue_number }}</h3>
-                                    <span class="badge {{ $queue->getStatusBadgeClass() }} badge-sm">
-                                        {{ ucfirst($queue->queue_status) }}
-                                    </span>
-                                    @if ($queue->priority !== 'normal')
-                                        <span class="badge {{ $queue->getPriorityBadgeClass() }} badge-sm">
-                                            {{ strtoupper($queue->priority) }}
-                                        </span>
+    {{-- Queues Table --}}
+    <div class="shadow-lg card bg-base-100">
+        <div class="card-body">
+            <div class="overflow-x-auto">
+                <table class="table w-full table-zebra table-sm">
+                    <thead class="bg-base-200">
+                        <tr class="text-xs uppercase">
+                            <th>Queue #</th>
+                            <th>Patient</th>
+                            <th>Encounter</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Queued At</th>
+                            <th>Wait Time</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($queues as $queue)
+                            <tr class="hover" wire:key="queue-{{ $queue->id }}">
+                                <td>
+                                    <div class="font-mono font-bold">{{ $queue->queue_number }}</div>
+                                    <div class="text-xs opacity-70">Seq: {{ $queue->sequence_number }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-medium">{{ $queue->hpercode }}</div>
+                                    @if ($queue->patient)
+                                        <div class="text-xs opacity-70">{{ $queue->patient->fullname() }}</div>
                                     @endif
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-                                    <div>
-                                        <p class="text-xs text-gray-500">Patient</p>
-                                        <p class="font-semibold">
-                                            @if ($queue->patient)
-                                                {{ $queue->patient->patlast }}, {{ $queue->patient->patfirst }}
-                                            @else
-                                                N/A
-                                            @endif
-                                        </p>
+                                </td>
+                                <td>
+                                    <div class="badge badge-ghost badge-sm">{{ $queue->queue_prefix }}</div>
+                                    <div class="text-xs opacity-70">{{ $queue->enccode }}</div>
+                                </td>
+                                <td>
+                                    <div class="badge {{ $queue->getPriorityBadgeClass() }} badge-sm">
+                                        {{ strtoupper($queue->priority) }}
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Hospital #</p>
-                                        <p class="font-mono">{{ $queue->hpercode }}</p>
+                                </td>
+                                <td>
+                                    <div class="badge {{ $queue->getStatusBadgeClass() }} badge-sm">
+                                        {{ strtoupper($queue->queue_status) }}
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Queued At</p>
-                                        <p>{{ $queue->queued_at->format('h:i A') }}</p>
+                                </td>
+                                <td>
+                                    <div class="text-sm">{{ $queue->queued_at->format('h:i A') }}</div>
+                                    <div class="text-xs opacity-70">{{ $queue->queued_at->format('M d') }}</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm font-medium">{{ $queue->getWaitTimeMinutes() }} min</div>
+                                    @if ($queue->estimated_wait_minutes)
+                                        <div class="text-xs opacity-70">Est: {{ $queue->estimated_wait_minutes }}m
+                                        </div>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="flex justify-end gap-1">
+                                        <x-mary-button class="btn btn-xs btn-ghost"
+                                            wire:click="viewQueue({{ $queue->id }})" tooltip="View Details">
+                                            <x-mary-icon name="o-eye" class="w-4 h-4" />
+                                            <x-mary-loading wire:loading wire:target="viewQueue"
+                                                class="loading-spinner loading-xs" />
+                                        </x-mary-button>
+
+                                        @if ($queue->isWaiting())
+                                            <x-mary-button class="btn btn-xs btn-info"
+                                                wire:click="openStatusModal({{ $queue->id }}, 'preparing')"
+                                                tooltip="Start Preparing">
+                                                <x-mary-icon name="o-play" class="w-4 h-4" />
+                                                <x-mary-loading wire:loading wire:target="openStatusModal"
+                                                    class="loading-spinner loading-xs" />
+                                            </x-mary-button>
+                                        @endif
+
+                                        @if ($queue->isPreparing())
+                                            <x-mary-button class="btn btn-xs btn-success"
+                                                wire:click="callQueue({{ $queue->id }})"
+                                                tooltip="Call for Pickup">
+                                                <x-mary-icon name="o-bell-alert" class="w-4 h-4" />
+                                                <x-mary-loading wire:loading wire:target="callQueue"
+                                                    class="loading-spinner loading-xs" />
+                                            </x-mary-button>
+                                        @endif
+
+                                        @if ($queue->isReady())
+                                            <x-mary-button class="btn btn-xs btn-primary"
+                                                wire:click="openStatusModal({{ $queue->id }}, 'dispensed')"
+                                                tooltip="Mark Dispensed">
+                                                <x-mary-icon name="o-check" class="w-4 h-4" />
+                                                <x-mary-loading wire:loading wire:target="openStatusModal"
+                                                    class="loading-spinner loading-xs" />
+                                            </x-mary-button>
+                                        @endif
+
+                                        @if ($queue->isActive())
+                                            <x-mary-button class="btn btn-xs btn-error"
+                                                wire:confirm="Cancel this queue?"
+                                                wire:click="$dispatch('cancel-queue', { queueId: {{ $queue->id }} })"
+                                                tooltip="Cancel">
+                                                <x-mary-icon name="o-x-mark" class="w-4 h-4" />
+                                                <x-mary-loading wire:loading wire:target="cancelQueue"
+                                                    class="loading-spinner loading-xs" />
+                                            </x-mary-button>
+                                        @endif
                                     </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Wait Time</p>
-                                        <p class="font-semibold">{{ $queue->getWaitTimeMinutes() }} min</p>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <x-mary-icon name="o-queue-list" class="w-16 h-16 text-gray-300" />
+                                        <p class="mt-3 font-medium text-gray-500">No queues found</p>
+                                        <p class="text-sm text-gray-400">Try adjusting your filters or create new
+                                            queues</p>
                                     </div>
-                                </div>
-
-                                @if ($queue->remarks)
-                                    <div class="mt-2">
-                                        <p class="text-xs text-gray-500">Notes:</p>
-                                        <p class="text-sm italic">{{ $queue->remarks }}</p>
-                                    </div>
-                                @endif
-                            </div>
-
-                            <div class="flex flex-col gap-2 ml-4">
-                                @if ($queue->isWaiting())
-                                    <button class="btn btn-info btn-sm"
-                                        wire:click="startPreparing({{ $queue->id }})" wire:loading.attr="disabled">
-                                        <i class="las la-play"></i> Start
-                                    </button>
-                                @endif
-
-                                @if ($queue->isPreparing())
-                                    <button class="btn btn-success btn-sm"
-                                        wire:click="markReady({{ $queue->id }})" wire:loading.attr="disabled">
-                                        <i class="las la-check"></i> Ready
-                                    </button>
-                                @endif
-
-                                @if ($queue->isReady())
-                                    <button class="btn btn-primary btn-sm"
-                                        wire:click="markDispensed({{ $queue->id }})" wire:loading.attr="disabled">
-                                        <i class="las la-hand-holding-medical"></i> Dispense
-                                    </button>
-                                @endif
-
-                                {{-- NEW: Dispensing Window Button
-                                @if ($queue->isActive())
-                                    <button class="btn btn-accent btn-sm"
-                                        wire:click="openDispensingWindow({{ $queue->id }})">
-                                        <i class="las la-prescription-bottle"></i> Dispense
-                                    </button>
-                                @endif --}}
-
-                                <button class="btn btn-ghost btn-sm" wire:click="viewDetails({{ $queue->id }})">
-                                    <i class="las la-info-circle"></i> Details
-                                </button>
-
-                                @if ($queue->isActive())
-                                    <button class="btn btn-ghost btn-sm"
-                                        wire:click="openNotesModal({{ $queue->id }})">
-                                        <i class="las la-sticky-note"></i> Notes
-                                    </button>
-                                    <button class="btn btn-error btn-sm"
-                                        wire:click="openCancelModal({{ $queue->id }})">
-                                        <i class="las la-times"></i> Cancel
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="flex flex-col items-center justify-center py-12">
-                        <x-mary-icon name="o-queue-list" class="w-16 h-16 text-gray-300" />
-                        <p class="mt-3 font-medium text-gray-500">No prescriptions in queue</p>
-                    </div>
-                @endforelse
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        </x-mary-card>
+
+            {{-- Pagination --}}
+            @if ($queues->hasPages())
+                <div class="mt-4">
+                    {{ $queues->links() }}
+                </div>
+            @endif
+        </div>
     </div>
 
-    {{-- Enhanced Details Modal with Prescribed Items --}}
-    <x-mary-modal wire:model="showDetailsModal" title="Queue Details" class="backdrop-blur" box-class="max-w-5xl">
-        @if ($selectedQueue)
+    {{-- Batch Create Modal --}}
+    <x-mary-modal wire:model="showBatchCreateModal" title="Batch Create Prescription Queues" class="backdrop-blur"
+        box-class="max-w-2xl">
+        <div class="space-y-4">
+            <div class="p-4 rounded-lg alert alert-info">
+                <x-mary-icon name="o-information-circle" class="w-5 h-5" />
+                <span>This will automatically create queues for prescriptions matching your criteria.</span>
+            </div>
+
+            <x-mary-input label="Date" type="date" wire:model.live="batchDate" icon="o-calendar"
+                hint="Prescriptions from this date onwards" />
+
+            <x-mary-select label="Location" wire:model.live="batchLocation" :options="$locations" option-value="id"
+                option-label="description" icon="o-map-pin" />
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-bold">Encounter Types</span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    @foreach ($availableTypes as $code => $name)
+                        <label class="cursor-pointer label">
+                            <span class="label-text">{{ $name }}</span>
+                            <input type="checkbox" class="checkbox checkbox-primary" wire:model.live="batchTypes"
+                                value="{{ $code }}" />
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="p-4 rounded-lg bg-base-200">
+                <x-mary-button class="btn btn-sm btn-outline" wire:click="previewBatchCreate">
+                    <x-mary-icon name="o-eye" class="w-4 h-4" />
+                    Preview Prescriptions
+                    <x-mary-loading wire:loading wire:target="previewBatchCreate"
+                        class="loading-spinner loading-xs" />
+                </x-mary-button>
+                <div class="mt-2 text-xs opacity-70">
+                    Click to preview how many prescriptions will be queued
+                </div>
+            </div>
+        </div>
+
+        <x-slot:actions>
+            <x-mary-button label="Cancel" wire:click="$set('showBatchCreateModal', false)" />
+            <x-mary-button label="Create Queues" class="btn-primary" wire:click="executeBatchCreate"
+                wire:confirm="Are you sure you want to create queues for the selected prescriptions?">
+                <x-mary-loading wire:loading wire:target="executeBatchCreate" class="loading-spinner loading-sm" />
+            </x-mary-button>
+        </x-slot:actions>
+    </x-mary-modal>
+
+    {{-- Queue Details Modal --}}
+    @if ($selectedQueue)
+        <x-mary-modal wire:model="showDetailsModal" title="Queue Details" class="backdrop-blur"
+            box-class="max-w-3xl">
             <div class="space-y-4">
                 {{-- Queue Info --}}
                 <div class="p-4 rounded-lg bg-base-200">
-                    <h3 class="mb-2 text-lg font-bold">{{ $selectedQueue->queue_number }}</h3>
-                    <div class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <span class="text-gray-500">Status:</span>
-                            <span class="ml-2 badge {{ $selectedQueue->getStatusBadgeClass() }} badge-sm">
-                                {{ ucfirst($selectedQueue->queue_status) }}
-                            </span>
+                            <div class="text-xs opacity-70">Queue Number</div>
+                            <div class="text-xl font-bold">{{ $selectedQueue->queue_number }}</div>
                         </div>
                         <div>
-                            <span class="text-gray-500">Priority:</span>
-                            <span class="ml-2 badge {{ $selectedQueue->getPriorityBadgeClass() }} badge-sm">
+                            <div class="text-xs opacity-70">Status</div>
+                            <div class="badge {{ $selectedQueue->getStatusBadgeClass() }}">
+                                {{ strtoupper($selectedQueue->queue_status) }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs opacity-70">Priority</div>
+                            <div class="badge {{ $selectedQueue->getPriorityBadgeClass() }}">
                                 {{ strtoupper($selectedQueue->priority) }}
-                            </span>
+                            </div>
                         </div>
                         <div>
-                            <span class="text-gray-500">Queued:</span>
-                            <span class="ml-2">{{ $selectedQueue->queued_at->format('M d, Y h:i A') }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">Wait Time:</span>
-                            <span class="ml-2 font-semibold">{{ $selectedQueue->getWaitTimeMinutes() }} minutes</span>
+                            <div class="text-xs opacity-70">Wait Time</div>
+                            <div class="font-medium">{{ $selectedQueue->getWaitTimeMinutes() }} minutes</div>
                         </div>
                     </div>
                 </div>
 
                 {{-- Patient Info --}}
                 @if ($selectedQueue->patient)
-                    <div class="p-4 rounded-lg bg-base-200">
-                        <h4 class="mb-2 font-semibold">Patient Information</h4>
+                    <div class="p-4 rounded-lg border border-base-300">
+                        <h3 class="mb-2 font-bold">Patient Information</h3>
                         <div class="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                                <span class="text-gray-500">Name:</span>
-                                <span class="ml-2">{{ $selectedQueue->patient->fullname() }}</span>
+                                <span class="opacity-70">Hospital #:</span>
+                                <span class="font-medium">{{ $selectedQueue->hpercode }}</span>
                             </div>
                             <div>
-                                <span class="text-gray-500">Hospital #:</span>
-                                <span class="ml-2 font-mono">{{ $selectedQueue->hpercode }}</span>
+                                <span class="opacity-70">Name:</span>
+                                <span class="font-medium">{{ $selectedQueue->patient->fullname() }}</span>
                             </div>
                         </div>
                     </div>
                 @endif
 
-                {{-- NEW: Enhanced Prescribed Items Display --}}
-                @if (count($prescribedItems) > 0)
-                    <div class="p-4 rounded-lg bg-base-200">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-semibold">Prescribed Items ({{ count($prescribedItems) }})</h4>
-                            <div class="badge badge-info badge-sm">
-                                {{ collect($prescribedItems)->where('is_fully_issued', false)->count() }} pending
-                            </div>
-                        </div>
+                {{-- Prescription Items --}}
+                @if ($selectedQueue->prescription && isset($selectedQueue->prescription_items))
+                    <div class="p-4 rounded-lg border border-base-300">
+                        <h3 class="mb-3 font-bold text-lg">Prescription Items
+                            ({{ $selectedQueue->prescription_items->count() }})</h3>
+                        <div class="space-y-3">
+                            @foreach ($selectedQueue->prescription_items as $item)
+                                <div class="p-4 rounded-lg border border-base-200 bg-base-50">
+                                    @php
+                                        $drugParts = explode('_,', $item->drug_concat);
+                                        $drugName = implode(' ', $drugParts);
+                                        $orderType = $item->order_type ?: 'BASIC';
+                                        $orderTypeBadge = match ($orderType) {
+                                            'BASIC' => 'badge-ghost',
+                                            'G24' => 'badge-warning',
+                                            'OR' => 'badge-error',
+                                            'STAT' => 'badge-error',
+                                            default => 'badge-info',
+                                        };
+                                    @endphp
 
-                        <div class="overflow-x-auto">
-                            <table class="table w-full table-sm table-zebra">
-                                <thead class="bg-base-300">
-                                    <tr class="text-xs">
-                                        <th class="w-8">#</th>
-                                        <th>Drug Description</th>
-                                        <th class="text-center w-20">Ordered</th>
-                                        <th class="text-center w-20">Issued</th>
-                                        <th class="text-center w-20">Remaining</th>
-                                        <th class="w-24">Status</th>
-                                        <th>Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($prescribedItems as $index => $item)
-                                        <tr class="{{ $item['is_fully_issued'] ? 'opacity-50' : '' }}">
-                                            <td>{{ $index + 1 }}</td>
-                                            <td>
-                                                <div class="font-semibold">{{ $item['generic'] }}</div>
-                                                @if ($item['brand'])
-                                                    <div class="text-xs text-gray-600">{{ $item['brand'] }}</div>
-                                                @endif
-                                                @if ($item['order_type'])
-                                                    <span
-                                                        class="badge badge-xs badge-ghost">{{ $item['order_type'] }}</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center font-semibold">{{ $item['qty_ordered'] }}</td>
-                                            <td
-                                                class="text-center {{ $item['qty_issued'] > 0 ? 'text-success font-semibold' : '' }}">
-                                                {{ $item['qty_issued'] }}
-                                            </td>
-                                            <td class="text-center">
-                                                <span
-                                                    class="{{ $item['qty_remaining'] > 0 ? 'text-warning font-semibold' : 'text-success' }}">
-                                                    {{ $item['qty_remaining'] }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                @if ($item['is_fully_issued'])
-                                                    <span class="badge badge-success badge-xs">Completed</span>
-                                                @elseif($item['qty_issued'] > 0)
-                                                    <span class="badge badge-warning badge-xs">Partial</span>
-                                                @else
-                                                    <span class="badge badge-ghost badge-xs">Pending</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-xs">{{ $item['remark'] ?? '-' }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot class="bg-base-300">
-                                    <tr class="font-semibold">
-                                        <td colspan="2" class="text-right">TOTALS:</td>
-                                        <td class="text-center">{{ collect($prescribedItems)->sum('qty_ordered') }}
-                                        </td>
-                                        <td class="text-center text-success">
-                                            {{ collect($prescribedItems)->sum('qty_issued') }}</td>
-                                        <td class="text-center text-warning">
-                                            {{ collect($prescribedItems)->sum('qty_remaining') }}</td>
-                                        <td colspan="2"></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                @else
-                    <div class="p-4 text-center rounded-lg bg-base-200">
-                        <p class="text-sm text-gray-500">No prescribed items found</p>
-                    </div>
-                @endif
+                                    {{-- Drug Name and Order Type --}}
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-base">{{ $drugName }}</div>
+                                        </div>
+                                        <div class="badge {{ $orderTypeBadge }} badge-sm font-semibold ml-2">
+                                            {{ $orderType }}
+                                        </div>
+                                    </div>
 
-                {{-- Status History --}}
-                @if ($selectedQueue->logs && $selectedQueue->logs->count() > 0)
-                    <div class="p-4 rounded-lg bg-base-200">
-                        <h4 class="mb-2 font-semibold">Status History</h4>
-                        <div class="space-y-2 max-h-48 overflow-y-auto">
-                            @foreach ($selectedQueue->logs as $log)
-                                <div class="text-sm">
-                                    <div class="flex items-center gap-2">
-                                        <span class="badge badge-xs badge-ghost">
-                                            {{ $log->getStatusChangeLabel() }}
-                                        </span>
-                                        <span class="text-xs text-gray-500">
-                                            {{ $log->created_at->format('h:i A') }}
-                                        </span>
-                                        @if ($log->changer)
-                                            <span class="text-xs text-gray-500">
-                                                by {{ $log->changer->firstname }} {{ $log->changer->lastname }}
-                                            </span>
+                                    {{-- Dosage Details --}}
+                                    <div class="grid grid-cols-3 gap-3 text-sm mb-2">
+                                        <div>
+                                            <span class="opacity-70">Qty:</span>
+                                            <span class="font-semibold">{{ $item->qty }}</span>
+                                        </div>
+                                        @if ($item->frequency)
+                                            <div>
+                                                <span class="opacity-70">Frequency:</span>
+                                                <span class="font-semibold">{{ $item->frequency }}</span>
+                                            </div>
+                                        @endif
+                                        @if ($item->duration)
+                                            <div>
+                                                <span class="opacity-70">Duration:</span>
+                                                <span class="font-semibold">{{ $item->duration }}</span>
+                                            </div>
                                         @endif
                                     </div>
-                                    @if ($log->remarks)
-                                        <p class="mt-1 text-xs italic text-gray-600">{{ $log->remarks }}</p>
+
+                                    {{-- Remarks --}}
+                                    @if ($item->remark)
+                                        <div class="text-sm mb-1">
+                                            <span class="opacity-70">Remark:</span>
+                                            <span class="italic">{{ $item->remark }}</span>
+                                        </div>
+                                    @endif
+
+                                    @if ($item->addtl_remarks)
+                                        <div class="text-sm mb-1">
+                                            <span class="opacity-70">Additional Remarks:</span>
+                                            <span class="italic">{{ $item->addtl_remarks }}</span>
+                                        </div>
+                                    @endif
+
+                                    {{-- Take Home Indicator --}}
+                                    @if ($item->tkehome)
+                                        <div class="mt-2">
+                                            <div class="badge badge-success badge-sm">
+                                                <x-mary-icon name="o-home" class="w-3 h-3 mr-1" />
+                                                Take Home
+                                            </div>
+                                        </div>
                                     @endif
                                 </div>
                             @endforeach
                         </div>
                     </div>
                 @endif
-            </div>
-        @endif
 
-        <x-slot:actions>
-            <x-mary-button label="Close" wire:click="$set('showDetailsModal', false)" />
-            @if ($selectedQueue && $selectedQueue->isActive())
-                <x-mary-button label="Open Dispensing" wire:click="openDispensingWindow({{ $selectedQueue->id }})"
-                    class="btn-accent" icon="o-arrow-right-circle" />
-            @endif
-        </x-slot:actions>
-    </x-mary-modal>
-
-    {{-- Continue in next part... --}}
-    {{-- NEW: Dispensing Window Modal --}}
-    <x-mary-modal wire:model="showDispensingModal" title="Dispensing Window" class="backdrop-blur"
-        box-class="max-w-6xl">
-        @if ($selectedQueue)
-            <div class="space-y-4">
-                {{-- Patient & Queue Header --}}
-                <div class="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10">
-                    <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                        <div>
-                            <p class="text-xs text-gray-500">Queue Number</p>
-                            <p class="text-xl font-bold font-mono text-primary">{{ $selectedQueue->queue_number }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500">Patient</p>
-                            <p class="font-semibold">
-                                @if ($selectedQueue->patient)
-                                    {{ $selectedQueue->patient->fullname() }}
-                                @else
-                                    N/A
-                                @endif
-                            </p>
-                            <p class="text-xs font-mono">{{ $selectedQueue->hpercode }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500">Status</p>
-                            <span class="badge {{ $selectedQueue->getStatusBadgeClass() }}">
-                                {{ ucfirst($selectedQueue->queue_status) }}
-                            </span>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-500">Wait Time</p>
-                            <p class="font-semibold">{{ $selectedQueue->getWaitTimeMinutes() }} minutes</p>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Prescribed Items Table --}}
-                @if (count($prescribedItems) > 0)
-                    <div class="border rounded-lg">
-                        <div class="p-3 border-b bg-base-200">
-                            <div class="flex items-center justify-between">
-                                <h4 class="font-semibold">Items to Dispense</h4>
-                                <div class="flex gap-2">
-                                    <span class="badge badge-warning badge-sm">
-                                        {{ collect($prescribedItems)->where('is_fully_issued', false)->count() }}
-                                        Pending
-                                    </span>
-                                    <span class="badge badge-success badge-sm">
-                                        {{ collect($prescribedItems)->where('is_fully_issued', true)->count() }}
-                                        Completed
-                                    </span>
+                {{-- Timeline --}}
+                <div class="p-4 rounded-lg border border-base-300">
+                    <h3 class="mb-2 font-bold">Timeline</h3>
+                    <div class="space-y-2 text-sm">
+                        @foreach ($selectedQueue->logs as $log)
+                            <div class="flex items-start gap-2">
+                                <div class="w-16 text-xs opacity-70">{{ $log->created_at->format('h:i A') }}</div>
+                                <div class="flex-1">
+                                    <div class="font-medium">{{ $log->getStatusChangeLabel() }}</div>
+                                    @if ($log->changer)
+                                        <div class="text-xs opacity-70">By: {{ $log->changer->fullname() }}</div>
+                                    @endif
+                                    @if ($log->remarks)
+                                        <div class="text-xs opacity-70">{{ $log->remarks }}</div>
+                                    @endif
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="table w-full table-sm">
-                                <thead class="sticky top-0 bg-base-200">
-                                    <tr class="text-xs">
-                                        <th class="w-8">#</th>
-                                        <th>Drug Description</th>
-                                        <th class="text-center w-20">Ordered</th>
-                                        <th class="text-center w-20">Issued</th>
-                                        <th class="text-center w-20">Remaining</th>
-                                        <th class="w-24">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($prescribedItems as $index => $item)
-                                        <tr class="{{ $item['is_fully_issued'] ? 'bg-success/10' : '' }}">
-                                            <td>{{ $index + 1 }}</td>
-                                            <td>
-                                                <div class="font-semibold">{{ $item['generic'] }}</div>
-                                                @if ($item['brand'])
-                                                    <div class="text-xs text-gray-600">{{ $item['brand'] }}</div>
-                                                @endif
-                                                @if ($item['order_type'])
-                                                    <span
-                                                        class="badge badge-xs badge-ghost">{{ $item['order_type'] }}</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="font-semibold">{{ $item['qty_ordered'] }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                @if ($item['qty_issued'] > 0)
-                                                    <span
-                                                        class="font-semibold text-success">{{ $item['qty_issued'] }}</span>
-                                                @else
-                                                    <span class="text-gray-400">0</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-center">
-                                                @if ($item['qty_remaining'] > 0)
-                                                    <span
-                                                        class="px-2 py-1 text-sm font-bold rounded bg-warning/20 text-warning">
-                                                        {{ $item['qty_remaining'] }}
-                                                    </span>
-                                                @else
-                                                    <span class="text-success">✓</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if ($item['is_fully_issued'])
-                                                    <span class="badge badge-success badge-sm">
-                                                        <i class="las la-check"></i> Done
-                                                    </span>
-                                                @elseif($item['qty_issued'] > 0)
-                                                    <span class="badge badge-warning badge-sm">
-                                                        <i class="las la-hourglass-half"></i> Partial
-                                                    </span>
-                                                @else
-                                                    <span class="badge badge-ghost badge-sm">
-                                                        <i class="las la-clock"></i> Pending
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {{-- Summary Footer --}}
-                        <div class="p-3 border-t bg-base-200">
-                            <div class="grid grid-cols-3 gap-4 text-center">
-                                <div>
-                                    <p class="text-xs text-gray-500">Total Ordered</p>
-                                    <p class="text-xl font-bold">{{ collect($prescribedItems)->sum('qty_ordered') }}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500">Total Issued</p>
-                                    <p class="text-xl font-bold text-success">
-                                        {{ collect($prescribedItems)->sum('qty_issued') }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500">Remaining</p>
-                                    <p class="text-xl font-bold text-warning">
-                                        {{ collect($prescribedItems)->sum('qty_remaining') }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Dispensing Progress --}}
-                    @php
-                        $totalOrdered = collect($prescribedItems)->sum('qty_ordered');
-                        $totalIssued = collect($prescribedItems)->sum('qty_issued');
-                        $progress = $totalOrdered > 0 ? round(($totalIssued / $totalOrdered) * 100) : 0;
-                    @endphp
-                    <div class="p-4 rounded-lg bg-base-200">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold">Dispensing Progress</span>
-                            <span class="text-sm font-bold">{{ $progress }}%</span>
-                        </div>
-                        <progress
-                            class="w-full progress {{ $progress === 100 ? 'progress-success' : 'progress-warning' }}"
-                            value="{{ $progress }}" max="100"></progress>
-                    </div>
-                @else
-                    <div class="p-8 text-center rounded-lg bg-base-200">
-                        <i class="text-gray-300 las la-prescription-bottle la-3x"></i>
-                        <p class="mt-2 text-gray-500">No items to dispense</p>
-                    </div>
-                @endif
-
-                {{-- Action Buttons in Modal Body --}}
-                <div class="p-4 border-t">
-                    <div class="flex flex-wrap gap-2">
-                        @if ($selectedQueue->isWaiting())
-                            <button class="btn btn-info btn-sm"
-                                wire:click="startPreparing({{ $selectedQueue->id }}); $set('showDispensingModal', false)">
-                                <i class="las la-play"></i> Start Preparing
-                            </button>
-                        @endif
-
-                        @if ($selectedQueue->isPreparing())
-                            <button class="btn btn-success btn-sm"
-                                wire:click="markReady({{ $selectedQueue->id }}); $set('showDispensingModal', false)">
-                                <i class="las la-check"></i> Mark as Ready
-                            </button>
-                        @endif
-
-                        @if ($selectedQueue->isReady())
-                            <button class="btn btn-primary btn-sm"
-                                wire:click="markDispensed({{ $selectedQueue->id }}); $set('showDispensingModal', false)">
-                                <i class="las la-hand-holding-medical"></i> Complete Dispensing
-                            </button>
-                        @endif
-
-                        <button class="btn btn-accent btn-sm" wire:click="navigateToDispensing">
-                            <i class="las la-external-link-alt"></i> Open Full Dispensing Page
-                        </button>
+                        @endforeach
                     </div>
                 </div>
             </div>
-        @endif
-
-        <x-slot:actions>
-            <x-mary-button label="Close" wire:click="$set('showDispensingModal', false)" />
-            @if ($dispensingEnccode)
-                <x-mary-button label="Go to Dispensing" wire:click="navigateToDispensing" class="btn-primary"
-                    icon="o-arrow-right" />
-            @endif
-        </x-slot:actions>
-    </x-mary-modal>
-
-    {{-- Cancel Modal --}}
-    <x-mary-modal wire:model="showCancelModal" title="Cancel Queue" class="backdrop-blur">
-        @if ($selectedQueue)
-            <p class="mb-4">Are you sure you want to cancel <strong>{{ $selectedQueue->queue_number }}</strong>?</p>
-
-            <x-mary-textarea label="Cancellation Reason *" wire:model="cancellationReason"
-                placeholder="Please provide a reason for cancellation..." rows="4" required />
-        @endif
-
-        <x-slot:actions>
-            <x-mary-button label="Close" wire:click="$set('showCancelModal', false)" />
-            <x-mary-button label="Confirm Cancel" wire:click="cancelQueue" class="btn-error"
-                spinner="cancelQueue" />
-        </x-slot:actions>
-    </x-mary-modal>
-
-    {{-- Notes Modal --}}
-    <x-mary-modal wire:model="showNotesModal" title="Queue Notes" class="backdrop-blur">
-        <x-mary-textarea label="Notes" wire:model="queueNotes" placeholder="Add notes about this queue..."
-            rows="5" />
-
-        <x-slot:actions>
-            <x-mary-button label="Close" wire:click="$set('showNotesModal', false)" />
-            <x-mary-button label="Save" wire:click="saveNotes" class="btn-primary" spinner="saveNotes" />
-        </x-slot:actions>
-    </x-mary-modal>
-
-    {{-- Test API Modal --}}
-    <x-mary-modal wire:model="showTestApiModal" title="Test Queue API" class="backdrop-blur" box-class="max-w-2xl">
-        <x-mary-form wire:submit="submitTestApi">
-            {{-- Add Debug Info Section at the top --}}
-            <div class="mb-4 p-3 bg-info/10 rounded-lg text-sm">
-                <p><strong>API Endpoint:</strong> {{ config('app.url') }}/api/prescription-queue/create</p>
-                <p><strong>Environment:</strong> {{ config('app.env') }}</p>
-                <p class="text-xs opacity-75 mt-2">Check Laravel logs for detailed error information</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-mary-input label="Prescription ID *" wire:model="testPrescriptionId" type="number"
-                    icon="o-document-text" required />
-
-                <x-mary-input label="Encounter Code *" wire:model="testEnccode" icon="o-clipboard-document-list"
-                    required />
-
-                <x-mary-input label="Hospital Number *" wire:model="testHpercode" icon="o-user" required />
-
-                <x-mary-input label="Location Code *" wire:model="testLocationCode" icon="o-map-pin" required />
-
-                <x-mary-select label="Priority *" wire:model="testPriority" :options="[
-                    ['id' => 'normal', 'name' => 'Normal'],
-                    ['id' => 'urgent', 'name' => 'Urgent'],
-                    ['id' => 'stat', 'name' => 'STAT'],
-                ]" icon="o-flag"
-                    required />
-
-                <x-mary-input label="Queue Prefix" wire:model="testQueuePrefix" icon="o-hashtag"
-                    hint="Optional (e.g., OPD, ER)" />
-
-                <x-mary-input label="Created By" wire:model="testCreatedBy" icon="o-user-circle"
-                    hint="Employee ID" />
-
-                <x-mary-input label="Created From" wire:model="testCreatedFrom" icon="o-computer-desktop"
-                    hint="Source system" />
-
-                <div class="md:col-span-2">
-                    <x-mary-textarea label="Remarks" wire:model="testRemarks" rows="3"
-                        hint="Optional notes" />
-                </div>
-            </div>
-
-            <div class="mt-4 p-4 bg-warning/10 rounded-lg">
-                <div class="flex items-start gap-2">
-                    <x-mary-icon name="o-information-circle" class="w-5 h-5 text-warning" />
-                    <div class="text-sm">
-                        <p class="font-semibold mb-1">API Test Mode</p>
-                        <p class="text-xs opacity-75">This will make a real API call to create a queue entry. Use valid
-                            data or click "Fill Sample" button.</p>
-                    </div>
-                </div>
-            </div>
-
 
             <x-slot:actions>
-                <x-mary-button label="Test Connection" wire:click="testApiConnection" class="btn-ghost btn-sm"
-                    icon="o-signal" />
-                <x-mary-button label="Fill Sample" wire:click="fillSampleData" class="btn-ghost" icon="o-beaker" />
-                <x-mary-button label="Cancel" wire:click="$set('showTestApiModal', false)" class="btn-ghost" />
-                <x-mary-button label="Create Queue" type="submit" class="btn-primary" spinner="submitTestApi"
-                    icon="o-plus-circle" />
+                <x-mary-button label="Close" wire:click="$set('showDetailsModal', false)" />
             </x-slot:actions>
-        </x-mary-form>
+        </x-mary-modal>
+    @endif
+
+    {{-- Status Update Modal --}}
+    <x-mary-modal wire:model="showStatusModal" title="Update Queue Status" class="backdrop-blur">
+        <div class="space-y-4">
+            <div class="p-4 rounded-lg alert alert-warning">
+                <span>Are you sure you want to change the status to
+                    <strong>{{ strtoupper($newStatus ?? '') }}</strong>?</span>
+            </div>
+
+            <x-mary-textarea label="Remarks (Optional)" wire:model="statusRemarks"
+                placeholder="Add any notes about this status change..." rows="3" />
+        </div>
+
+        <x-slot:actions>
+            <x-mary-button label="Cancel" wire:click="$set('showStatusModal', false)" />
+            <x-mary-button label="Update Status" class="btn-primary" wire:click="updateStatus">
+                <x-mary-loading wire:loading wire:target="updateStatus" class="loading-spinner loading-sm" />
+            </x-mary-button>
+        </x-slot:actions>
     </x-mary-modal>
-
-    @script
-        <script>
-            // Listen for queue status changes and play sound
-            $wire.on('queue-status-changed', (event) => {
-                console.log('Queue status changed:', event.queueId);
-            });
-
-            $wire.on('play-notification-sound', () => {
-                // Play notification sound when prescription is ready
-                const audio = new Audio('/sounds/notification.mp3');
-                audio.play().catch(e => console.log('Audio play failed:', e));
-            });
-        </script>
-    @endscript
 </div>
+
+{{-- JavaScript for Live Clock --}}
+<script>
+    // Update live clock every second
+    function updateClock() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+
+        const timeString =
+            `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+
+        const clockElement = document.getElementById('live-clock');
+        if (clockElement) {
+            clockElement.textContent = timeString;
+        }
+    }
+
+    // Initialize and update every second
+    document.addEventListener('DOMContentLoaded', function() {
+        updateClock();
+        setInterval(updateClock, 1000);
+    });
+
+    // Re-initialize on Livewire navigation
+    document.addEventListener('livewire:navigated', function() {
+        updateClock();
+        setInterval(updateClock, 1000);
+    });
+</script>

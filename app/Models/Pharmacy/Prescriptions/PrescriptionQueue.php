@@ -166,8 +166,6 @@ class PrescriptionQueue extends Model
 
     public function getWaitTimeMinutes()
     {
-        if (!$this->queued_at) return 0;
-
         $endTime = match ($this->queue_status) {
             'waiting' => now(),
             'preparing' => $this->preparing_at ?? now(),
@@ -177,19 +175,22 @@ class PrescriptionQueue extends Model
             default => now(),
         };
 
-        return $this->queued_at->diffInMinutes($endTime);
+        // Return whole minutes using floor()
+        return floor($this->queued_at->diffInMinutes($endTime));
     }
 
     public function getProcessingTimeMinutes()
     {
         if (!$this->preparing_at || !$this->ready_at) return null;
-        return $this->preparing_at->diffInMinutes($this->ready_at);
+        // Return whole minutes using floor()
+        return floor($this->preparing_at->diffInMinutes($this->ready_at));
     }
 
     public function getTotalTimeMinutes()
     {
         if (!$this->queued_at || !$this->dispensed_at) return null;
-        return $this->queued_at->diffInMinutes($this->dispensed_at);
+        // Return whole minutes using floor()
+        return floor($this->queued_at->diffInMinutes($this->dispensed_at));
     }
 
     public function isWaiting()

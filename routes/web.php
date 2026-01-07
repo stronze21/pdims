@@ -8,6 +8,7 @@ use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagementTablet;
 
 Route::get('/', function () {
     return view('welcome');
@@ -37,6 +38,7 @@ Route::middleware([
     Route::prefix('prescriptions')->name('prescriptions.')->group(function () {
         Route::get('/queue', PrescriptionQueueManagement::class)
             ->name('queue.index');
+        Route::get('/queue/controller', PrescriptionQueueManagementTablet::class)->name('queue.controller');
     });
 
     // Public Queue Display (can be accessed without auth for TV displays)

@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\DB;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\PharmLocation;
+use Livewire\Attributes\Layout;
 
-class PrescriptionQueueManagement extends Component
+class PrescriptionQueueManagementTablet extends Component
 {
     use WithPagination, Toast;
 
@@ -433,9 +434,10 @@ class PrescriptionQueueManagement extends Component
         // Component will auto-refresh
     }
 
+    #[Layout('layouts.queue-controller')]
     public function render()
     {
-        return view('livewire.pharmacy.prescriptions.prescription-queue-management', [
+        return view('livewire.pharmacy.prescriptions.prescription-queue-management-tablet', [
             'queues' => $this->queues,
             'stats' => $this->stats,
             'locations' => $this->locations,
