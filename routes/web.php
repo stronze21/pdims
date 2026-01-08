@@ -6,10 +6,12 @@ use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagementTablet;
+use App\Livewire\Pharmacy\Prescriptions\QueueDisplaySettings;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\Route;
+
 
 
 Route::get('/', function () {
@@ -42,6 +44,7 @@ Route::middleware([
             ->name('queue.index');
         Route::get('/queue/controller', PrescriptionQueueManagementTablet::class)->name('queue.controller');
         Route::get('/queue/controller/v2', PrescriptionQueueController::class)->name('queue.controller2');
+        Route::get('/queue-display-settings', QueueDisplaySettings::class)->name('queue.display-setting');
     });
 
     // User Management Routes

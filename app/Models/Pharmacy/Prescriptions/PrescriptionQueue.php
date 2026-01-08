@@ -267,7 +267,7 @@ class PrescriptionQueue extends Model
             ->max('sequence_number') ?? 0;
 
         $nextSequence = $lastSequence + 1;
-        $queueNumber = "{$prefix}-{$date}-{$priorityPrefix}" . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+        $queueNumber = "{$prefix}{$priorityPrefix}" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
 
         return [
             'queue_number' => $queueNumber,
