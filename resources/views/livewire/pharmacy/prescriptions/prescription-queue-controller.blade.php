@@ -49,13 +49,14 @@
                         <div class="space-y-2 pt-4 border-t">
                             @if ($currentQueue->isPreparing() && !$currentQueue->called_at)
                                 {{-- Stage 1: Preparing → Call Patient --}}
-                                <button wire:click="callQueue" class="btn btn-primary btn-block btn-lg">
+                                <button wire:click="callQueue" class="btn btn-primary btn-block btn-lg touch-target">
                                     <x-mary-icon name="o-megaphone" class="w-5 h-5" />
                                     CALL PATIENT
                                 </button>
                             @elseif ($currentQueue->isPreparing() && $currentQueue->called_at)
                                 {{-- Stage 2: Patient Called → Issue Charge Slip --}}
-                                <button wire:click="moveToCharging" class="btn btn-secondary btn-block btn-lg">
+                                <button wire:click="moveToCharging"
+                                    class="btn btn-secondary btn-block btn-lg touch-target">
                                     <x-mary-icon name="o-document-text" class="w-5 h-5" />
                                     ISSUE CHARGE SLIP
                                 </button>
@@ -64,7 +65,8 @@
                                 </div>
                             @elseif ($currentQueue->isCharging())
                                 {{-- Stage 3: Charging → Ready for Dispensing --}}
-                                <button wire:click="readyForDispensing" class="btn btn-success btn-block btn-lg">
+                                <button wire:click="readyForDispensing"
+                                    class="btn btn-success btn-block btn-lg touch-target">
                                     <x-mary-icon name="o-check-circle" class="w-5 h-5" />
                                     READY TO DISPENSE
                                 </button>
@@ -73,7 +75,7 @@
                                 </div>
                             @elseif ($currentQueue->isReady())
                                 {{-- Stage 4: Ready → Dispense Items --}}
-                                <button wire:click="dispenseQueue" class="btn btn-accent btn-block btn-lg">
+                                <button wire:click="dispenseQueue" class="btn btn-accent btn-block btn-lg touch-target">
                                     <x-mary-icon name="o-cube" class="w-5 h-5" />
                                     DISPENSE ITEMS
                                 </button>
@@ -84,14 +86,16 @@
 
                             {{-- Secondary Actions --}}
                             <div class="flex gap-2">
-                                <button wire:click="skipQueue" class="btn btn-warning btn-sm flex-1">
+                                <button wire:click="skipQueue" class="btn btn-warning btn-sm flex-1 touch-target"
+                                    title="Move queue back to waiting (frees up window)">
                                     Skip
                                 </button>
-                                <button wire:click="cancelCurrentQueue" class="btn btn-error btn-sm flex-1">
+                                <button wire:click="cancelCurrentQueue"
+                                    class="btn btn-error btn-sm flex-1 touch-target">
                                     Cancel
                                 </button>
                                 <button wire:click="viewQueue({{ $currentQueue->id }})"
-                                    class="btn btn-ghost btn-sm flex-1">
+                                    class="btn btn-ghost btn-sm flex-1 touch-target">
                                     Details
                                 </button>
                             </div>
@@ -101,7 +105,7 @@
                     <div class="text-center py-12">
                         <x-mary-icon name="o-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
                         <div class="text-gray-500 mb-4">No active queue</div>
-                        <button wire:click="nextQueue" class="btn btn-primary">
+                        <button wire:click="nextQueue" class="btn btn-primary touch-target">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
@@ -144,9 +148,9 @@
                     </div>
                 </x-slot:menu>
 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto max-h-[calc(100vh-400px)] overflow-y-auto">
                     <table class="table table-sm">
-                        <thead>
+                        <thead class="sticky top-0 bg-base-100 z-10">
                             <tr>
                                 <th>Queue #</th>
                                 <th>Patient</th>

@@ -2,7 +2,7 @@
     <x-mary-card title="Queue Display Settings">
         <div class="space-y-6">
             {{-- Location Selection --}}
-            <x-mary-select wire:model.live="locationCode" label="Pharmacy Location" :options="$locations" option-value="id"
+            <x-mary-select wire:model.live="locationCode" label="Pharmacy Location" :options="$locations"
                 option-label="description" />
 
             {{-- Refresh Settings --}}
@@ -15,13 +15,11 @@
                 hint="Maximum number of queues to show (5-50)" />
 
             {{-- Window Configuration --}}
-            <div class="divider">Window/Counter Configuration</div>
+            <div class="divider">Window Configuration</div>
 
             <x-mary-input wire:model="pharmacyWindows" label="Number of Pharmacy Windows" type="number" min="1"
-                max="10" hint="Total pharmacy windows for prescription preparation (1-10)" />
-
-            <x-mary-input wire:model="dispensingCounters" label="Number of Dispensing Counters" type="number"
-                min="1" max="20" hint="Total dispensing counters for medication pickup (1-20)" />
+                max="10"
+                hint="Total pharmacy windows (handles both preparation and dispensing at same window: 1-10)" />
 
             {{-- Cashier Settings --}}
             <div class="divider">Cashier Configuration</div>
@@ -73,8 +71,7 @@
                     <div class="text-sm">
                         Refresh: {{ $autoRefreshSeconds }}s |
                         Display: {{ $displayLimit }} queues<br>
-                        Pharmacy Windows: {{ $pharmacyWindows }} |
-                        Dispensing Counters: {{ $dispensingCounters }}<br>
+                        Pharmacy Windows: {{ $pharmacyWindows }}<br>
                         Cashier: {{ $requireCashier ? 'Required' : 'Bypassed' }}
                         @if ($requireCashier && $cashierLocation)
                             ({{ $cashierLocation }})

@@ -15,7 +15,6 @@ class QueueDisplaySettings extends Component
     public $autoRefreshSeconds = 30;
     public $displayLimit = 10;
     public $pharmacyWindows = 3;
-    public $dispensingCounters = 7;
     public $requireCashier = true;
     public $cashierLocation = '';
     public $showPatientName = false;
@@ -35,7 +34,6 @@ class QueueDisplaySettings extends Component
         $this->autoRefreshSeconds = $settings->auto_refresh_seconds;
         $this->displayLimit = $settings->display_limit;
         $this->pharmacyWindows = $settings->pharmacy_windows;
-        $this->dispensingCounters = $settings->dispensing_counters;
         $this->requireCashier = $settings->require_cashier;
         $this->cashierLocation = $settings->cashier_location ?? '';
         $this->showPatientName = $settings->show_patient_name;
@@ -49,7 +47,6 @@ class QueueDisplaySettings extends Component
             'autoRefreshSeconds' => 'required|integer|min:3|max:300',
             'displayLimit' => 'required|integer|min:5|max:50',
             'pharmacyWindows' => 'required|integer|min:1|max:10',
-            'dispensingCounters' => 'required|integer|min:1|max:20',
             'cashierLocation' => 'nullable|string|max:100',
         ]);
 
@@ -59,7 +56,6 @@ class QueueDisplaySettings extends Component
                 'auto_refresh_seconds' => $this->autoRefreshSeconds,
                 'display_limit' => $this->displayLimit,
                 'pharmacy_windows' => $this->pharmacyWindows,
-                'dispensing_counters' => $this->dispensingCounters,
                 'require_cashier' => $this->requireCashier,
                 'cashier_location' => $this->cashierLocation,
                 'show_patient_name' => $this->showPatientName,

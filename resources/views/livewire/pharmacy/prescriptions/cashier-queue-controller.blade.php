@@ -70,25 +70,20 @@
 
                         {{-- Action Buttons --}}
                         <div class="space-y-2 pt-4 border-t">
-                            <button wire:click="callQueue" class="btn btn-warning btn-block btn-lg">
-                                <x-mary-icon name="o-megaphone" class="w-5 h-5" />
-                                CALL QUEUE
-                            </button>
-
-                            <button wire:click="confirmPayment" class="btn btn-success btn-block btn-lg">
+                            <button wire:click="confirmPayment" class="btn btn-success btn-block btn-lg touch-target">
                                 <x-mary-icon name="o-check-circle" class="w-5 h-5" />
                                 CONFIRM PAYMENT
                             </button>
 
-                            <div class="flex gap-2">
-                                <button wire:click="skipQueue" class="btn btn-ghost btn-sm flex-1">
-                                    Skip
-                                </button>
-                                <button wire:click="viewQueue({{ $currentQueue->id }})"
-                                    class="btn btn-ghost btn-sm flex-1">
-                                    Details
-                                </button>
-                            </div>
+                            <button wire:click="nextQueue" class="btn btn-primary btn-block touch-target">
+                                <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
+                                NEXT QUEUE
+                            </button>
+
+                            <button wire:click="viewQueue({{ $currentQueue->id }})"
+                                class="btn btn-ghost btn-sm touch-target">
+                                Details
+                            </button>
                         </div>
                     </div>
                 @else

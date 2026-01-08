@@ -41,6 +41,17 @@ class CashierQueueController extends Component
     {
         $this->dateFilter = today()->format('Y-m-d');
         $this->loadCurrentQueue();
+
+        // Auto-call first queue if available
+        if ($this->currentQueue && !$this->currentQueue->cashier_called_at) {
+            $this->callQueue();
+        }
+    }
+
+    #[On('refresh-cashier-queue')]
+    public function refresh()
+    {
+        $this->loadCurrentQueue();
     }
 
     protected function loadCurrentQueue()
@@ -100,8 +111,26 @@ class CashierQueueController extends Component
             }
         }
 
+        // Mark as being served at cashier
+        DB::connection('webapp')->table('prescription_queues')
+            ->where('id', $this->currentQueue->id)
+            ->update(['cashier_called_at' => now()]);
+
         $this->success("Queue {$this->currentQueue->queue_number} - Please proceed to payment");
         $this->dispatch('cashier-queue-called', queueNumber: $this->currentQueue->queue_number);
+    }
+
+    #[Locked]
+    public function nextQueue()
+    {
+        // Manually move to next queue
+        $this->loadCurrentQueue();
+
+        if ($this->currentQueue) {
+            $this->callQueue();
+        } else {
+            $this->warning('No more queues waiting for payment');
+        }
     }
 
     #[Locked]
@@ -112,23 +141,35 @@ class CashierQueueController extends Component
             return;
         }
 
-        // Mark as ready for dispensing (payment confirmed)
+        // Mark as ready for dispensing - queue returns to original window
         $result = $this->queueService->updateQueueStatus(
             $this->currentQueue->id,
             'ready',
             auth()->user()->employeeid,
-            'Payment confirmed at cashier'
+            "Payment confirmed - return to Window {$this->currentQueue->assigned_window}"
         );
 
         if ($result['success']) {
             DB::connection('webapp')->table('prescription_queues')
                 ->where('id', $this->currentQueue->id)
-                ->update(['ready_at' => now()]);
+                ->update([
+                    'ready_at' => now(),
+                    // assigned_window is kept - queue returns to same window
+                ]);
 
-            $this->success("Queue {$this->currentQueue->queue_number} - Payment confirmed! Ready for dispensing.");
-            $this->dispatch('payment-confirmed', queueNumber: $this->currentQueue->queue_number);
+            $this->success("Queue {$this->currentQueue->queue_number} - Payment confirmed! Return to Window {$this->currentQueue->assigned_window}.");
+            $this->dispatch(
+                'payment-confirmed',
+                queueNumber: $this->currentQueue->queue_number,
+                windowNumber: $this->currentQueue->assigned_window
+            );
 
+            // Auto-advance to next queue
             $this->loadCurrentQueue();
+
+            if ($this->currentQueue) {
+                $this->callQueue();
+            }
         } else {
             $this->error($result['message']);
         }
@@ -149,19 +190,29 @@ class CashierQueueController extends Component
     #[Locked]
     public function forceConfirmPayment($queueId)
     {
+        $queue = PrescriptionQueue::find($queueId);
+
+        if (!$queue) {
+            $this->error('Queue not found');
+            return;
+        }
+
         $result = $this->queueService->updateQueueStatus(
             $queueId,
             'ready',
             auth()->user()->employeeid,
-            'Payment confirmed (force)'
+            "Payment confirmed (force) - return to Window {$queue->assigned_window}"
         );
 
         if ($result['success']) {
             DB::connection('webapp')->table('prescription_queues')
                 ->where('id', $queueId)
-                ->update(['ready_at' => now()]);
+                ->update([
+                    'ready_at' => now(),
+                    // assigned_window is kept
+                ]);
 
-            $this->success('Payment confirmed!');
+            $this->success("Payment confirmed! Queue returns to Window {$queue->assigned_window}");
             $this->loadCurrentQueue();
         } else {
             $this->error($result['message']);
