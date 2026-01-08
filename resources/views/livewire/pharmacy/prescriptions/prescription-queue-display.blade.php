@@ -70,29 +70,36 @@ setInterval(() => {
                     </div>
                 @endforeach
 
-                {{-- Charging Queues --}}
-                @foreach ($showingQueues['charging']->take(3) as $queue)
-                    <div class="bg-white border-4 border-yellow-500 rounded-xl shadow-xl overflow-hidden">
-                        <div class="flex items-center">
-                            <div
-                                class="bg-yellow-500 text-white px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
-                                <div class="text-sm font-semibold mb-1">WINDOW</div>
-                                <div class="text-6xl font-bold">{{ $queue->assigned_window ?? 'X' }}</div>
-                            </div>
-                            <div class="flex-1 text-center py-4">
-                                <div class="text-7xl font-bold text-yellow-600">
-                                    {{ $queue->queue_number }}
+                {{-- Charging Queues (only if cashier required) --}}
+                @if ($displaySettings->require_cashier)
+                    @foreach ($showingQueues['charging']->take($displaySettings->pharmacy_windows - $currentlyServing->count()) as $queue)
+                        <div class="bg-white border-4 border-yellow-500 rounded-xl shadow-xl overflow-hidden">
+                            <div class="flex items-center">
+                                <div
+                                    class="bg-yellow-500 text-white px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
+                                    <div class="text-sm font-semibold mb-1">WINDOW</div>
+                                    <div class="text-6xl font-bold">{{ $queue->assigned_window ?? 'X' }}</div>
                                 </div>
-                                <div class="mt-2 text-sm text-gray-600">AT CASHIER</div>
+                                <div class="flex-1 text-center py-4">
+                                    <div class="text-7xl font-bold text-yellow-600">
+                                        {{ $queue->queue_number }}
+                                    </div>
+                                    <div class="mt-2 text-sm text-gray-600">AT CASHIER</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                @endif
 
-                {{-- Fill empty slots --}}
+                {{-- Fill empty slots based on pharmacy_windows setting --}}
                 @php
-                    $totalShown = $currentlyServing->count() + $showingQueues['charging']->take(3)->count();
-                    $emptySlots = max(0, 4 - $totalShown);
+                    $totalShown = $currentlyServing->count();
+                    if ($displaySettings->require_cashier) {
+                        $totalShown += $showingQueues['charging']
+                            ->take($displaySettings->pharmacy_windows - $currentlyServing->count())
+                            ->count();
+                    }
+                    $emptySlots = max(0, $displaySettings->pharmacy_windows - $totalShown);
                 @endphp
                 @for ($i = 0; $i < $emptySlots; $i++)
                     <div class="bg-gray-100 border-4 border-gray-300 rounded-xl shadow-xl overflow-hidden opacity-40">
@@ -100,10 +107,10 @@ setInterval(() => {
                             <div
                                 class="bg-gray-300 text-gray-600 px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
                                 <div class="text-sm font-semibold mb-1">WINDOW</div>
-                                <div class="text-6xl font-bold">-</div>
+                                <div class="text-6xl font-bold">{{ $currentlyServing->count() + $i + 1 }}</div>
                             </div>
                             <div class="flex-1 text-center py-4">
-                                <div class="text-7xl font-bold text-gray-400">---</div>
+                                <div class="text-7xl font-bold text-gray-400">- - -</div>
                             </div>
                         </div>
                     </div>
@@ -146,10 +153,10 @@ setInterval(() => {
                     </div>
                 @endforeach
 
-                {{-- Fill empty slots --}}
+                {{-- Fill empty slots based on dispensing_counters setting --}}
                 @php
                     $readyCount = $showingQueues['ready']->count();
-                    $emptyCounterSlots = max(0, 7 - $readyCount);
+                    $emptyCounterSlots = max(0, $displaySettings->dispensing_counters - $readyCount);
                 @endphp
                 @for ($i = 0; $i < $emptyCounterSlots; $i++)
                     <div class="bg-gray-100 border-4 border-gray-300 rounded-xl shadow-xl overflow-hidden opacity-40">
@@ -157,10 +164,10 @@ setInterval(() => {
                             <div
                                 class="bg-gray-300 text-gray-600 px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
                                 <div class="text-sm font-semibold mb-1">COUNTER</div>
-                                <div class="text-6xl font-bold">{{ $i + 1 }}</div>
+                                <div class="text-6xl font-bold">{{ $readyCount + $i + 1 }}</div>
                             </div>
                             <div class="flex-1 text-center py-4">
-                                <div class="text-7xl font-bold text-gray-400">---</div>
+                                <div class="text-7xl font-bold text-gray-400">- - -</div>
                             </div>
                         </div>
                     </div>

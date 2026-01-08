@@ -180,26 +180,58 @@ class PrescriptionQueueController extends Component
             return;
         }
 
-        // Patient arrived, move directly to charging
-        $result = $this->queueService->updateQueueStatus(
-            $this->currentQueue->id,
-            'charging',
-            auth()->user()->employeeid,
-            'Charge slip issued'
+        // Check if cashier is required for this location
+        $settings = \App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting::getForLocation(
+            auth()->user()->pharm_location_id
         );
 
-        if ($result['success']) {
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $this->currentQueue->id)
-                ->update([
-                    'charging_at' => now(),
-                    'charged_by' => auth()->user()->employeeid,
-                ]);
+        if ($settings->require_cashier) {
+            // Patient arrived, move to charging (cashier workflow)
+            $result = $this->queueService->updateQueueStatus(
+                $this->currentQueue->id,
+                'charging',
+                auth()->user()->employeeid,
+                'Sent to cashier for payment'
+            );
 
-            $this->success("Patient sent to cashier for payment.");
-            $this->loadCurrentQueue();
+            if ($result['success']) {
+                DB::connection('webapp')->table('prescription_queues')
+                    ->where('id', $this->currentQueue->id)
+                    ->update([
+                        'charging_at' => now(),
+                        'charged_by' => auth()->user()->employeeid,
+                    ]);
+
+                $message = "Patient sent to cashier for payment.";
+                if ($settings->cashier_location) {
+                    $message .= " Location: {$settings->cashier_location}";
+                }
+
+                $this->success($message);
+                $this->loadCurrentQueue();
+            } else {
+                $this->error($result['message']);
+            }
         } else {
-            $this->error($result['message']);
+            // Bypass cashier - go directly to ready
+            $result = $this->queueService->updateQueueStatus(
+                $this->currentQueue->id,
+                'ready',
+                auth()->user()->employeeid,
+                'Ready for dispensing (cashier bypassed)'
+            );
+
+            if ($result['success']) {
+                DB::connection('webapp')->table('prescription_queues')
+                    ->where('id', $this->currentQueue->id)
+                    ->update(['ready_at' => now()]);
+
+                $this->success("Queue {$this->currentQueue->queue_number} is ready for dispensing!");
+                $this->dispatch('ready-for-dispensing', queueNumber: $this->currentQueue->queue_number);
+                $this->loadCurrentQueue();
+            } else {
+                $this->error($result['message']);
+            }
         }
     }
 

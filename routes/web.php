@@ -2,6 +2,7 @@
 
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
+use App\Livewire\Pharmacy\Prescriptions\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
@@ -11,6 +12,7 @@ use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -45,6 +47,8 @@ Route::middleware([
         Route::get('/queue/controller', PrescriptionQueueManagementTablet::class)->name('queue.controller');
         Route::get('/queue/controller/v2', PrescriptionQueueController::class)->name('queue.controller2');
         Route::get('/queue-display-settings', QueueDisplaySettings::class)->name('queue.display-setting');
+        Route::get('/cashier-queue', CashierQueueController::class)
+            ->name('cashier.queue');
     });
 
     // User Management Routes

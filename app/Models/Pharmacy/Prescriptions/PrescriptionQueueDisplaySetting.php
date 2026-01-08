@@ -16,6 +16,10 @@ class PrescriptionQueueDisplaySetting extends Model
         'location_code',
         'display_limit',
         'auto_refresh_seconds',
+        'pharmacy_windows',
+        'dispensing_counters',
+        'require_cashier',
+        'cashier_location',
         'show_patient_name',
         'play_sound_alert',
         'show_estimated_wait',
@@ -25,6 +29,9 @@ class PrescriptionQueueDisplaySetting extends Model
     protected $casts = [
         'display_limit' => 'integer',
         'auto_refresh_seconds' => 'integer',
+        'pharmacy_windows' => 'integer',
+        'dispensing_counters' => 'integer',
+        'require_cashier' => 'boolean',
         'show_patient_name' => 'boolean',
         'play_sound_alert' => 'boolean',
         'show_estimated_wait' => 'boolean',
@@ -36,11 +43,15 @@ class PrescriptionQueueDisplaySetting extends Model
             ['location_code' => $locationCode],
             [
                 'display_limit' => 10,
-                'auto_refresh_seconds' => 30,
+                'auto_refresh_seconds' => 5,
+                'pharmacy_windows' => 3,
+                'dispensing_counters' => 7,
+                'require_cashier' => true,
+                'cashier_location' => null,
                 'show_patient_name' => false,
                 'play_sound_alert' => true,
                 'show_estimated_wait' => true,
-                'display_mode' => 'list',
+                'display_mode' => 'split',
             ]
         );
     }
