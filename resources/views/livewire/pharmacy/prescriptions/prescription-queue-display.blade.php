@@ -1,12 +1,32 @@
-<div class="min-h-screen bg-white flex flex-col" x-data="{ time: new Date() }" x-init="console.log('Display Settings:', {{ json_encode($displaySettings) }});
-console.log('Auto Refresh Seconds:', {{ $displaySettings->auto_refresh_seconds }});
-console.log('Refresh Interval (ms):', {{ $displaySettings->auto_refresh_seconds * 1000 }});
-
+<div class="min-h-screen bg-white flex flex-col" x-data="{ time: new Date() }" x-init="// Update clock
 setInterval(() => { time = new Date() }, 500);
-setInterval(() => {
-    console.log('Refreshing queues at:', new Date().toLocaleTimeString());
+
+// Subscribe to Reverb channel for this location
+const locationCode = '{{ $locationCode }}';
+const channel = window.Echo.channel('pharmacy.location.' + locationCode);
+
+// Listen for queue status changes
+channel.listen('.queue.status.changed', (event) => {
+    console.log('Queue status changed:', event);
     $wire.call('loadQueues');
-}, {{ $displaySettings->auto_refresh_seconds * 1000 }});">
+});
+
+// Listen for queue calls (plays sound)
+channel.listen('.queue.called', (event) => {
+    console.log('Queue called:', event);
+    $wire.call('loadQueues');
+
+    // Play notification sound
+    const audio = document.getElementById('notification-sound');
+    if (audio) {
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+});
+
+// Fallback refresh every 30 seconds
+setInterval(() => {
+    $wire.call('loadQueues');
+}, 30000);">
 
     {{-- Header --}}
     <div class="bg-gradient-to-r from-green-700 to-green-600 text-white shadow-2xl">

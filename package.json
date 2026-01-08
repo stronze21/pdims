@@ -14,8 +14,10 @@
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
         "daisyui": "^5.4.3",
+        "laravel-echo": "^2.2.7",
         "laravel-vite-plugin": "^2.0.0",
         "postcss": "^8.4.32",
+        "pusher-js": "^8.4.0",
         "tailwindcss": "^4.1.16",
         "vite": "^7.0.7"
     }

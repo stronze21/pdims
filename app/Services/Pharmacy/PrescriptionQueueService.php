@@ -156,6 +156,9 @@ class PrescriptionQueueService
 
             DB::connection('webapp')->commit();
 
+            // Broadcast event for real-time updates
+            \App\Events\Pharmacy\QueueStatusChanged::dispatch($queue->fresh(), $oldStatus, $newStatus);
+
             return [
                 'success' => true,
                 'queue' => $queue->fresh(),

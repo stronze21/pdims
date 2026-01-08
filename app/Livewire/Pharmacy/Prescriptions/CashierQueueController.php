@@ -48,6 +48,24 @@ class CashierQueueController extends Component
         }
     }
 
+    public function getListeners()
+    {
+        $locationCode = auth()->user()->pharm_location_id;
+
+        return [
+            "echo:pharmacy.location.{$locationCode},.queue.status.changed" => 'handleQueueStatusChanged',
+            'refresh-cashier-queue' => 'refresh',
+        ];
+    }
+
+    public function handleQueueStatusChanged($event)
+    {
+        // Reload if queue moved to charging status
+        if ($event['new_status'] === 'charging') {
+            $this->loadCurrentQueue();
+        }
+    }
+
     #[On('refresh-cashier-queue')]
     public function refresh()
     {
@@ -115,6 +133,10 @@ class CashierQueueController extends Component
         DB::connection('webapp')->table('prescription_queues')
             ->where('id', $this->currentQueue->id)
             ->update(['cashier_called_at' => now()]);
+
+        // Broadcast event for real-time display
+        $queue = PrescriptionQueue::find($this->currentQueue->id);
+        \App\Events\Pharmacy\QueueCalled::dispatch($queue, 'cashier');
 
         $this->success("Queue {$this->currentQueue->queue_number} - Please proceed to payment");
         $this->dispatch('cashier-queue-called', queueNumber: $this->currentQueue->queue_number);

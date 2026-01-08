@@ -56,6 +56,30 @@ class PrescriptionQueueController extends Component
         $this->loadCurrentQueue();
     }
 
+    public function getListeners()
+    {
+        $locationCode = auth()->user()->pharm_location_id;
+
+        return [
+            "echo:pharmacy.location.{$locationCode},.queue.status.changed" => 'handleQueueStatusChanged',
+            "echo:pharmacy.location.{$locationCode},.queue.called" => 'handleQueueCalled',
+        ];
+    }
+
+    public function handleQueueStatusChanged($event)
+    {
+        // Reload if this window is affected
+        if ($event['assigned_window'] == $this->selectedWindow) {
+            $this->loadCurrentQueue();
+        }
+    }
+
+    public function handleQueueCalled($event)
+    {
+        // Reload queue list
+        $this->loadCurrentQueue();
+    }
+
     protected function autoAssignWindow()
     {
         $windowLoads = [];
@@ -162,6 +186,10 @@ class PrescriptionQueueController extends Component
             'Patient called - waiting for arrival'
         );
 
+        // Broadcast event for real-time display updates
+        $queue = PrescriptionQueue::find($this->currentQueue->id);
+        \App\Events\Pharmacy\QueueCalled::dispatch($queue, 'pharmacy');
+
         $this->success("Queue {$this->currentQueue->queue_number} called! Waiting for patient...");
         $this->dispatch('queue-called', queueNumber: $this->currentQueue->queue_number);
         $this->loadCurrentQueue();
@@ -208,6 +236,10 @@ class PrescriptionQueueController extends Component
                 }
 
                 $this->success($message);
+
+                // Notify cashier to refresh
+                $this->dispatch('refresh-cashier-queue');
+
                 $this->loadCurrentQueue();
             } else {
                 $this->error($result['message']);
