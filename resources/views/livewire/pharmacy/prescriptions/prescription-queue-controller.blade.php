@@ -65,13 +65,26 @@
                                 </div>
                             @elseif ($currentQueue->isCharging())
                                 {{-- Stage 3: Charging → Ready for Dispensing --}}
-                                <button wire:click="readyForDispensing"
-                                    class="btn btn-success btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-check-circle" class="w-5 h-5" />
-                                    READY TO DISPENSE
-                                </button>
+                                @if (!$requireCashier)
+                                    <button wire:click="readyForDispensing"
+                                        class="btn btn-success btn-block btn-lg touch-target">
+                                        <x-mary-icon name="o-check-circle" class="w-5 h-5" />
+                                        READY TO DISPENSE
+                                    </button>
+                                @else
+                                    <div class="text-center">
+                                        <button wire:click="nextQueue" class="btn btn-primary touch-target">
+                                            <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
+                                            Call Next Queue
+                                        </button>
+                                    </div>
+                                @endif
                                 <div class="alert alert-warning">
-                                    <span class="text-xs">Patient is at cashier. Click when payment is confirmed.</span>
+                                    <span class="text-xs">
+                                        Patient is at the cashier. Call the next queue or continue preparing the current
+                                        order.
+                                    </span>
+
                                 </div>
                             @elseif ($currentQueue->isReady())
                                 {{-- Stage 4: Ready → Dispense Items --}}
@@ -86,8 +99,9 @@
 
                             {{-- Secondary Actions --}}
                             <div class="flex gap-2">
-                                <button wire:click="skipQueue" class="btn btn-warning btn-sm flex-1 touch-target"
-                                    title="Move queue back to waiting (frees up window)">
+                                <button wire:click="skipQueue"
+                                    class="btn btn-warning btn-sm flex-1 touch-target tooltip tooltip-right"
+                                    data-tip="Move queue back to waiting (frees up window)">
                                     Skip
                                 </button>
                                 <button wire:click="cancelCurrentQueue"

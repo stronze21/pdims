@@ -2,16 +2,17 @@
 
 namespace App\Livewire\Pharmacy\Prescriptions;
 
+use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
+use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
+use App\Models\PharmLocation;
+use App\Services\Pharmacy\PrescriptionQueueService;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\On;
-use Livewire\Attributes\Locked;
-use Livewire\Attributes\Layout;
 use Mary\Traits\Toast;
-use Illuminate\Support\Facades\DB;
-use App\Services\Pharmacy\PrescriptionQueueService;
-use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
-use App\Models\PharmLocation;
 
 #[Layout('layouts.queue-controller')]
 class PrescriptionQueueController extends Component
@@ -24,6 +25,7 @@ class PrescriptionQueueController extends Component
     public $selectedWindow = 1;
     public $maxWindows = 4;
     public $isAvailable = true;
+    public $requireCashier = false;
 
     // Current Queue
     public $currentQueueId = null;
@@ -46,6 +48,15 @@ class PrescriptionQueueController extends Component
     public function mount()
     {
         $this->dateFilter = today()->format('Y-m-d');
+        $settings = PrescriptionQueueDisplaySetting::getForLocation(
+            auth()->user()->pharm_location_id
+        );
+
+        if ($settings) {
+            $this->maxWindows = $settings->pharmacy_windows;
+            $this->requireCashier = $settings->require_cashier;
+        }
+        $settings->require_cashier;
 
         if (session('queue_window')) {
             $this->selectedWindow = session('queue_window');
@@ -209,7 +220,7 @@ class PrescriptionQueueController extends Component
         }
 
         // Check if cashier is required for this location
-        $settings = \App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting::getForLocation(
+        $settings = PrescriptionQueueDisplaySetting::getForLocation(
             auth()->user()->pharm_location_id
         );
 

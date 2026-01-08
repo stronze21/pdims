@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueLog;
 use App\Models\Record\Prescriptions\Prescription;
+use Illuminate\Support\Facades\Log;
 
 class PrescriptionQueueService
 {
@@ -119,7 +120,6 @@ class PrescriptionQueueService
 
             // Update based on status
             $updates = ['queue_status' => $newStatus];
-
             switch ($newStatus) {
                 case 'preparing':
                     $updates['preparing_at'] = now();
@@ -166,7 +166,7 @@ class PrescriptionQueueService
             ];
         } catch (\Exception $e) {
             DB::connection('webapp')->rollBack();
-
+            Log::error($e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
