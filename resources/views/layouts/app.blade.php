@@ -64,6 +64,8 @@
                         link="{{ route('prescriptions.queue.controller2') }}" />
                     <x-mary-menu-item title="Rx Cashier Queue" icon="o-banknotes"
                         link="{{ route('prescriptions.cashier.queue') }}" />
+                    <x-mary-menu-item title="Queue TV Display" icon="o-computer-desktop"
+                        link="{{ route('queue.display', ['locationCode' => 2]) }}" />
                     <x-mary-menu-item title="Queue Display Settings" icon="o-cog-6-tooth"
                         link="{{ route('prescriptions.queue.display-setting') }}" />
                 </x-mary-menu-sub>

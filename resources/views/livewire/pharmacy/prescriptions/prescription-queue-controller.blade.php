@@ -63,29 +63,6 @@
                                 <div class="alert alert-info">
                                     <span class="text-xs">Patient called. Click when patient arrives.</span>
                                 </div>
-                            @elseif ($currentQueue->isCharging())
-                                {{-- Stage 3: Charging → Ready for Dispensing --}}
-                                @if (!$requireCashier)
-                                    <button wire:click="readyForDispensing"
-                                        class="btn btn-success btn-block btn-lg touch-target">
-                                        <x-mary-icon name="o-check-circle" class="w-5 h-5" />
-                                        READY TO DISPENSE
-                                    </button>
-                                @else
-                                    <div class="text-center">
-                                        <button wire:click="nextQueue" class="btn btn-primary touch-target">
-                                            <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
-                                            Call Next Queue
-                                        </button>
-                                    </div>
-                                @endif
-                                <div class="alert alert-warning">
-                                    <span class="text-xs">
-                                        Patient is at the cashier. Call the next queue or continue preparing the current
-                                        order.
-                                    </span>
-
-                                </div>
                             @elseif ($currentQueue->isReady())
                                 {{-- Stage 4: Ready → Dispense Items --}}
                                 <button wire:click="dispenseQueue" class="btn btn-accent btn-block btn-lg touch-target">
@@ -108,6 +85,10 @@
                                     class="btn btn-error btn-sm flex-1 touch-target">
                                     Cancel
                                 </button>
+                                <button wire:click="openPrintModal({{ $currentQueue->id }})"
+                                    class="btn btn-info btn-sm flex-1 touch-target">
+                                    Print
+                                </button>
                                 <button wire:click="viewQueue({{ $currentQueue->id }})"
                                     class="btn btn-ghost btn-sm flex-1 touch-target">
                                     Details
@@ -126,6 +107,70 @@
                     </div>
                 @endif
             </x-mary-card>
+
+            {{-- Next Charging Queue Card --}}
+            @if ($nextChargingQueue)
+                <x-mary-card class="border-2 border-warning bg-warning/5">
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2 text-warning">
+                            <x-mary-icon name="o-clock" class="w-6 h-6" />
+                            <span class="font-semibold">Patient at Cashier</span>
+                        </div>
+
+                        <div class="text-center">
+                            <div class="text-4xl font-bold mb-1">{{ $nextChargingQueue->queue_number }}</div>
+                            @if ($nextChargingQueue->patient)
+                                <div class="text-sm font-semibold">
+                                    {{ $nextChargingQueue->patient->patlast }},
+                                    {{ $nextChargingQueue->patient->patfirst }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="text-xs text-center opacity-70 py-2 bg-base-200 rounded">
+                            Waiting for payment confirmation from cashier
+                        </div>
+
+                        <button wire:click="nextQueue" class="btn btn-primary btn-block touch-target"
+                            @if (!$currentQueue) disabled @endif>
+                            <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
+                            Call Next Queue
+                        </button>
+                    </div>
+                </x-mary-card>
+            @endif
+
+            {{-- Other Charging Queues Table --}}
+            @if (count($otherChargingQueues) > 0)
+                <x-mary-card title="Other Patients at Cashier" class="border border-warning/30">
+                    <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                        <table class="table table-xs">
+                            <thead class="sticky top-0 bg-base-100">
+                                <tr>
+                                    <th>Queue #</th>
+                                    <th>Patient</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($otherChargingQueues as $queue)
+                                    <tr class="hover">
+                                        <td class="font-mono font-bold">{{ $queue->queue_number }}</td>
+                                        <td class="text-xs">
+                                            @if ($queue->patient)
+                                                {{ $queue->patient->patlast }}, {{ $queue->patient->patfirst }}
+                                            @endif
+                                        </td>
+                                        <td class="text-xs opacity-70">
+                                            {{ \Carbon\Carbon::parse($queue->charging_at)->format('h:i A') }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </x-mary-card>
+            @endif
 
             {{-- Quick Stats --}}
             <div class="grid grid-cols-3 gap-2">
@@ -148,17 +193,13 @@
         <div class="col-span-8">
             <x-mary-card title="Queue List">
                 <x-slot:menu>
-                    <div class="flex gap-2 items-center">
-                        <select wire:model.live="selectedWindow" class="select select-bordered select-sm">
+                    <div class="flex items-center gap-4">
+                        <x-mary-input type="date" wire:model.live="dateFilter" class="input-sm" />
+                        <x-mary-select wire:model.live="selectedWindow" class="select-sm">
                             @for ($i = 1; $i <= $maxWindows; $i++)
                                 <option value="{{ $i }}">Window {{ $i }}</option>
                             @endfor
-                        </select>
-                        <x-mary-input wire:model.live="dateFilter" type="date" class="input-sm" />
-                        <button wire:click="toggleAvailability"
-                            class="btn btn-sm {{ $isAvailable ? 'btn-success' : 'btn-error' }}">
-                            {{ $isAvailable ? 'Available' : 'Unavailable' }}
-                        </button>
+                        </x-mary-select>
                     </div>
                 </x-slot:menu>
 
@@ -307,4 +348,112 @@
             <button wire:click="$set('showDetailsModal', false)" class="btn">Close</button>
         </x-slot:actions>
     </x-mary-modal>
+
+    {{-- Print Prescription Modal --}}
+    <x-mary-modal wire:model="showPrintModal" title="Print Prescription" box-class="w-11/12 max-w-4xl">
+        @if ($printQueue)
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4 p-4 bg-base-200 rounded">
+                    <div>
+                        <div class="text-sm opacity-70">Queue Number</div>
+                        <div class="text-xl font-bold">{{ $printQueue->queue_number }}</div>
+                    </div>
+                    @if ($printQueue->patient)
+                        <div>
+                            <div class="text-sm opacity-70">Patient</div>
+                            <div class="font-semibold">
+                                {{ $printQueue->patient->patlast }}, {{ $printQueue->patient->patfirst }}
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                @if (count($printItems) > 0)
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="font-semibold">Select Items to Print</div>
+                            <div class="flex gap-2">
+                                <button wire:click="selectAllItems" class="btn btn-xs btn-primary">
+                                    Select All
+                                </button>
+                                <button wire:click="deselectAllItems" class="btn btn-xs btn-ghost">
+                                    Deselect All
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto max-h-96 overflow-y-auto border rounded">
+                            <table class="table table-sm">
+                                <thead class="sticky top-0 bg-base-100">
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" class="checkbox checkbox-sm"
+                                                @if (count($selectedItems) === count($printItems)) checked @endif
+                                                wire:click="selectAllItems">
+                                        </th>
+                                        <th>Drug</th>
+                                        <th>Qty</th>
+                                        <th>Frequency</th>
+                                        <th>Duration</th>
+                                        <th>Type</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($printItems as $item)
+                                        <tr class="hover">
+                                            <td>
+                                                <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                                                    @if (in_array($item['id'], $selectedItems)) checked @endif
+                                                    wire:click="toggleItemSelection({{ $item['id'] }})">
+                                            </td>
+                                            <td>
+                                                <div class="text-sm font-medium">{{ $item['drug_concat'] }}</div>
+                                            </td>
+                                            <td>{{ $item['qty'] }}</td>
+                                            <td>{{ $item['frequency'] }}</td>
+                                            <td>{{ $item['duration'] }}</td>
+                                            <td>
+                                                <div class="badge badge-xs">{{ $item['order_type'] }}</div>
+                                            </td>
+                                            <td class="text-xs">
+                                                @if ($item['remark'])
+                                                    <div>{{ $item['remark'] }}</div>
+                                                @endif
+                                                @if ($item['addtl_remarks'])
+                                                    <div class="text-warning">{{ $item['addtl_remarks'] }}</div>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3 text-sm opacity-70">
+                            Selected: <span class="font-semibold">{{ count($selectedItems) }}</span> of
+                            <span class="font-semibold">{{ count($printItems) }}</span> items
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        <x-slot:actions>
+            <button wire:click="$set('showPrintModal', false)" class="btn">Cancel</button>
+            <button wire:click="printPrescription" class="btn btn-primary">
+                <x-mary-icon name="o-printer" class="w-4 h-4" />
+                Print Selected Items
+            </button>
+        </x-slot:actions>
+    </x-mary-modal>
+
+    {{-- Print Window Script --}}
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            @this.on('open-print-window', (event) => {
+                window.open(event.url, '_blank', 'width=800,height=600');
+            });
+        });
+    </script>
 </div>

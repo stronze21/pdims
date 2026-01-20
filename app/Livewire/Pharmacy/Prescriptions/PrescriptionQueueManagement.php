@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\PharmLocation;
+use Illuminate\Support\Facades\Log;
 
 class PrescriptionQueueManagement extends Component
 {
@@ -229,6 +230,14 @@ class PrescriptionQueueManagement extends Component
             $this->dispatch('refresh-queues');
         } catch (\Exception $e) {
             DB::rollBack();
+
+            Log::error('Batch queue creation failed', [
+                'batch_date'     => $this->batchDate,
+                'batch_location' => $this->batchLocation,
+                'batch_types'    => $this->batchTypes,
+                'exception'      => $e,
+            ]);
+
             $this->error('Error creating queues: ' . $e->getMessage());
         }
     }

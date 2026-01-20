@@ -31,6 +31,10 @@ class PrescriptionQueueController extends Component
     public $currentQueueId = null;
     public $currentQueue = null;
 
+    // Store charging queues
+    public $nextChargingQueue = null;
+    public $otherChargingQueues = [];
+
     // Filters
     public $dateFilter;
     public $perPage = 50;
@@ -39,6 +43,13 @@ class PrescriptionQueueController extends Component
     public $showDetailsModal = false;
     public $selectedQueueId = null;
     public $selectedQueue = null;
+
+    // Print Modal
+    public $showPrintModal = false;
+    public $printQueueId = null;
+    public $printQueue = null;
+    public $printItems = [];
+    public $selectedItems = [];
 
     public function boot(PrescriptionQueueService $queueService)
     {
@@ -56,7 +67,6 @@ class PrescriptionQueueController extends Component
             $this->maxWindows = $settings->pharmacy_windows;
             $this->requireCashier = $settings->require_cashier;
         }
-        $settings->require_cashier;
 
         if (session('queue_window')) {
             $this->selectedWindow = session('queue_window');
@@ -79,7 +89,6 @@ class PrescriptionQueueController extends Component
 
     public function handleQueueStatusChanged($event)
     {
-        // Reload if this window is affected
         if ($event['assigned_window'] == $this->selectedWindow) {
             $this->loadCurrentQueue();
         }
@@ -87,7 +96,6 @@ class PrescriptionQueueController extends Component
 
     public function handleQueueCalled($event)
     {
-        // Reload queue list
         $this->loadCurrentQueue();
     }
 
@@ -109,19 +117,31 @@ class PrescriptionQueueController extends Component
 
     protected function loadCurrentQueue()
     {
+        // Get active queue (preparing/ready, not charging)
         $this->currentQueue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
             ->where('assigned_window', $this->selectedWindow)
-            ->whereIn('queue_status', ['preparing', 'charging', 'ready'])
+            ->whereIn('queue_status', ['preparing', 'ready'])
             ->with(['patient'])
             ->orderByRaw("
                 CASE
                     WHEN queue_status = 'ready' THEN 1
-                    WHEN queue_status = 'charging' THEN 2
-                    ELSE 3
+                    ELSE 2
                 END
             ")
             ->orderBy('queued_at', 'asc')
             ->first();
+
+        // Get all charging queues for this window
+        $chargingQueues = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->where('assigned_window', $this->selectedWindow)
+            ->where('queue_status', 'charging')
+            ->with(['patient'])
+            ->orderBy('charging_at', 'asc')
+            ->get();
+
+        // Split into next and others
+        $this->nextChargingQueue = $chargingQueues->first();
+        $this->otherChargingQueues = $chargingQueues->skip(1)->values()->all();
 
         if ($this->currentQueue) {
             $this->currentQueueId = $this->currentQueue->id;
@@ -185,19 +205,16 @@ class PrescriptionQueueController extends Component
             return;
         }
 
-        // Just mark as called, keep in preparing status
         DB::connection('webapp')->table('prescription_queues')
             ->where('id', $this->currentQueue->id)
             ->update(['called_at' => now()]);
 
-        // Log the call
         $result = $this->queueService->logQueueAction(
             $this->currentQueue->id,
             auth()->user()->employeeid,
             'Patient called - waiting for arrival'
         );
 
-        // Broadcast event for real-time display updates
         $queue = PrescriptionQueue::find($this->currentQueue->id);
         \App\Events\Pharmacy\QueueCalled::dispatch($queue, 'pharmacy');
 
@@ -219,13 +236,11 @@ class PrescriptionQueueController extends Component
             return;
         }
 
-        // Check if cashier is required for this location
         $settings = PrescriptionQueueDisplaySetting::getForLocation(
             auth()->user()->pharm_location_id
         );
 
         if ($settings->require_cashier) {
-            // Patient arrived, move to charging (cashier workflow)
             $result = $this->queueService->updateQueueStatus(
                 $this->currentQueue->id,
                 'charging',
@@ -247,21 +262,16 @@ class PrescriptionQueueController extends Component
                 }
 
                 $this->success($message);
-
-                // Notify cashier to refresh
-                $this->dispatch('refresh-cashier-queue');
-
                 $this->loadCurrentQueue();
             } else {
                 $this->error($result['message']);
             }
         } else {
-            // Bypass cashier - go directly to ready
             $result = $this->queueService->updateQueueStatus(
                 $this->currentQueue->id,
                 'ready',
                 auth()->user()->employeeid,
-                'Ready for dispensing (cashier bypassed)'
+                'Ready for dispensing (no cashier required)'
             );
 
             if ($result['success']) {
@@ -270,7 +280,6 @@ class PrescriptionQueueController extends Component
                     ->update(['ready_at' => now()]);
 
                 $this->success("Queue {$this->currentQueue->queue_number} is ready for dispensing!");
-                $this->dispatch('ready-for-dispensing', queueNumber: $this->currentQueue->queue_number);
                 $this->loadCurrentQueue();
             } else {
                 $this->error($result['message']);
@@ -278,39 +287,7 @@ class PrescriptionQueueController extends Component
         }
     }
 
-    #[Locked]
-    public function readyForDispensing()
-    {
-        if (!$this->currentQueue) {
-            $this->warning('No queue selected');
-            return;
-        }
 
-        if (!$this->currentQueue->isCharging()) {
-            $this->warning('Queue must be in charging status');
-            return;
-        }
-
-        // Patient paid, now ready for dispensing
-        $result = $this->queueService->updateQueueStatus(
-            $this->currentQueue->id,
-            'ready',
-            auth()->user()->employeeid,
-            'Payment confirmed - ready for dispensing'
-        );
-
-        if ($result['success']) {
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $this->currentQueue->id)
-                ->update(['ready_at' => now()]);
-
-            $this->success("Queue {$this->currentQueue->queue_number} is ready for dispensing!");
-            $this->dispatch('ready-for-dispensing', queueNumber: $this->currentQueue->queue_number);
-            $this->loadCurrentQueue();
-        } else {
-            $this->error($result['message']);
-        }
-    }
 
     #[Locked]
     public function dispenseQueue()
@@ -504,6 +481,77 @@ class PrescriptionQueueController extends Component
         }
 
         $this->showDetailsModal = true;
+    }
+
+    public function openPrintModal($queueId)
+    {
+        $this->printQueueId = $queueId;
+        $this->printQueue = PrescriptionQueue::with(['patient', 'prescription'])
+            ->find($queueId);
+
+        if ($this->printQueue && $this->printQueue->prescription_id) {
+            $prescriptionItems = DB::connection('webapp')->select("
+                SELECT
+                    pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                    pd.remark, pd.addtl_remarks, pd.tkehome,
+                    pd.frequency, pd.duration, dm.drug_concat
+                FROM prescription_data pd
+                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+                WHERE pd.presc_id = ? AND pd.stat = 'A'
+                ORDER BY pd.created_at ASC
+            ", [$this->printQueue->prescription_id]);
+
+            // Store items as array to persist through Livewire updates
+            $this->printItems = array_map(function ($item) {
+                return (array) $item;
+            }, $prescriptionItems);
+
+            // Select all items by default
+            $this->selectedItems = array_column($this->printItems, 'id');
+        }
+
+        $this->showPrintModal = true;
+    }
+
+    public function toggleItemSelection($itemId)
+    {
+        if (in_array($itemId, $this->selectedItems)) {
+            $this->selectedItems = array_values(array_diff($this->selectedItems, [$itemId]));
+        } else {
+            $this->selectedItems[] = $itemId;
+        }
+    }
+
+    public function selectAllItems()
+    {
+        // If all are selected, deselect all; otherwise select all
+        if (count($this->selectedItems) === count($this->printItems)) {
+            $this->selectedItems = [];
+        } else {
+            $this->selectedItems = array_column($this->printItems, 'id');
+        }
+    }
+
+    public function deselectAllItems()
+    {
+        $this->selectedItems = [];
+    }
+
+    public function printPrescription()
+    {
+        if (empty($this->selectedItems)) {
+            $this->warning('Please select at least one item to print');
+            return;
+        }
+
+        // Store selected items in session for print page
+        session([
+            'print_queue_id' => $this->printQueueId,
+            'print_items' => $this->selectedItems
+        ]);
+
+        // Dispatch event to open print window - route should be defined in web.php
+        $this->dispatch('open-print-window', url: url("/prescriptions/queue/print/{$this->printQueueId}"));
     }
 
     public function toggleAvailability()

@@ -99,7 +99,7 @@ class PrescriptionQueueService
             ];
         } catch (\Exception $e) {
             DB::connection('webapp')->rollBack();
-
+            Log::error($e);
             return [
                 'success' => false,
                 'error' => $e->getMessage(),

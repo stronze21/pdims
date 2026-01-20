@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\Route;
 
 
 
-Route::get('/', function () {
-    return view('welcome');
+Route::middleware('guest')->get('/', function () {
+    return redirect('login');
 });
 
 Route::middleware([
@@ -50,6 +50,44 @@ Route::middleware([
         Route::get('/cashier-queue', CashierQueueController::class)
             ->name('cashier.queue');
     });
+
+    Route::get('/prescriptions/queue/print/{queueId}', function ($queueId) {
+        $printItems = session('print_items', []);
+
+        if (empty($printItems)) {
+            return redirect()->back()->with('error', 'No items selected for printing');
+        }
+
+        $queue = \App\Models\Pharmacy\Prescriptions\PrescriptionQueue::with(['patient'])
+            ->find($queueId);
+
+        if (!$queue) {
+            return redirect()->back()->with('error', 'Queue not found');
+        }
+
+        $items = collect(DB::connection('webapp')->select("
+        SELECT
+            pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+            pd.remark, pd.addtl_remarks, pd.tkehome,
+            pd.frequency, pd.duration, dm.drug_concat
+        FROM prescription_data pd
+        INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+        WHERE pd.presc_id = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
+        ORDER BY pd.created_at ASC
+    ", array_merge([$queue->prescription_id], $printItems)));
+
+        return view('pharmacy.prescriptions.print', [
+            'queue' => $queue,
+            'items' => $items
+        ]);
+    })->name('prescriptions.print');
+
+
+
+
+
+
+
 
     // User Management Routes
     Route::get('/users', ManageUsers::class)
