@@ -52,13 +52,6 @@
 
     <script>
         // Auto enter fullscreen
-        // document.addEventListener('DOMContentLoaded', function() {
-        //     setTimeout(() => {
-        //         document.documentElement.requestFullscreen().catch(err => {
-        //             console.log('Fullscreen error:', err);
-        //         });
-        //     }, 1000);
-        // });
 
         // Hide cursor after 5 seconds of inactivity
         let cursorTimeout;
@@ -74,11 +67,11 @@
         document.addEventListener('contextmenu', e => e.preventDefault());
 
         // Prevent F keys except F11
-        // document.addEventListener('keydown', function(e) {
-        //     if (e.key.startsWith('F') && e.key !== 'F11') {
-        //         e.preventDefault();
-        //     }
-        // });
+        document.addEventListener('keydown', function(e) {
+            if (e.key.startsWith('F') && e.key !== 'F11') {
+                e.preventDefault();
+            }
+        });
 
         // Toggle fullscreen
         function toggleFullscreen() {
@@ -98,10 +91,6 @@
                 e.preventDefault();
                 toggleFullscreen();
             }
-            // Escape to exit fullscreen
-            // if (e.key === 'Escape' && document.fullscreenElement) {
-            //     document.exitFullscreen();
-            // }
         });
     </script>
 </body>
