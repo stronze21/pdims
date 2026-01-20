@@ -33,15 +33,26 @@ class Drug extends Model
         'gencode'
     ];
 
+    public function getDrugNameAttribute()
+    {
+        $parts = explode('_,', $this->drug_concat);
+        return implode(' ', $parts);
+    }
+
     public function drug_concat()
     {
         $parts = explode('_,', $this->drug_concat);
         return implode(' ', $parts);
     }
 
+    public function drug_group()
+    {
+        return $this->belongsTo(DrugGroup::class, 'grpcode', 'grpcode');
+    }
+
     public function generic()
     {
-        return $this->belongsTo(Generic::class, 'gencode', 'gencode');
+        return $this->hasOneThrough(Generic::class, DrugGroup::class, 'grpcode', 'gencode', 'grpcode', 'gencode');
     }
 
     public function stocks()

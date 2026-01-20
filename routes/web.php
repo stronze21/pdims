@@ -2,16 +2,19 @@
 
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
+use App\Livewire\Pharmacy\Drugs\StockList;
 use App\Livewire\Pharmacy\Prescriptions\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagementTablet;
 use App\Livewire\Pharmacy\Prescriptions\QueueDisplaySettings;
+use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -28,6 +31,10 @@ Route::middleware([
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
+
+    Route::prefix('/inventory')->name('inventory.')->group(function () {
+        Route::get('/stocks', StockList::class)->name('stocks.list');
+    });
 
     Route::prefix('/records')->name('records.')->group(function () {
         Route::get('/patients', PatientsList::class)
@@ -82,13 +89,6 @@ Route::middleware([
         ]);
     })->name('prescriptions.print');
 
-
-
-
-
-
-
-
     // User Management Routes
     Route::get('/users', ManageUsers::class)
         ->name('users.index');
@@ -100,6 +100,8 @@ Route::middleware([
     // Permissions Management Routes
     Route::get('/permissions', ManagePermissions::class)
         ->name('permissions.index');
+
+    Route::get('/settings/zero-billing-charges', ManageZeroBillingCharges::class)->name('settings.zero-billing');
 });
 
 // Public Queue Display (can be accessed without auth for TV displays)

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
 
@@ -45,7 +46,12 @@ class AppServiceProvider extends ServiceProvider
                 'DRUMAK',
                 'DRUMAL',
                 'DRUMAM',
+                'DRUMAN',
             );
+        });
+
+        Gate::after(function ($user, $ability) {
+            return $user->hasRole('Super Admin'); // note this returns boolean
         });
     }
 }

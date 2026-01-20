@@ -53,7 +53,7 @@
             {{-- MENU ITEMS --}}
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
-                <x-mary-menu-item title="Inventory" icon="o-cube" link="/inventory" />
+                <x-mary-menu-item title="Inventory" icon="o-cube" link="{{ route('inventory.stocks.list') }}" />
                 <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list" link="/dispensing" />
                 <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
                 <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
@@ -74,6 +74,8 @@
                     <x-mary-menu-item title="Roles" icon="o-building-office" link="{{ route('roles.index') }}" />
                     <x-mary-menu-item title="Permissions" icon="o-shield-check"
                         link="{{ route('permissions.index') }}" />
+                    <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
+                        link="{{ route('settings.zero-billing') }}" />
                 </x-mary-menu-sub>
             </x-mary-menu>
         </x-slot:sidebar>
