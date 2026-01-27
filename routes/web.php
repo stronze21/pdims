@@ -3,6 +3,7 @@
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Drugs\StockList;
+use App\Livewire\Pharmacy\ManageNonPnfDrugs;
 use App\Livewire\Pharmacy\Prescriptions\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
@@ -14,6 +15,7 @@ use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -46,6 +48,8 @@ Route::middleware([
             ->where('enccode', '.*')->name('view.enctr');
     });
 
+    Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
+        ->name('pharmacy.non-pnf-drugs');
 
     // Prescription Queue Management Routes
     Route::prefix('prescriptions')->name('prescriptions.')->group(function () {

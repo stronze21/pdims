@@ -74,6 +74,8 @@
                     <x-mary-menu-item title="Roles" icon="o-building-office" link="{{ route('roles.index') }}" />
                     <x-mary-menu-item title="Permissions" icon="o-shield-check"
                         link="{{ route('permissions.index') }}" />
+                    <x-mary-menu-item title="Non-PNF Drugs" icon="o-beaker"
+                        link="{{ route('pharmacy.non-pnf-drugs') }}" />
                     <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
                         link="{{ route('settings.zero-billing') }}" />
                 </x-mary-menu-sub>
