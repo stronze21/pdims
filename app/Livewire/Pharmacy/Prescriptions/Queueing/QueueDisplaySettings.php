@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pharmacy\Prescriptions;
+namespace App\Livewire\Pharmacy\Prescriptions\Queueing;
 
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -69,7 +69,7 @@ class QueueDisplaySettings extends Component
 
     public function render()
     {
-        return view('livewire.pharmacy.prescriptions.queue-display-settings', [
+        return view('livewire.pharmacy.prescriptions.queueing.queue-display-settings', [
             'locations' => PharmLocation::orderBy('description')->get(),
         ]);
     }

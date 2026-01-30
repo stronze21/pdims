@@ -4,17 +4,24 @@ use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Drugs\StockList;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
-use App\Livewire\Pharmacy\Prescriptions\CashierQueueController;
-use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueController;
-use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueDisplay;
-use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagement;
-use App\Livewire\Pharmacy\Prescriptions\PrescriptionQueueManagementTablet;
-use App\Livewire\Pharmacy\Prescriptions\QueueDisplaySettings;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
+use App\Livewire\Pharmacy\Prescriptions\Queueing\CashierQueueController;
+use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueController;
+use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueDisplay;
+// ✨ ADD THESE NEW IMPORTS
+use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagement;
+use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTablet;
+use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
+// ✨ END NEW IMPORTS
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -50,6 +57,14 @@ Route::middleware([
 
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
         ->name('pharmacy.non-pnf-drugs');
+
+    // ✨ NEW: Prescription Listing Routes (OPD, Ward, ER)
+    Route::prefix('rx')->name('rx.')->group(function () {
+        Route::get('/opd', PrescriptionOpd::class)->name('opd');
+        Route::get('/ward', PrescriptionWard::class)->name('ward');
+        Route::get('/er', PrescriptionEr::class)->name('er');
+    });
+    // ✨ END NEW ROUTES
 
     // Prescription Queue Management Routes
     Route::prefix('prescriptions')->name('prescriptions.')->group(function () {

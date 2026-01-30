@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "awobaz/compoships",
-            "version": "2.5.1",
+            "version": "2.5.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/topclaudy/compoships.git",
-                "reference": "d8de30b57949d6021bb0312105f6d9d0920266b6"
+                "reference": "dcae8012a8704fc2acd8dce2d8a1b35ce292adbe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/d8de30b57949d6021bb0312105f6d9d0920266b6",
-                "reference": "d8de30b57949d6021bb0312105f6d9d0920266b6",
+                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/dcae8012a8704fc2acd8dce2d8a1b35ce292adbe",
+                "reference": "dcae8012a8704fc2acd8dce2d8a1b35ce292adbe",
                 "shasum": ""
             },
             "require": {
@@ -58,7 +58,7 @@
             ],
             "support": {
                 "issues": "https://github.com/topclaudy/compoships/issues",
-                "source": "https://github.com/topclaudy/compoships/tree/2.5.1"
+                "source": "https://github.com/topclaudy/compoships/tree/2.5.4"
             },
             "funding": [
                 {
@@ -66,7 +66,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-10-10T14:07:12+00:00"
+            "time": "2025-12-23T18:33:46+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",

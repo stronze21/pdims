@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pharmacy\Prescriptions;
+namespace App\Livewire\Pharmacy\Prescriptions\Queueing;
 
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
@@ -563,7 +563,7 @@ class PrescriptionQueueController extends Component
 
     public function render()
     {
-        return view('livewire.pharmacy.prescriptions.prescription-queue-controller', [
+        return view('livewire.pharmacy.prescriptions.queueing.prescription-queue-controller', [
             'queues' => $this->queues,
             'stats' => $this->stats,
         ]);

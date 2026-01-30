@@ -50,12 +50,23 @@
                 <x-mary-menu-separator />
             @endif
 
+            {{-- Update this section in your resources/views/layouts/app.blade.php --}}
+
             {{-- MENU ITEMS --}}
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
                 <x-mary-menu-item title="Inventory" icon="o-cube" link="{{ route('inventory.stocks.list') }}" />
                 <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list" link="/dispensing" />
                 <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+
+                {{-- ✨ NEW: Rx/Orders Menu Section --}}
+                <x-mary-menu-sub title="Rx/Orders" icon="o-clipboard-document-list">
+                    <x-mary-menu-item title="Out Patient Department" icon="o-user-group" link="{{ route('rx.opd') }}" />
+                    <x-mary-menu-item title="Wards" icon="o-building-office-2" link="{{ route('rx.ward') }}" />
+                    <x-mary-menu-item title="Emergency Room" icon="o-heart" link="{{ route('rx.er') }}" />
+                </x-mary-menu-sub>
+                {{-- ✨ END NEW SECTION --}}
+
                 <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
                 <x-mary-menu-sub title="Queueing" icon="o-clock">
                     <x-mary-menu-item title="Desktop View" icon="o-computer-desktop"

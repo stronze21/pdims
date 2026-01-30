@@ -18,36 +18,38 @@
     </x-slot>
 
     <div class=" px-4 py-4 mx-auto">
-        {{-- Patient Info Card --}}
-        <div class="mb-4 shadow-lg card bg-gradient-to-r from-primary/10 to-secondary/10">
-            <div class="card-body">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div>
-                        <p class="text-xs text-gray-500">Hospital #</p>
-                        <p class="font-mono text-lg font-bold">{{ $hpercode }}</p>
-                        <p class="mt-1 font-medium">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Encounter Type</p>
-                        <div class="badge badge-primary">{{ $toecode }}</div>
-                        <p class="mt-1 text-sm">{{ \Carbon\Carbon::parse($encdate)->format('M d, Y h:i A') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Diagnosis</p>
-                        <p class="text-sm">{{ $diagtext ?: 'N/A' }}</p>
-                        @if ($wardname || $rmname)
-                            <p class="mt-1 text-xs text-gray-600">
-                                {{ $wardname }} {{ $rmname ? '- ' . $rmname : '' }}
-                            </p>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-6">
             {{-- Orders Table - 3 columns --}}
             <div class="lg:col-span-4">
+                {{-- Patient Info Card --}}
+                <div class="mb-4 shadow-lg card bg-gradient-to-r from-primary/10 to-secondary/10">
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div>
+                                <p class="text-xs text-gray-500">Hospital #</p>
+                                <p class="font-mono text-lg font-bold">{{ $hpercode }}</p>
+                                <p class="mt-1 font-medium">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Encounter Type</p>
+                                <div class="badge badge-primary">{{ $toecode }}</div>
+                                <p class="mt-1 text-sm">{{ \Carbon\Carbon::parse($encdate)->format('M d, Y h:i A') }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Diagnosis</p>
+                                <p class="text-sm">{{ $diagtext ?: 'N/A' }}</p>
+                                @if ($wardname || $rmname)
+                                    <p class="mt-1 text-xs text-gray-600">
+                                        {{ $wardname }} {{ $rmname ? '- ' . $rmname : '' }}
+                                    </p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {{-- Cart Section (NEW) --}}
                 {{-- @if (count($cartItems) > 0)
                     <div class="mb-4 shadow-lg card bg-base-100">
@@ -285,7 +287,7 @@
             </div>
 
             {{-- Right Sidebar - 2 columns --}}
-            <div class="space-y-4 lg:col-span-1">
+            <div class="space-y-4 lg:col-span-2">
                 {{-- Search --}}
                 <div class="shadow-lg card bg-base-100">
                     <div class="card-body">

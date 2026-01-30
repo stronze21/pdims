@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pharmacy\Prescriptions;
+namespace App\Livewire\Pharmacy\Prescriptions\Queueing;
 
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -414,7 +414,7 @@ class PrescriptionQueueManagementTablet extends Component
 
     public function render()
     {
-        return view('livewire.pharmacy.prescriptions.prescription-queue-management-tablet', [
+        return view('livewire.pharmacy.prescriptions.queueing.prescription-queue-management-tablet', [
             'queues' => $this->queues,
             'stats' => $this->stats,
             'locations' => $this->locations,

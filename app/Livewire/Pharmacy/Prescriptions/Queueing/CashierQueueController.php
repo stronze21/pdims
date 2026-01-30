@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pharmacy\Prescriptions;
+namespace App\Livewire\Pharmacy\Prescriptions\Queueing;
 
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -267,7 +267,7 @@ class CashierQueueController extends Component
 
     public function render()
     {
-        return view('livewire.pharmacy.prescriptions.cashier-queue-controller', [
+        return view('livewire.pharmacy.prescriptions.queueing.cashier-queue-controller', [
             'queues' => $this->queues,
             'stats' => $this->stats,
         ]);
