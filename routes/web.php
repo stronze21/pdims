@@ -16,11 +16,13 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTabl
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
 // ✨ END NEW IMPORTS
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
+use App\Livewire\Records\DischargedPatients;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -48,6 +50,8 @@ Route::middleware([
     Route::prefix('/records')->name('records.')->group(function () {
         Route::get('/patients', PatientsList::class)
             ->name('patients.index');
+        Route::get('/discharged-patients', DischargedPatients::class)
+            ->name('discharged-patients');
     });
 
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
@@ -58,13 +62,11 @@ Route::middleware([
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
         ->name('pharmacy.non-pnf-drugs');
 
-    // ✨ NEW: Prescription Listing Routes (OPD, Ward, ER)
     Route::prefix('rx')->name('rx.')->group(function () {
         Route::get('/opd', PrescriptionOpd::class)->name('opd');
         Route::get('/ward', PrescriptionWard::class)->name('ward');
         Route::get('/er', PrescriptionEr::class)->name('er');
     });
-    // ✨ END NEW ROUTES
 
     // Prescription Queue Management Routes
     Route::prefix('prescriptions')->name('prescriptions.')->group(function () {

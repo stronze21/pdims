@@ -57,7 +57,11 @@
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
                 <x-mary-menu-item title="Inventory" icon="o-cube" link="{{ route('inventory.stocks.list') }}" />
                 <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list" link="/dispensing" />
-                <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+                <x-mary-menu-sub title="Records" icon="o-document-text">
+                    <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+                    <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
+                        link="{{ route('records.discharged-patients') }}" />
+                </x-mary-menu-sub>
 
                 {{-- ✨ NEW: Rx/Orders Menu Section --}}
                 <x-mary-menu-sub title="Rx/Orders" icon="o-clipboard-document-list">
