@@ -31,10 +31,12 @@ class DispensingEncounter extends Component
     use Toast;
 
     public $generic, $charge_code = [];
+    public $charge_code_filter = [];
     public $enccode, $location_id, $hpercode, $toecode, $mssikey;
 
     public $order_qty, $unit_price, $return_qty, $docointkey;
-    public $item_id;
+    public $item_id, $item_chrgcode;
+    public $item_dmdcomb, $item_dmdctr, $item_loc_code, $item_dmdprdte, $item_exp_date, $item_stock_bal;
     public $ems, $maip, $wholesale, $caf, $type, $konsulta, $pcso, $phic, $pay, $service, $doh_free, $bnb = false;
 
     public $is_ris = false;
@@ -65,6 +67,9 @@ class DispensingEncounter extends Component
     public $rx_id, $rx_dmdcomb, $rx_dmdctr, $empid, $mss, $deptcode;
 
     public $stock_changes = false;
+
+    // Pagination for stocks - Alpine auto-loads
+    public $stocksDisplayCount = 50;
 
 
     public function mount($enccode)
@@ -176,18 +181,37 @@ class DispensingEncounter extends Component
                                     ORDER BY dodate DESC");
         }
 
-        $stocks = DB::select("SELECT pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.drug_concat, hcharge.chrgdesc,
+        // Build charge code filter
+        $chargeCodeFilter = '';
+        if (!empty($this->charge_code_filter)) {
+            $chargeCodeList = "'" . implode("','", $this->charge_code_filter) . "'";
+            $chargeCodeFilter = " AND pharm_drug_stocks.chrgcode IN ($chargeCodeList)";
+        }
+
+        // Build generic search filter
+        $genericFilter = '';
+        if ($this->generic) {
+            $genericFilter = " AND pharm_drug_stocks.drug_concat LIKE '%" . implode("''", explode("'", $this->generic)) . "%'";
+        }
+
+        // Get stocks with Alpine-controlled display count
+        $stocks = DB::select("SELECT TOP " . $this->stocksDisplayCount . "
+                                        pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.drug_concat, hcharge.chrgdesc,
                                         pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, dmselprice, pharm_drug_stocks.loc_code,
                                         pharm_drug_stocks.dmdprdte as dmdprdte, SUM(stock_bal) as stock_bal, MAX(id) as id, MIN(exp_date) as exp_date,
                                         hdmhdrprice.acquisition_cost, DATEDIFF(day, GETDATE(), MIN(exp_date)) as days_to_expiry
-                                FROM hospital.dbo.pharm_drug_stocks
+                                FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
                                 INNER JOIN hcharge on hcharge.chrgcode = pharm_drug_stocks.chrgcode
                                 INNER JOIN hdmhdrprice on hdmhdrprice.dmdprdte = pharm_drug_stocks.dmdprdte
                                 WHERE loc_code = '" . $this->location_id . "'
-                                AND pharm_drug_stocks.drug_concat LIKE '%" . implode("''", explode("'", $this->generic)) . "%'
+                                $genericFilter
+                                $chargeCodeFilter
                                 AND stock_bal > 0
-                                GROUP BY pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, hdmhdrprice.acquisition_cost, dmselprice, pharm_drug_stocks.drug_concat, hcharge.chrgdesc, pharm_drug_stocks.loc_code, pharm_drug_stocks.dmdprdte
+                                GROUP BY pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.chrgcode,
+                                         hdmhdrprice.retail_price, hdmhdrprice.acquisition_cost, dmselprice,
+                                         pharm_drug_stocks.drug_concat, hcharge.chrgdesc, pharm_drug_stocks.loc_code, pharm_drug_stocks.dmdprdte
                                 ORDER BY pharm_drug_stocks.drug_concat");
+
 
 
         $summaries = DB::select("
@@ -625,14 +649,15 @@ class DispensingEncounter extends Component
 
     public function delete_item()
     {
-        $selectedItems = implode(',', array_map(function ($item) {
-            return $item;
-        }, $this->selected_items));
+        if (empty($this->selected_items)) {
+            $this->warning('No items selected.');
+            return;
+        }
+
+        $selectedItems = implode(',', $this->selected_items);
         DB::delete("DELETE FROM hrxo WHERE docointkey IN(" . $selectedItems . ") AND (estatus = 'U' OR pcchrgcod IS NULL)");
 
         $this->reset('selected_items');
-
-        $this->emit('refresh');
         $this->success('Selected item/s deleted!');
     }
 
@@ -889,5 +914,20 @@ class DispensingEncounter extends Component
                 'pcchrgamt' =>  $this->order_qty * $this->unit_price
             ]);
         $this->success('Order updated!');
+    }
+
+    public function loadMoreStocks()
+    {
+        $this->stocksDisplayCount += 50;
+    }
+
+    public function updatedChargeCodeFilter()
+    {
+        $this->stocksDisplayCount = 50; // Reset display count when filter changes
+    }
+
+    public function updatedGeneric()
+    {
+        $this->stocksDisplayCount = 50; // Reset display count when search changes
     }
 }

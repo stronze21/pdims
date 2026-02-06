@@ -12,9 +12,9 @@ class Employee extends Model
     protected $connection = 'hospital';
     protected $table = 'hospital.dbo.hpersonal', $primaryKey = 'employeeid', $keyType = 'string';
 
-    public function fullname()
+    public function getFullnameAttribute()
     {
-        return $this->prefix.' '.$this->lastname.', '.$this->firstname.' '.mb_substr($this->middlename, 0, 1).'.';
+        return $this->prefix . ' ' . $this->lastname . ', ' . $this->firstname . ' ' . mb_substr($this->middlename, 0, 1) . '.';
     }
 
     public function dept()

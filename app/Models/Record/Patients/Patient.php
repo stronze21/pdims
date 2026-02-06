@@ -160,7 +160,7 @@ class Patient extends Model
     // Accessor Methods
     // ==========================================
 
-    public function fullname()
+    public function getFullnameAttribute()
     {
         $suffix = $this->patsuffix ? $this->patsuffix . ' ' : '';
         $middle = $this->patmiddle ? mb_substr($this->patmiddle, 0, 1) . '.' : '';
