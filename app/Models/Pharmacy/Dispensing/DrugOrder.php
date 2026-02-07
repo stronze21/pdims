@@ -113,6 +113,36 @@ class DrugOrder extends Model
         return $this->belongsTo(PrescriptionData::class, 'prescription_data_id');
     }
 
+    public function dm()
+    {
+        return $this->belongsTo(Drug::class, ['dmdcomb', 'dmdctr'], ['dmdcomb', 'dmdctr']);
+    }
+
+    public function returns()
+    {
+        return $this->hasMany(DrugOrderReturn::class, 'docointkey', 'docointkey');
+    }
+
+    public function enctr()
+    {
+        return $this->belongsTo(EncounterLog::class, 'enccode', 'enccode');
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class, 'entryby', 'employeeid');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'entryby', 'employeeid');
+    }
+
+    public function prescription_data()
+    {
+        return $this->belongsTo(PrescriptionData::class, 'prescription_data_id');
+    }
+
     // Helper methods
     public function getStatusAttribute()
     {
