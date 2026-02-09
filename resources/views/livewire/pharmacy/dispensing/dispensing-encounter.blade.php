@@ -748,7 +748,8 @@
 
                                                         @case('OR')
                                                             <span class="badge badge-xs badge-secondary">OR
-                                                                ({{ $extra_all_data->qty }})</span>
+                                                                ({{ $extra_all_data->qty }})
+                                                            </span>
                                                         @break
 
                                                         @default
@@ -757,7 +758,7 @@
                                                 </td>
                                                 <td class="text-xs">{{ $extra_all_data->remark }}</td>
                                                 <td class="text-xs">
-                                                    {{ $extra_all->employee ? $extra_all->employee->fullname() : '' }}</td>
+                                                    {{ $extra_all->employee ? $extra_all->employee->fullname : '' }}</td>
                                                 <td class="text-xs text-center">
                                                     <span
                                                         class="badge badge-xs {{ $extra_all_data->stat == 'A' ? 'badge-primary' : 'badge-error' }}">

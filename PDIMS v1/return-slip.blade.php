@@ -30,7 +30,7 @@
                     </div>
 
                     <div>Ordering Physician: <span
-                            class="font-semibold">{{ $prescription && $prescription->adm_pat_room ? 'Dr. ' . ($rxo[0]->prescription_data ? $rxo[0]->prescription_data->employee->fullname() : '') : 'N/A' }}</span>
+                            class="font-semibold">{{ $prescription && $prescription->adm_pat_room ? 'Dr. ' . ($rxo[0]->prescription_data ? $rxo[0]->prescription_data->employee->fullname : '') : 'N/A' }}</span>
                     </div>
                     <div>Date/Time Ordered: <span
                             class="font-semibold">{{ $rxo[0]->prescription_data ? date('F j, Y h:i A', strtotime($rxo[0]->prescription_data->created_at)) : 'N/A' }}</span>
@@ -95,7 +95,7 @@
             </table>
             {{-- <div class="flex flex-col py-0 my-0 text-left text-xs/4 whitespace-nowrap">
                 <div>Issued by:
-                    {{ $rxo_header->employee ? $rxo_header->employee->fullname() : ($rxo_header->user ? $rxo_header->user->name : $rxo_header->entry_by) }}
+                    {{ $rxo_header->employee ? $rxo_header->employee->fullname : ($rxo_header->user ? $rxo_header->user->name : $rxo_header->entry_by) }}
                 </div>
                 <div><span>Time: {{ \Carbon\Carbon::create($rxo_header->dodate)->format('h:i A') }}</span></div>
                 <div><span>Verified by Nurse/N.A.: _________________________</span></div>

@@ -400,7 +400,7 @@
                                         @endswitch
                                     </td>
                                     <td class="text-xs">{{ $presc_data->remark }}</td>
-                                    <td class="text-xs">{{ $presc_data->employee->fullname() }}</td>
+                                    <td class="text-xs">{{ $presc_data->employee->fullname }}</td>
                                     <td class="text-xs cursor-pointer"><button class="btn btn-xs btn-error"
                                             onclick="select_rx_item_inactive({{ $presc_data->id }}, '{{ $presc_data->dm->drug_concat() }}', '{{ $presc_data->qty }}', '{{ $presc->empid }}', '{{ $presc_data->dmdcomb }}', '{{ $presc_data->dmdctr }}')"
                                             wire:loading.attr="disabled"><i class="las la-sliders-h"></i></button>
@@ -454,7 +454,7 @@
                                                 @endswitch
                                             </td>
                                             <td class="text-xs">{{ $extra_data->remark }}</td>
-                                            <td class="text-xs">{{ $extra->employee->fullname() }}</td>
+                                            <td class="text-xs">{{ $extra->employee->fullname }}</td>
                                             <td class="text-xs cursor-pointer"><button class="btn btn-xs btn-error"
                                                     onclick="select_rx_item_inactive({{ $extra_data->id }}, '{{ $extra_data->dm->drug_concat() }}', '{{ $extra_data->qty }}', '{{ $extra->empid }}', '{{ $extra_data->dmdcomb }}', '{{ $extra_data->dmdctr }}')"
                                                     wire:loading.attr="disabled"><i class="las la-sliders-h"></i></button>
@@ -536,7 +536,7 @@
                                                 @endswitch
                                             </td>
                                             <td class="text-xs">{{ $presc_all_data->remark }}</td>
-                                            <td class="text-xs">{{ $presc_all_data->employee->fullname() }}</td>
+                                            <td class="text-xs">{{ $presc_all_data->employee->fullname }}</td>
                                             <td class="text-xs">
                                                 @if ($presc_all_data->stat == 'A')
                                                     <div class="badge badge-primary">{{ $presc_all_data->stat }}</div>
@@ -596,7 +596,7 @@
                                                         @endswitch
                                                     </td>
                                                     <td class="text-xs">{{ $extra_all_data->remark }}</td>
-                                                    <td class="text-xs">{{ $extra_all->employee->fullname() }}</td>
+                                                    <td class="text-xs">{{ $extra_all->employee->fullname }}</td>
                                                     <td class="text-xs cursor-pointer"><button class="btn btn-xs btn-error"
                                                             onclick="select_rx_item_inactive({{ $extra_all_data->id }}, `{{ $extra_all_data->dm->drug_concat() }}`, '{{ $extra_all_data->qty }}', '{{ $extra_all->empid }}', '{{ $extra_all_data->dmdcomb }}', '{{ $extra_all_data->dmdctr }}')"
                                                             wire:loading.attr="disabled"><i class="las la-sliders-h"></i></button></td>

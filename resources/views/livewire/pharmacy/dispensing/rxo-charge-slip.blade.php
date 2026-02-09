@@ -30,7 +30,7 @@
                             class="font-semibold">{{ date('F j, Y h:i A', strtotime($rxo_header->dodate)) }}</span>
                     </div>
                     <div>Patient's Name: <span
-                            class="font-semibold">{{ $rxo_header->patient ? $rxo_header->patient->fullname() : 'N/A' }}</span>
+                            class="font-semibold">{{ $rxo_header->patient ? $rxo_header->patient->fullname : 'N/A' }}</span>
                     </div>
                     <div>Hosp Number: <span
                             class="font-semibold">{{ $rxo_header->patient ? $rxo_header->patient->hpercode : '' }}</span>
@@ -41,7 +41,7 @@
                             / {{ $toecode }}</span>
                     </div>
                     <div>Ordering Physician: <span
-                            class="font-semibold">{{ $rxo_header->prescription_data && $rxo_header->prescription_data->employee ? 'Dr. ' . $rxo_header->prescription_data->employee->fullname() : 'N/A' }}</span>
+                            class="font-semibold">{{ $rxo_header->prescription_data && $rxo_header->prescription_data->employee ? 'Dr. ' . $rxo_header->prescription_data->employee->fullname : 'N/A' }}</span>
                     </div>
                     <div>Date/Time Ordered: <span
                             class="font-semibold">{{ $rxo_header->prescription_data ? date('F j, Y h:i A', strtotime($rxo_header->prescription_data->created_at)) : 'N/A' }}</span>
@@ -66,14 +66,12 @@
                     @forelse ($rxo as $item)
                         @php
                             $amount =
-                                $item->pcchrgamt +
-                                ($view_returns ? $item->pchrgup * $item->returns->sum('qty') : 0);
+                                $item->pcchrgamt + ($view_returns ? $item->pchrgup * $item->returns->sum('qty') : 0);
                             $total_amt += $amount;
                             $concat = implode(',', explode('_,', $item->dm->drug_concat));
                         @endphp
                         <tr class="border-t border-black border-x">
-                            <td class="!text-2xs font-semibold text-wrap"
-                                colspan="{{ $view_returns ? 5 : 4 }}">
+                            <td class="!text-2xs font-semibold text-wrap" colspan="{{ $view_returns ? 5 : 4 }}">
                                 {{ $concat }}</td>
                         </tr>
                         <tr class="border-b border-black border-x">
@@ -109,7 +107,7 @@
             </table>
             <div class="flex flex-col py-0 my-0 text-left text-xs/4 whitespace-nowrap">
                 <div>Issued by:
-                    {{ $rxo_header->employee ? $rxo_header->employee->fullname() : ($rxo_header->user ? $rxo_header->user->name : $rxo_header->entryby) }}
+                    {{ $rxo_header->employee ? $rxo_header->employee->fullname : ($rxo_header->user ? $rxo_header->user->name : $rxo_header->entryby) }}
                 </div>
                 <div><span>Time:
                         {{ \Carbon\Carbon::create($rxo_header->dodate)->format('h:i A') }}</span></div>
@@ -117,8 +115,8 @@
                             Nurse/N.A.
                         @endif: _________________________</span></div>
                 <div><span>Received by Patient/Watcher: ____________________</span></div>
-                <div class="mt-10 italic text-right justify-content-end"><span
-                        class="border-t border-black">Signature Over Printed Name</span></div>
+                <div class="mt-10 italic text-right justify-content-end"><span class="border-t border-black">Signature
+                        Over Printed Name</span></div>
                 <div class="mt-2 text-right justify-content-end">
                     <span><input type="checkbox" class="mt-1" disabled> Counseled</span>
                 </div>

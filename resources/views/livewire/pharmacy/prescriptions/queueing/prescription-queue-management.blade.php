@@ -136,7 +136,7 @@
                                 <td>
                                     <div class="font-medium">{{ $queue->hpercode }}</div>
                                     @if ($queue->patient)
-                                        <div class="text-xs opacity-70">{{ $queue->patient->fullname() }}</div>
+                                        <div class="text-xs opacity-70">{{ $queue->patient->fullname }}</div>
                                     @endif
                                 </td>
                                 <td>
@@ -335,7 +335,7 @@
                             </div>
                             <div>
                                 <span class="opacity-70">Name:</span>
-                                <span class="font-medium">{{ $selectedQueue->patient->fullname() }}</span>
+                                <span class="font-medium">{{ $selectedQueue->patient->fullname }}</span>
                             </div>
                         </div>
                     </div>
@@ -432,7 +432,7 @@
                                 <div class="flex-1">
                                     <div class="font-medium">{{ $log->getStatusChangeLabel() }}</div>
                                     @if ($log->changer)
-                                        <div class="text-xs opacity-70">By: {{ $log->changer->fullname() }}</div>
+                                        <div class="text-xs opacity-70">By: {{ $log->changer->fullname }}</div>
                                     @endif
                                     @if ($log->remarks)
                                         <div class="text-xs opacity-70">{{ $log->remarks }}</div>

@@ -93,7 +93,7 @@ class PatientsList extends Component
 
         if ($this->selectedPatient) {
             $this->loadPatientEncounters();
-            $this->success('Patient selected: ' . $this->selectedPatient->fullname());
+            $this->success('Patient selected: ' . $this->selectedPatient->fullname);
         }
     }
 
@@ -238,7 +238,7 @@ class PatientsList extends Component
             'datemod' => now(),
         ]);
 
-        $this->success('New patient created successfully: ' . $patient->fullname());
+        $this->success('New patient created successfully: ' . $patient->fullname);
         $this->closeNewPatientModal();
 
         // Auto-select the new patient and create walk-in
