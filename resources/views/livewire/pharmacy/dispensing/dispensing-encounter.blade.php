@@ -230,26 +230,7 @@
         </div>
 
         {{-- Right Sidebar: Stocks & Prescriptions --}}
-        <div class="flex flex-col w-[420px] overflow-hidden bg-base-100" x-data="{ tab: 'stocks', stockCount: @entangle('stocksDisplayCount') }">
-
-            {{-- Tab Switcher --}}
-            <div class="flex border-b border-base-200">
-                <button class="flex-1 py-2 text-sm font-medium text-center transition-colors"
-                    :class="tab === 'stocks' ? 'border-b-2 border-primary text-primary' :
-                        'text-base-content/60 hover:text-base-content'"
-                    x-on:click="tab = 'stocks'">
-                    Stocks
-                </button>
-                <button class="flex-1 py-2 text-sm font-medium text-center transition-colors"
-                    :class="tab === 'rx' ? 'border-b-2 border-primary text-primary' :
-                        'text-base-content/60 hover:text-base-content'"
-                    x-on:click="tab = 'rx'">
-                    Prescriptions
-                    @if (count($active_prescription) > 0)
-                        <span class="badge badge-xs badge-primary ml-1">{{ count($active_prescription) }}</span>
-                    @endif
-                </button>
-            </div>
+        <div class="flex flex-col w-[420px] overflow-hidden bg-base-100" x-data="{ stockCount: @entangle('stocksDisplayCount') }">
 
             {{-- Search & Filter --}}
             <div class="p-2 space-y-2 border-b border-base-200">
@@ -259,72 +240,84 @@
                     option-label="chrgdesc" placeholder="Filter by fund source..." class="select-sm" multiple />
             </div>
 
-            {{-- Stocks Tab --}}
-            <div class="flex-1 overflow-y-auto" x-show="tab === 'stocks'"
-                x-on:scroll.debounce.150ms="if ($el.scrollTop + $el.clientHeight >= $el.scrollHeight - 100) { $wire.loadMoreStocks() }">
-                <table class="table table-xs table-pin-rows table-zebra">
-                    <thead>
-                        <tr class="bg-base-200">
-                            <th>Drug / Medicine</th>
-                            <th class="text-end">Bal/Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($stocks as $stock)
-                            <tr class="cursor-pointer hover"
-                                wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
-                                @if ($billstat != '02' && $billstat != '03') wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
-                                    '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
-                                    '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}')" @endif>
-                                <td class="text-xs">
-                                    <div class="font-medium truncate max-w-[280px]"
-                                        title="{{ $stock->drug_concat }}">
-                                        {{ $stock->drug_concat }}
-                                    </div>
-                                    @if (str_contains($stock->chrgdesc, 'Consignment'))
-                                        <span class="text-white badge badge-sm bg-pink" style="background:#db2777;">
-                                            {{ $stock->chrgdesc }}
-                                        </span>
-                                    @else
-                                        <span class="badge badge-xs badge-ghost">{{ $stock->chrgdesc }}</span>
-                                    @endif
-                                    @if ($stock->days_to_expiry <= 90)
-                                        <span
-                                            class="badge badge-xs badge-error">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
-                                    @elseif ($stock->days_to_expiry <= 180)
-                                        <span
-                                            class="badge badge-xs badge-warning">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
-                                    @else
-                                        <span
-                                            class="badge badge-xs badge-success">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
-                                    @endif
+            {{-- Stocks Section --}}
+            <div class="flex flex-col flex-1 min-h-0 border-b border-base-200">
+                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                    Stocks
+                </div>
+                <div class="flex-1 overflow-y-auto"
+                    x-on:scroll.debounce.150ms="if ($el.scrollTop + $el.clientHeight >= $el.scrollHeight - 100) { $wire.loadMoreStocks() }">
+                    <table class="table table-xs table-pin-rows table-zebra">
+                        <thead>
+                            <tr class="bg-base-200">
+                                <th>Drug / Medicine</th>
+                                <th class="text-end">Bal/Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($stocks as $stock)
+                                <tr class="cursor-pointer hover"
+                                    wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
+                                    @if ($billstat != '02' && $billstat != '03') wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
+                                        '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
+                                        '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}')" @endif>
+                                    <td class="text-xs">
+                                        <div class="font-medium truncate max-w-[280px]"
+                                            title="{{ $stock->drug_concat }}">
+                                            {{ $stock->drug_concat }}
+                                        </div>
+                                        @if (str_contains($stock->chrgdesc, 'Consignment'))
+                                            <span class="text-white badge badge-sm bg-pink" style="background:#db2777;">
+                                                {{ $stock->chrgdesc }}
+                                            </span>
+                                        @else
+                                            <span class="badge badge-xs badge-ghost">{{ $stock->chrgdesc }}</span>
+                                        @endif
+                                        @if ($stock->days_to_expiry <= 90)
+                                            <span
+                                                class="badge badge-xs badge-error">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
+                                        @elseif ($stock->days_to_expiry <= 180)
+                                            <span
+                                                class="badge badge-xs badge-warning">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
+                                        @else
+                                            <span
+                                                class="badge badge-xs badge-success">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
+                                        @endif
 
-                                </td>
-                                <td class="text-xs text-end">
-                                    <div class=" font-semibold">
-                                        {{ number_format($stock->stock_bal, 0) }}
-                                    </div>
-                                    <div>
-                                        {{ number_format($stock->dmselprice, 2) }}
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-base-content/50">No stocks found</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                @if (count($stocks) >= $stocksDisplayCount)
-                    <div class="p-2 text-center">
-                        <button wire:click="loadMoreStocks" class="btn btn-xs btn-ghost">Load more...</button>
-                    </div>
-                @endif
+                                    </td>
+                                    <td class="text-xs text-end">
+                                        <div class=" font-semibold">
+                                            {{ number_format($stock->stock_bal, 0) }}
+                                        </div>
+                                        <div>
+                                            {{ number_format($stock->dmselprice, 2) }}
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-base-content/50">No stocks found</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    @if (count($stocks) >= $stocksDisplayCount)
+                        <div class="p-2 text-center">
+                            <button wire:click="loadMoreStocks" class="btn btn-xs btn-ghost">Load more...</button>
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            {{-- Prescriptions Tab --}}
-            <div class="flex-1 overflow-y-auto" x-show="tab === 'rx'" x-cloak>
+            {{-- Prescriptions Section --}}
+            <div class="flex flex-col flex-1 min-h-0">
+                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                    Prescriptions
+                    @if (count($active_prescription) > 0)
+                        <span class="badge badge-xs badge-primary ml-1">{{ count($active_prescription) }}</span>
+                    @endif
+                </div>
+                <div class="flex-1 overflow-y-auto">
                 @forelse ($active_prescription as $presc)
                     @forelse ($presc->data_active ?? [] as $presc_data)
                         <div class="flex items-center gap-2 px-3 py-2 border-b border-base-200 hover:bg-base-200/50"
@@ -410,6 +403,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
             {{-- Add Stock Item Modal --}}
             <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
