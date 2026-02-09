@@ -255,7 +255,7 @@
                 <x-mary-choices wire:model.live="charge_code_filter" :options="$charges"
                     option-value="chrgcode" option-label="chrgdesc"
                     placeholder="Filter by fund source..." class="select-sm"
-                    searchable multiple compact />
+                    multiple />
             </div>
 
             {{-- Stocks Tab --}}
