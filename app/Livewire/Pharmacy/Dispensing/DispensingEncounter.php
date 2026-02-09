@@ -45,6 +45,7 @@ class DispensingEncounter extends Component
     public $selected_items = [];
     public $order_qty, $unit_price, $return_qty, $docointkey;
     public $remarks;
+    public $tag;
 
     // Issue Type Flags
     public $ems = false, $maip = false, $wholesale = false, $caf = false;
@@ -146,21 +147,133 @@ class DispensingEncounter extends Component
 
         $departments = DB::select("SELECT * FROM hdept WHERE deptstat = 'A'");
 
-        $this->dispatch('issued');
-        $encounter = $this->encounter;
-
         return view('livewire.pharmacy.dispensing.dispensing-encounter', compact(
             'orders',
             'stocks',
-            'encounter',
             'departments',
             'summaries',
         ));
     }
 
-    // ──────────────────────────────────────────────
-    // Actions
-    // ──────────────────────────────────────────────
+    public function selectStock($id, $chrgcode, $dmdcomb, $dmdctr, $loc_code, $dmdprdte, $exp_date, $stock_bal, $unit_price)
+    {
+        $this->item_id = $id;
+        $this->item_chrgcode = $chrgcode;
+        $this->item_dmdcomb = $dmdcomb;
+        $this->item_dmdctr = $dmdctr;
+        $this->item_loc_code = $loc_code;
+        $this->item_dmdprdte = $dmdprdte;
+        $this->item_exp_date = $exp_date;
+        $this->item_stock_bal = $stock_bal;
+        $this->unit_price = $unit_price;
+
+        $this->showAddItemModal = true;
+    }
+
+    public function openUpdateQtyModal($docointkey, $qty, $unitPrice)
+    {
+        $this->docointkey = $docointkey;
+        $this->order_qty = $qty;
+        $this->unit_price = $unitPrice;
+        $this->showUpdateQtyModal = true;
+    }
+
+    public function openReturnModal($docointkey, $unitPrice)
+    {
+        $this->docointkey = $docointkey;
+        $this->unit_price = $unitPrice;
+        $this->showReturnModal = true;
+    }
+
+    public function openRemarksModal($docointkey, $remarks)
+    {
+        $this->selected_remarks = $docointkey;
+        $this->new_remarks = $remarks;
+    }
+
+    public function openPrescribedItemModal($rxId, $dmdcomb, $dmdctr, $empid, $qty)
+    {
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+        $this->order_qty = $qty;
+
+        $this->showPrescribedItemModal = true;
+    }
+
+    public function searchGenericItem($rxId, $generic, $dmdcomb, $dmdctr, $empid)
+    {
+        $this->rx_id = $rxId;
+        $this->generic = $generic;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+    }
+
+    public function confirmDeactivateRx($rxId)
+    {
+        $this->rx_id = $rxId;
+        $this->showDeactivateRxModal = true;
+    }
+
+    public function searchExtraGeneric($rxId, $generic, $dmdcomb, $dmdctr, $empid)
+    {
+        $this->rx_id = $rxId;
+        $this->generic = $generic;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+    }
+
+    public function openPrescribedItemFromAll($rxId, $dmdcomb, $dmdctr, $empid, $qty)
+    {
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+        $this->order_qty = $qty;
+
+        $this->showPrescribedItemModal = true;
+    }
+
+    public function searchGenericFromAll($rxId, $generic, $dmdcomb, $dmdctr, $empid)
+    {
+        $this->rx_id = $rxId;
+        $this->generic = $generic;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+    }
+
+    public function confirmDeactivatePrescription($rxId, $dmdcomb, $dmdctr, $empid)
+    {
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+
+        $this->showDeactivateRxModal = true;
+    }
+
+    public function selectIssueTag($selectedKey)
+    {
+        $tags = [
+            'ems',
+            'maip',
+            'wholesale',
+            'caf',
+            'konsulta',
+            'pcso',
+            'phic',
+            'is_ris',
+            'pay'
+        ];
+
+        foreach ($tags as $tag) {
+            $this->$tag = ($tag === $selectedKey);
+        }
+    }
 
     public function charge_items()
     {
@@ -237,12 +350,30 @@ class DispensingEncounter extends Component
                         $drug_concat = implode("", explode('_', $stock->drug_concat));
 
                         $this->logStockIssue(
-                            $stock->id, $docointkey, $rxo->dmdcomb, $rxo->dmdctr,
-                            $rxo->loc_code, $rxo->orderfrom, $stock->exp_date, $trans_qty,
-                            $rxo->pchrgup, $rxo->pcchrgamt, auth()->id(), $rxo->hpercode,
-                            $rxo->enccode, $this->toecode, $rxo->pcchrgcod, $tag,
-                            $rxo->ris, $stock->dmdprdte, $stock->retail_price, $drug_concat,
-                            date('Y-m-d'), now(), null, $stock->dmduprice
+                            $stock->id,
+                            $docointkey,
+                            $rxo->dmdcomb,
+                            $rxo->dmdctr,
+                            $rxo->loc_code,
+                            $rxo->orderfrom,
+                            $stock->exp_date,
+                            $trans_qty,
+                            $rxo->pchrgup,
+                            $rxo->pcchrgamt,
+                            auth()->id(),
+                            $rxo->hpercode,
+                            $rxo->enccode,
+                            $this->toecode,
+                            $rxo->pcchrgcod,
+                            $tag,
+                            $rxo->ris,
+                            $stock->dmdprdte,
+                            $stock->retail_price,
+                            $drug_concat,
+                            date('Y-m-d'),
+                            now(),
+                            null,
+                            $stock->dmduprice
                         );
                     }
                 }
@@ -252,10 +383,20 @@ class DispensingEncounter extends Component
                         "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $tag . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
                     );
                     $this->logHrxoIssue(
-                        $rxo->docointkey, $rxo->enccode, $rxo->hpercode,
-                        $rxo->dmdcomb, $rxo->dmdctr, $rxo->pchrgqty,
-                        auth()->user()->employeeid, $rxo->orderfrom, $rxo->pcchrgcod,
-                        $rxo->pchrgup, $rxo->ris, $rxo->prescription_data_id, now(), $rxo->dmdprdte
+                        $rxo->docointkey,
+                        $rxo->enccode,
+                        $rxo->hpercode,
+                        $rxo->dmdcomb,
+                        $rxo->dmdctr,
+                        $rxo->pchrgqty,
+                        auth()->user()->employeeid,
+                        $rxo->orderfrom,
+                        $rxo->pcchrgcod,
+                        $rxo->pchrgup,
+                        $rxo->ris,
+                        $rxo->prescription_data_id,
+                        now(),
+                        $rxo->dmdprdte
                     );
                 }
             } else {
@@ -405,8 +546,14 @@ class DispensingEncounter extends Component
             return;
         }
 
-        $selectedItems = implode(',', $this->selected_items);
-        DB::delete("DELETE FROM hrxo WHERE docointkey IN(" . $selectedItems . ") AND (estatus = 'U' OR pcchrgcod IS NULL)");
+        $placeholders = implode(',', array_fill(0, count($this->selected_items), '?'));
+
+        DB::delete(
+            "DELETE FROM hrxo
+                    WHERE docointkey IN ($placeholders)
+                    AND (estatus = 'U' OR pcchrgcod IS NULL)",
+            $this->selected_items
+        );
 
         $this->reset('selected_items');
         $this->success('Selected item/s deleted!');

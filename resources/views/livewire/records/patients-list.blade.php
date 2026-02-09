@@ -88,7 +88,7 @@
                                             wire:click="selectPatient('{{ $patient->hpercode }}')">
                                             <td class="font-mono text-xs">{{ $patient->hpercode }}</td>
                                             <td>
-                                                <div class="font-medium text-sm">{{ $patient->fullname() }}</div>
+                                                <div class="font-medium text-sm">{{ $patient->fullname }}</div>
                                                 @if ($patient->patbplace)
                                                     <div class="text-xs opacity-60">
                                                         {{ Str::limit($patient->patbplace, 25) }}</div>
@@ -145,7 +145,7 @@
 
                             <div>
                                 <p class="text-xs font-semibold text-gray-500 uppercase">Patient Name</p>
-                                <p class="text-base font-bold">{{ $selectedPatient->fullname() }}</p>
+                                <p class="text-base font-bold">{{ $selectedPatient->fullname }}</p>
                             </div>
 
                             <div class="grid grid-cols-3 gap-2 text-xs">

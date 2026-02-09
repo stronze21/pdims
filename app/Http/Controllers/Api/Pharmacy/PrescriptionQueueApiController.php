@@ -85,7 +85,7 @@ class PrescriptionQueueApiController extends Controller
                 'position' => $this->getQueuePosition($queue),
                 'patient' => [
                     'hpercode' => $queue->hpercode,
-                    'name' => $queue->patient ? $queue->patient->fullname() : 'N/A',
+                    'name' => $queue->patient ? $queue->patient->fullname : 'N/A',
                 ],
             ],
         ]);

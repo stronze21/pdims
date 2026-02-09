@@ -49,8 +49,8 @@
                             <span>|</span>
                             <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
                             @if ($diagtext)
-                                <span>|</span>
-                                <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 50) }}</span>
+                                <x-mary-hr />
+                                <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
                             @endif
                         </div>
                     </div>
@@ -66,56 +66,54 @@
         </div>
     </div>
 
-    {{-- Action Bar --}}
-    <div class="border-b bg-base-200/50 border-base-200">
-        <div class="flex items-center justify-between px-4 py-2">
-            <div class="flex gap-2">
-                <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
-                    wire:click="$set('showPrescriptionListModal', true)" />
-                <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                    wire:click="$set('showSummaryModal', true)" />
-                <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                    class="btn btn-sm btn-outline">
-                    <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
-                </a>
-            </div>
-
-            @if ($billstat != '02' && $billstat != '03')
-                <div class="flex gap-2">
-                    <x-mary-button label="Select All Pending" icon="o-check-circle" class="btn-sm btn-ghost"
-                        x-on:click="selectAllPending()" />
-                    <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                        x-on:click="clearSelection()" />
-
-                    <div class="border-l border-base-300 h-6 mx-1"></div>
-
-                    <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
-                        wire:click="delete_item" wire:confirm="Delete selected pending items? This cannot be undone." />
-                    <x-mary-button label="Charge" icon="o-credit-card" class="btn-sm btn-info btn-outline"
-                        wire:click="charge_items" />
-                    <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                        wire:click="$set('showIssueModal', true)" />
-                </div>
-            @endif
-        </div>
-    </div>
-
     {{-- Main Content --}}
     <div class="flex flex-1 overflow-hidden">
         {{-- Left: Orders Table --}}
         <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
+            {{-- Action Bar --}}
+            <div class="border-b bg-base-200/50 border-base-200">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex gap-2">
+                        <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
+                            wire:click="$set('showPrescriptionListModal', true)" />
+                        <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
+                            wire:click="$set('showSummaryModal', true)" />
+                        <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
+                            class="btn btn-sm btn-outline">
+                            <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
+                        </a>
+                    </div>
+
+                    @if ($billstat != '02' && $billstat != '03')
+                        <div class="flex gap-2">
+                            <x-mary-button label="Select All Pending" icon="o-check-circle" class="btn-sm btn-ghost"
+                                x-on:click="selectAllPending()" />
+                            <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
+                                x-on:click="clearSelection()" />
+
+                            <div class="border-l border-base-300 h-6 mx-1"></div>
+
+                            <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
+                                wire:click="delete_item"
+                                wire:confirm="Delete selected pending items? This cannot be undone." />
+                            <x-mary-button label="Charge" icon="o-credit-card" class="btn-sm btn-info btn-outline"
+                                wire:click="charge_items" />
+                            <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
+                                wire:click="$wire.$set('showIssueModal', true)" />
+                        </div>
+                    @endif
+                </div>
+            </div>
             <div class="flex-1 overflow-y-auto">
                 <table class="table table-xs table-pin-rows">
                     <thead>
                         <tr class="bg-base-200">
                             <th class="w-8"></th>
+                            <th class="text-center">Status</th>
                             <th>Drug / Medicine</th>
-                            <th class="text-center">Fund</th>
                             <th class="text-center">Qty</th>
                             <th class="text-right">Unit Price</th>
                             <th class="text-right">Amount</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-center">Charge Slip</th>
                             <th>Remarks</th>
                             <th class="w-10"></th>
                         </tr>
@@ -137,26 +135,14 @@
                                             x-on:change="toggleItem('{{ $rxo->docointkey }}')" />
                                     @endif
                                 </td>
-                                <td class="text-xs font-medium max-w-xs truncate" title="{{ $rxo->drug_concat }}">
-                                    {{ $rxo->drug_concat }}
-                                    @if ($rxo->prescription_data_id)
-                                        <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
-                                    @endif
-                                </td>
-                                <td class="text-xs text-center">
-                                    <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
-                                </td>
-                                <td class="text-xs text-center font-semibold">
-                                    @if ($rxo->estatus == 'S')
-                                        {{ number_format($rxo->qtyissued, 0) }}
-                                    @else
-                                        {{ number_format($rxo->pchrgqty, 0) }}
-                                    @endif
-                                </td>
-                                <td class="text-xs text-right">{{ number_format($rxo->pchrgup, 2) }}</td>
-                                <td class="text-xs text-right font-semibold">{{ number_format($rxo->pcchrgamt, 2) }}
-                                </td>
                                 <td class="text-center">
+                                    @if ($rxo->pcchrgcod)
+                                        <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}"
+                                            target="_blank" class="link link-primary text-xs">
+                                            {{ $rxo->pcchrgcod }}
+                                        </a>
+                                        <br>
+                                    @endif
                                     @if ($rxo->estatus == 'U' && !$rxo->pcchrgcod)
                                         <span class="badge badge-xs badge-warning">Pending</span>
                                     @elseif ($rxo->estatus == 'P' && $rxo->pcchrgcod)
@@ -169,15 +155,23 @@
                                         @endif
                                     @endif
                                 </td>
-                                <td class="text-xs text-center">
-                                    @if ($rxo->pcchrgcod)
-                                        <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}"
-                                            target="_blank" class="link link-primary text-xs">
-                                            {{ $rxo->pcchrgcod }}
-                                        </a>
-                                    @else
-                                        -
+                                <td class="text-xs font-medium max-w-xs truncate" title="{{ $rxo->drug_concat }}">
+                                    {{ $rxo->drug_concat }}
+                                    @if ($rxo->prescription_data_id)
+                                        <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
                                     @endif
+                                    <br>
+                                    <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
+                                </td>
+                                <td class="text-xs text-center font-semibold">
+                                    @if ($rxo->estatus == 'S')
+                                        {{ number_format($rxo->qtyissued, 0) }}
+                                    @else
+                                        {{ number_format($rxo->pchrgqty, 0) }}
+                                    @endif
+                                </td>
+                                <td class="text-xs text-right">{{ number_format($rxo->pchrgup, 2) }}</td>
+                                <td class="text-xs text-right font-semibold">{{ number_format($rxo->pcchrgamt, 2) }}
                                 </td>
                                 <td class="text-xs max-w-[120px] truncate" title="{{ $rxo->remarks }}">
                                     {{ $rxo->remarks }}</td>
@@ -191,25 +185,28 @@
                                             @if ($rxo->estatus == 'U' && !$rxo->pcchrgcod)
                                                 <li>
                                                     <a
-                                                        wire:click="$set('docointkey', '{{ $rxo->docointkey }}'); $set('order_qty', {{ $rxo->pchrgqty }}); $set('unit_price', {{ $rxo->pchrgup }}); $set('showUpdateQtyModal', true)">
+                                                        wire:click="openUpdateQtyModal('{{ $rxo->docointkey }}', {{ $rxo->pchrgqty }}, {{ $rxo->pchrgup }})">
                                                         <x-heroicon-o-pencil-square class="w-4 h-4" /> Edit Qty
                                                     </a>
                                                 </li>
                                             @endif
+
                                             @if ($rxo->estatus == 'S' && $rxo->qtyissued > 0)
                                                 <li>
                                                     <a
-                                                        wire:click="$set('docointkey', '{{ $rxo->docointkey }}'); $set('unit_price', {{ $rxo->pchrgup }}); $set('showReturnModal', true)">
+                                                        wire:click="openReturnModal('{{ $rxo->docointkey }}', {{ $rxo->pchrgup }})">
                                                         <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Return
                                                     </a>
                                                 </li>
                                             @endif
+
                                             <li>
                                                 <a
-                                                    wire:click="$set('selected_remarks', '{{ $rxo->docointkey }}'); $set('new_remarks', '{{ addslashes($rxo->remarks) }}')">
+                                                    wire:click="openRemarksModal('{{ $rxo->docointkey }}', '{{ addslashes($rxo->remarks) }}')">
                                                     <x-heroicon-o-chat-bubble-left class="w-4 h-4" /> Remarks
                                                 </a>
                                             </li>
+
                                         </ul>
                                     </div>
                                 </td>
@@ -265,51 +262,51 @@
             {{-- Stocks Tab --}}
             <div class="flex-1 overflow-y-auto" x-show="tab === 'stocks'"
                 x-on:scroll.debounce.150ms="if ($el.scrollTop + $el.clientHeight >= $el.scrollHeight - 100) { $wire.loadMoreStocks() }">
-                <table class="table table-xs table-pin-rows">
+                <table class="table table-xs table-pin-rows table-zebra">
                     <thead>
                         <tr class="bg-base-200">
                             <th>Drug / Medicine</th>
-                            <th class="text-center">Bal</th>
-                            <th class="text-right">Price</th>
-                            <th class="text-center">Exp</th>
+                            <th class="text-end">Bal/Price</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($stocks as $stock)
                             <tr class="cursor-pointer hover"
                                 wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
-                                @if ($billstat != '02' && $billstat != '03') wire:click="$set('item_id', '{{ $stock->id }}');
-                                        $set('item_chrgcode', '{{ $stock->chrgcode }}');
-                                        $set('item_dmdcomb', '{{ $stock->dmdcomb }}');
-                                        $set('item_dmdctr', '{{ $stock->dmdctr }}');
-                                        $set('item_loc_code', '{{ $stock->loc_code }}');
-                                        $set('item_dmdprdte', '{{ $stock->dmdprdte }}');
-                                        $set('item_exp_date', '{{ $stock->exp_date }}');
-                                        $set('item_stock_bal', '{{ $stock->stock_bal }}');
-                                        $set('unit_price', '{{ $stock->dmselprice }}');
-                                        $set('showAddItemModal', true)" @endif>
+                                @if ($billstat != '02' && $billstat != '03') wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
+                                    '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
+                                    '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}')" @endif>
                                 <td class="text-xs">
-                                    <div class="font-medium truncate max-w-[180px]"
+                                    <div class="font-medium truncate max-w-[280px]"
                                         title="{{ $stock->drug_concat }}">
                                         {{ $stock->drug_concat }}
                                     </div>
-                                    <span class="badge badge-xs badge-ghost">{{ $stock->chrgdesc }}</span>
-                                </td>
-                                <td class="text-xs text-center font-semibold">
-                                    {{ number_format($stock->stock_bal, 0) }}
-                                </td>
-                                <td class="text-xs text-right">{{ number_format($stock->dmselprice, 2) }}</td>
-                                <td class="text-xs text-center">
+                                    @if (str_contains($stock->chrgdesc, 'Consignment'))
+                                        <span class="text-white badge badge-sm bg-pink" style="background:#db2777;">
+                                            {{ $stock->chrgdesc }}
+                                        </span>
+                                    @else
+                                        <span class="badge badge-xs badge-ghost">{{ $stock->chrgdesc }}</span>
+                                    @endif
                                     @if ($stock->days_to_expiry <= 90)
                                         <span
-                                            class="badge badge-xs badge-error">{{ date('m/y', strtotime($stock->exp_date)) }}</span>
+                                            class="badge badge-xs badge-error">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
                                     @elseif ($stock->days_to_expiry <= 180)
                                         <span
-                                            class="badge badge-xs badge-warning">{{ date('m/y', strtotime($stock->exp_date)) }}</span>
+                                            class="badge badge-xs badge-warning">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
                                     @else
                                         <span
-                                            class="text-base-content/50">{{ date('m/y', strtotime($stock->exp_date)) }}</span>
+                                            class="badge badge-xs badge-success">{{ date('m/Y', strtotime($stock->exp_date)) }}</span>
                                     @endif
+
+                                </td>
+                                <td class="text-xs text-end">
+                                    <div class=" font-semibold">
+                                        {{ number_format($stock->stock_bal, 0) }}
+                                    </div>
+                                    <div>
+                                        {{ number_format($stock->dmselprice, 2) }}
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -359,30 +356,22 @@
                             @if ($billstat != '02' && $billstat != '03')
                                 @if ($toecode == 'OPD' || $toecode == 'WALKN')
                                     <button class="btn btn-xs btn-primary"
-                                        wire:click="$set('rx_id', {{ $presc_data->id }});
-                                            $set('rx_dmdcomb', '{{ $presc_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $presc_data->dmdctr }}');
-                                            $set('empid', '{{ $presc->empid }}');
-                                            $set('order_qty', '{{ $presc_data->qty }}');
-                                            $set('showPrescribedItemModal', true)">
+                                        wire:click="openPrescribedItemModal({{ $presc_data->id }},'{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}','{{ $presc_data->qty }}')">
                                         <x-heroicon-o-plus class="w-3 h-3" />
                                     </button>
                                 @else
                                     <button class="btn btn-xs btn-ghost"
-                                        wire:click="$set('rx_id', {{ $presc_data->id }});
-                                            $set('generic', '{{ explode(',', $presc_data->dm->drug_concat())[0] }}');
-                                            $set('rx_dmdcomb', '{{ $presc_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $presc_data->dmdctr }}');
-                                            $set('empid', '{{ $presc->empid }}')">
+                                        wire:click="searchGenericItem({{ $presc_data->id }},'{{ explode(',', $presc_data->dm->drug_concat())[0] }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
                                         <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                     </button>
                                 @endif
+
                                 <button class="btn btn-xs btn-ghost btn-error"
-                                    wire:click="$set('rx_id', {{ $presc_data->id }});
-                                        $set('showDeactivateRxModal', true)">
+                                    wire:click="confirmDeactivateRx({{ $presc_data->id }})">
                                     <x-heroicon-o-x-mark class="w-3 h-3" />
                                 </button>
                             @endif
+
                         </div>
                         @empty
                         @endforelse
@@ -409,11 +398,7 @@
                                         </div>
                                         @if ($billstat != '02' && $billstat != '03')
                                             <button class="btn btn-xs btn-ghost"
-                                                wire:click="$set('rx_id', {{ $extra_data->id }});
-                                            $set('generic', '{{ explode(',', $extra_data->dm->drug_concat())[0] }}');
-                                            $set('rx_dmdcomb', '{{ $extra_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $extra_data->dmdctr }}');
-                                            $set('empid', '{{ $extra->empid }}')">
+                                                wire:click="searchExtraGeneric({{ $extra_data->id }},'{{ explode(',', $extra_data->dm->drug_concat())[0] }}','{{ $extra_data->dmdcomb }}','{{ $extra_data->dmdctr }}','{{ $extra->empid }}')">
                                                 <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                             </button>
                                         @endif
@@ -425,10 +410,6 @@
                     </div>
                 </div>
             </div>
-
-            {{-- ═══════════════════════════════════════════════ --}}
-            {{-- MODALS --}}
-            {{-- ═══════════════════════════════════════════════ --}}
 
             {{-- Add Stock Item Modal --}}
             <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
@@ -563,23 +544,12 @@
                         <div class="space-y-3">
                             <label class="label font-bold"><span class="label-text">TAG</span></label>
                             <div class="grid grid-cols-3 gap-2">
-                                @foreach ([
-                'pay' => 'Pay',
-                'ems' => 'EMS',
-                'konsulta' => 'Konsulta',
-                'wholesale' => 'Wholesale',
-                'caf' => 'CAF',
-                'maip' => 'MAIP',
-                'is_ris' => 'RIS',
-                'pcso' => 'PCSO',
-                'phic' => 'PHIC',
-            ] as $key => $label)
+                                @foreach (['pay' => 'Pay', 'ems' => 'EMS', 'konsulta' => 'Konsulta', 'wholesale' => 'Wholesale', 'caf' => 'CAF', 'maip' => 'MAIP', 'is_ris' => 'RIS', 'pcso' => 'PCSO', 'phic' => 'PHIC'] as $key => $label)
                                     <label
                                         class="flex items-center gap-2 p-2 rounded-lg border border-base-300 cursor-pointer hover:bg-base-200 transition-colors"
                                         :class="{ 'border-primary bg-primary/5': $wire.{{ $key }} }">
                                         <input type="radio" name="issue_tag" class="radio radio-sm radio-primary"
-                                            wire:click="$set('{{ $key }}', true); @foreach (array_diff(array_keys(['ems' => 1, 'maip' => 1, 'wholesale' => 1, 'caf' => 1, 'konsulta' => 1, 'pcso' => 1, 'phic' => 1, 'is_ris' => 1, 'pay' => 1]), [$key]) as $other) $set('{{ $other }}', false); @endforeach"
-                                            @checked($$key ?? false) />
+                                            wire:click="selectIssueTag('{{ $key }}')" @checked($$key ?? false) />
                                         <span class="text-sm">{{ $label }}</span>
                                     </label>
                                 @endforeach
@@ -661,18 +631,9 @@
                                     </td>
                                     <td class="text-xs cursor-pointer"
                                         @if ($presc_all_data->stat == 'A') @if ($toecode == 'OPD' || $toecode == 'WALKN')
-                                        wire:click="$set('rx_id', {{ $presc_all_data->id }});
-                                            $set('rx_dmdcomb', '{{ $presc_all_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $presc_all_data->dmdctr }}');
-                                            $set('empid', '{{ $presc_all->empid }}');
-                                            $set('order_qty', '{{ $presc_all_data->qty }}');
-                                            $set('showPrescribedItemModal', true)"
-                                    @else
-                                        wire:click="$set('rx_id', {{ $presc_all_data->id }});
-                                            $set('generic', '{{ explode(',', $presc_all_data->dm->drug_concat())[0] }}');
-                                            $set('rx_dmdcomb', '{{ $presc_all_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $presc_all_data->dmdctr }}');
-                                            $set('empid', '{{ $presc_all->empid }}')" @endif
+                                            wire:click="openPrescribedItemFromAll({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}','{{ $presc_all_data->qty }}')"
+                                         @else
+                                            wire:click="searchGenericFromAll({{ $presc_all_data->id }},'{{ explode(',', $presc_all_data->dm->drug_concat())[0] }}','{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')" @endif
                                         @endif>
                                         {{ $presc_all_data->dm->drug_concat() }}
                                     </td>
@@ -703,15 +664,12 @@
                                     <td>
                                         @if ($presc_all_data->stat == 'A')
                                             <button class="btn btn-xs btn-ghost btn-error"
-                                                wire:click="$set('rx_id', {{ $presc_all_data->id }});
-                                            $set('rx_dmdcomb', '{{ $presc_all_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $presc_all_data->dmdctr }}');
-                                            $set('empid', '{{ $presc_all->empid }}');
-                                            $set('showDeactivateRxModal', true)">
+                                                wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
                                                 <x-heroicon-o-x-mark class="w-3 h-3" />
                                             </button>
                                         @endif
                                     </td>
+
                                 </tr>
                                 @empty
                                 @endforelse
@@ -733,11 +691,11 @@
                                                     {{ date('Y-m-d h:i A', strtotime($extra_all_data->updated_at)) }}
                                                 </td>
                                                 <td class="text-xs cursor-pointer"
-                                                    @if ($extra_all_data->stat == 'A') wire:click="$set('rx_id', {{ $extra_all_data->id }});
-                                            $set('generic', '{{ explode(',', $extra_all_data->dm->drug_concat())[0] }}');
-                                            $set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
-                                            $set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
-                                            $set('empid', '{{ $extra_all->empid }}')" @endif>
+                                                    @if ($extra_all_data->stat == 'A') wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
+                                            $wire.$set('generic', '{{ explode(',', $extra_all_data->dm->drug_concat())[0] }}');
+                                            $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
+                                            $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
+                                            $wire.$set('empid', '{{ $extra_all->empid }}')" @endif>
                                                     {{ $extra_all_data->dm->drug_concat() }}
                                                 </td>
                                                 <td class="text-xs text-center">
@@ -748,7 +706,8 @@
 
                                                         @case('OR')
                                                             <span class="badge badge-xs badge-secondary">OR
-                                                                ({{ $extra_all_data->qty }})</span>
+                                                                ({{ $extra_all_data->qty }})
+                                                            </span>
                                                         @break
 
                                                         @default
@@ -757,7 +716,7 @@
                                                 </td>
                                                 <td class="text-xs">{{ $extra_all_data->remark }}</td>
                                                 <td class="text-xs">
-                                                    {{ $extra_all->employee ? $extra_all->employee->fullname() : '' }}</td>
+                                                    {{ $extra_all->employee ? $extra_all->employee->fullname : '' }}</td>
                                                 <td class="text-xs text-center">
                                                     <span
                                                         class="badge badge-xs {{ $extra_all_data->stat == 'A' ? 'badge-primary' : 'badge-error' }}">
@@ -767,11 +726,11 @@
                                                 <td>
                                                     @if ($extra_all_data->stat == 'A')
                                                         <button class="btn btn-xs btn-ghost btn-error"
-                                                            wire:click="$set('rx_id', {{ $extra_all_data->id }});
-                                                $set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
-                                                $set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
-                                                $set('empid', '{{ $extra_all->empid }}');
-                                                $set('showDeactivateRxModal', true)">
+                                                            wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
+                                                $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
+                                                $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
+                                                $wire.$set('empid', '{{ $extra_all->empid }}');
+                                                $wire.$set('showDeactivateRxModal', true)">
                                                             <x-heroicon-o-x-mark class="w-3 h-3" />
                                                         </button>
                                                     @endif
@@ -793,7 +752,7 @@
                             <x-mary-modal wire:model="selected_remarks" title="Edit Remarks" class="backdrop-blur">
                                 <x-mary-input label="Remarks" wire:model="new_remarks" placeholder="Enter remarks..." />
                                 <x-slot:actions>
-                                    <x-mary-button label="Cancel" wire:click="$set('selected_remarks', null)" />
+                                    <x-mary-button label="Cancel" wire:click="$wire.$set('selected_remarks', null)" />
                                     <x-mary-button label="Save" icon="o-check" class="btn-primary" wire:click="update_remarks"
                                         spinner />
                                 </x-slot:actions>
@@ -810,7 +769,7 @@
                                     }
                                     if (e.ctrlKey && e.key === 'i') {
                                         e.preventDefault();
-                                        $wire.$set('showIssueModal', true);
+                                        $wire.set('showIssueModal', true);
                                     }
                                 });
 

@@ -195,7 +195,7 @@
                                         @if ($queue->patient)
                                             <div class="mb-2">
                                                 <div class="text-sm font-semibold truncate">
-                                                    {{ $queue->patient->fullname() }}
+                                                    {{ $queue->patient->fullname }}
                                                 </div>
                                                 <div class="text-xs opacity-70">{{ $queue->hpercode }}</div>
                                             </div>
@@ -370,7 +370,7 @@
                             </div>
                             <div>
                                 <span class="opacity-70">Name:</span>
-                                <span class="font-medium">{{ $selectedQueue->patient->fullname() }}</span>
+                                <span class="font-medium">{{ $selectedQueue->patient->fullname }}</span>
                             </div>
                         </div>
                     </div>
@@ -466,7 +466,7 @@
                                     <div class="opacity-70">
                                         {{ $log->created_at->format('M d, Y h:i A') }}
                                         @if ($log->changer)
-                                            by {{ $log->changer->fullname() }}
+                                            by {{ $log->changer->fullname }}
                                         @endif
                                     </div>
                                     @if ($log->remarks)
