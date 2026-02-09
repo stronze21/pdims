@@ -2,6 +2,8 @@
 
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
+use App\Livewire\Pharmacy\Dispensing\ReturnSlip;
+use App\Livewire\Pharmacy\Dispensing\RxoChargeSlip;
 use App\Livewire\Pharmacy\Drugs\StockList;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
@@ -57,6 +59,10 @@ Route::middleware([
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
         Route::get('/dispensing/encounter/{enccode}', DispensingEncounter::class)
             ->where('enccode', '.*')->name('view.enctr');
+        Route::get('/encounter/charge/{pcchrgcod}', RxoChargeSlip::class)
+            ->name('rxo.chargeslip');
+        Route::get('/return-slip/{hpercode}', ReturnSlip::class)
+            ->name('rxo.return.sum');
     });
 
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)

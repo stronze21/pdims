@@ -75,6 +75,11 @@ class User extends Authenticatable
         return $this->belongsTo(PharmLocation::class, 'pharm_location_id', 'id');
     }
 
+    public function pharm_location()
+    {
+        return $this->belongsTo(PharmLocation::class, 'pharm_location_id', 'id');
+    }
+
     /**
      * Get the guard name for Spatie permissions
      */
