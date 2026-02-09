@@ -12,7 +12,7 @@
         </div>
         <button class="btn btn-sm btn-primary" onclick="printMe()">Print</button>
     </div>
-    <div id="print" class="bg-white w-box-border">
+    <div id="print" class="bg-white text-black w-box-border">
         <div class="p-2">
             <div class="flex flex-col text-xs/4">
                 <h5 class="mb-0 text-2xl text-left"><strong class="uppercase">*{{ $pcchrgcod }}*</strong></h5>
@@ -73,7 +73,7 @@
                         @endphp
                         <tr class="border-t border-black border-x">
                             <td class="!text-2xs font-semibold text-wrap"
-                                colspan="{{ $view_returns ? 6 : 4 }}">
+                                colspan="{{ $view_returns ? 5 : 4 }}">
                                 {{ $concat }}</td>
                         </tr>
                         <tr class="border-b border-black border-x">
@@ -92,7 +92,7 @@
                         @php $total_issued++; @endphp
                     @empty
                         <tr class="border-b border-black border-x">
-                            <td colspan="{{ $view_returns ? 6 : 4 }}" class="text-center">No issued items
+                            <td colspan="{{ $view_returns ? 5 : 4 }}" class="text-center">No issued items
                                 found.</td>
                         </tr>
                     @endforelse

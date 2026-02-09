@@ -146,13 +146,9 @@ class DispensingEncounter extends Component
 
         $departments = DB::select("SELECT * FROM hdept WHERE deptstat = 'A'");
 
-        $this->dispatch('issued');
-        $encounter = $this->encounter;
-
         return view('livewire.pharmacy.dispensing.dispensing-encounter', compact(
             'orders',
             'stocks',
-            'encounter',
             'departments',
             'summaries',
         ));

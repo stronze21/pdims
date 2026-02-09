@@ -7,7 +7,7 @@
     <div class="flex justify-between mb-3 align-middle no-print">
         <button class="btn btn-sm btn-primary" onclick="printMe()">Print</button>
     </div>
-    <div id="print" class="bg-white w-box-border">
+    <div id="print" class="bg-white text-black w-box-border">
         <div class="p-2">
             <div class="flex flex-col text-xs/4">
                 <div class="flex flex-col text-center whitespace-nowrap">
