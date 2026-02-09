@@ -76,6 +76,8 @@
                     <div class="flex gap-2">
                         <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
                             wire:click="$set('showPrescriptionListModal', true)" />
+                        <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
+                            wire:click="openEncounterSelector" />
                         <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
                             wire:click="$set('showSummaryModal', true)" />
                         <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
@@ -738,6 +740,151 @@
                             </table>
                             <x-slot:actions>
                                 <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
+                            </x-slot:actions>
+                        </x-mary-modal>
+
+                        {{-- Encounter / Prescription Selector Modal --}}
+                        <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Patient Encounters & Prescriptions" class="backdrop-blur"
+                            box-class="max-w-5xl">
+                            <div class="space-y-4">
+                                {{-- Area Filter Tabs --}}
+                                <div class="flex gap-2">
+                                    @foreach (['all' => 'All', 'ward' => 'Ward (Admitted)', 'er' => 'ER', 'opd' => 'OPD'] as $filterKey => $filterLabel)
+                                        <button
+                                            class="btn btn-sm {{ $encounter_area_filter === $filterKey ? 'btn-primary' : 'btn-ghost' }}"
+                                            wire:click="$set('encounter_area_filter', '{{ $filterKey }}')">
+                                            {{ $filterLabel }}
+                                        </button>
+                                    @endforeach
+                                </div>
+
+                                <div class="grid grid-cols-5 gap-4 min-h-[400px]">
+                                    {{-- Left: Encounter List --}}
+                                    <div class="col-span-2 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                                            Encounters
+                                        </div>
+                                        <div class="flex-1 overflow-y-auto">
+                                            @forelse ($patient_encounters as $enc)
+                                                <div wire:key="enc-sel-{{ md5($enc->enccode) }}"
+                                                    class="px-3 py-2 border-b border-base-200 cursor-pointer hover:bg-base-200/50 transition-colors {{ $selected_encounter_code === $enc->enccode ? 'bg-primary/10 border-l-4 border-l-primary' : '' }}"
+                                                    wire:click="selectEncounterPrescriptions('{{ $enc->enccode }}')">
+                                                    <div class="flex items-center justify-between">
+                                                        <span class="badge badge-xs {{ match($enc->toecode) { 'ADM', 'OPDAD', 'ERADM' => 'badge-info', 'ER' => 'badge-error', 'OPD' => 'badge-success', default => 'badge-ghost' } }}">
+                                                            {{ $enc->toecode }}
+                                                        </span>
+                                                        @if ($enc->active_rx_count > 0)
+                                                            <span class="badge badge-xs badge-primary">{{ $enc->active_rx_count }} Rx</span>
+                                                        @else
+                                                            <span class="badge badge-xs badge-ghost">0 Rx</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="text-xs mt-1">
+                                                        {{ date('M d, Y h:i A', strtotime($enc->encdate)) }}
+                                                    </div>
+                                                    @if ($enc->wardname)
+                                                        <div class="text-xs text-base-content/60">{{ $enc->wardname }} - {{ $enc->rmname }}</div>
+                                                    @endif
+                                                    @if ($enc->diagtext)
+                                                        <div class="text-xs text-base-content/50 truncate" title="{{ $enc->diagtext }}">Dx: {{ Illuminate\Support\Str::limit($enc->diagtext, 50) }}</div>
+                                                    @endif
+                                                    @if ($enc->billstat == '02' || $enc->billstat == '03')
+                                                        <span class="badge badge-xs badge-error mt-1">Final Bill</span>
+                                                    @endif
+                                                </div>
+                                            @empty
+                                                <div class="py-8 text-center text-base-content/50">
+                                                    <x-heroicon-o-folder-open class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                    No encounters found
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+
+                                    {{-- Right: Prescriptions for Selected Encounter --}}
+                                    <div class="col-span-3 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                                            Prescriptions
+                                            @if ($selected_encounter_code)
+                                                <span class="font-normal normal-case"> - Selected Encounter</span>
+                                            @endif
+                                        </div>
+                                        <div class="flex-1 overflow-y-auto">
+                                            @if ($selected_encounter_code)
+                                                <table class="table table-xs table-pin-rows">
+                                                    <thead>
+                                                        <tr class="bg-base-200">
+                                                            <th>Drug / Medicine</th>
+                                                            <th class="text-center">Type</th>
+                                                            <th class="text-center">Qty</th>
+                                                            <th class="text-center">Status</th>
+                                                            <th class="w-10"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @php $hasActiveRx = false; @endphp
+                                                        @forelse ($selected_encounter_prescriptions as $selPresc)
+                                                            @forelse ($selPresc->data_active ?? [] as $selData)
+                                                                @php $hasActiveRx = true; @endphp
+                                                                <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
+                                                                    <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
+                                                                        {{ $selData->dm->drug_concat() }}
+                                                                        @if ($selData->remark)
+                                                                            <br><span class="text-base-content/50">{{ $selData->remark }}</span>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="text-xs text-center">
+                                                                        @switch(strtoupper($selData->order_type ?? ''))
+                                                                            @case('G24')
+                                                                                <span class="badge badge-xs badge-error">G24</span>
+                                                                            @break
+                                                                            @case('OR')
+                                                                                <span class="badge badge-xs badge-secondary">OR</span>
+                                                                            @break
+                                                                            @default
+                                                                                <span class="badge badge-xs badge-accent">Basic</span>
+                                                                        @endswitch
+                                                                    </td>
+                                                                    <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
+                                                                    <td class="text-xs text-center">
+                                                                        <span class="badge badge-xs badge-primary">Active</span>
+                                                                    </td>
+                                                                    <td>
+                                                                        @if ($billstat != '02' && $billstat != '03')
+                                                                            <button class="btn btn-xs btn-primary"
+                                                                                wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')"
+                                                                                title="Add to current encounter">
+                                                                                <x-heroicon-o-plus class="w-3 h-3" />
+                                                                            </button>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @empty
+                                                            @endforelse
+                                                        @empty
+                                                        @endforelse
+
+                                                        @if (!$hasActiveRx)
+                                                            <tr>
+                                                                <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                    No active prescriptions for this encounter
+                                                                </td>
+                                                            </tr>
+                                                        @endif
+                                                    </tbody>
+                                                </table>
+                                            @else
+                                                <div class="py-8 text-center text-base-content/50">
+                                                    <x-heroicon-o-arrow-left class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                    Select an encounter to view its prescriptions
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <x-slot:actions>
+                                <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />
                             </x-slot:actions>
                         </x-mary-modal>
 

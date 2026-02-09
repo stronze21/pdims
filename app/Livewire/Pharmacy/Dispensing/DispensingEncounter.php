@@ -78,6 +78,13 @@ class DispensingEncounter extends Component
     public $showSummaryModal = false;
     public $showIssueModal = false;
     public $showPrescriptionListModal = false;
+    public $showEncounterSelectorModal = false;
+
+    // Encounter / Prescription Selector
+    public $patient_encounters = [];
+    public $selected_encounter_code = null;
+    public $selected_encounter_prescriptions = [];
+    public $encounter_area_filter = 'all';
 
     public function mount($enccode)
     {
@@ -738,6 +745,93 @@ class DispensingEncounter extends Component
     public function updatedGeneric()
     {
         $this->stocksDisplayCount = 50;
+    }
+
+    // ──────────────────────────────────────────────
+    // Encounter / Prescription Selector
+    // ──────────────────────────────────────────────
+
+    public function openEncounterSelector()
+    {
+        $this->loadPatientEncountersList();
+        $this->showEncounterSelectorModal = true;
+    }
+
+    public function loadPatientEncountersList()
+    {
+        $filter = $this->encounter_area_filter;
+
+        $toecodeFilter = match ($filter) {
+            'ward' => "AND enctr.toecode IN ('ADM', 'OPDAD', 'ERADM')",
+            'er' => "AND enctr.toecode = 'ER'",
+            'opd' => "AND enctr.toecode = 'OPD'",
+            default => "AND enctr.toecode != 'WALKN'",
+        };
+
+        $this->patient_encounters = collect(DB::select("
+            SELECT TOP 20
+                enctr.enccode,
+                enctr.toecode,
+                enctr.encdate,
+                ward.wardname,
+                room.rmname,
+                diag.diagtext,
+                track.billstat,
+                (SELECT COUNT(*) FROM webapp.dbo.prescription rx WITH (NOLOCK)
+                    INNER JOIN webapp.dbo.prescription_data rd WITH (NOLOCK) ON rx.id = rd.presc_id
+                    WHERE rx.enccode = enctr.enccode AND rd.stat = 'A') AS active_rx_count
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                LEFT JOIN hospital.dbo.hactrack track WITH (NOLOCK) ON enctr.enccode = track.enccode
+                LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK) ON enctr.enccode = diag.enccode
+                LEFT JOIN hospital.dbo.hpatroom patroom WITH (NOLOCK) ON enctr.enccode = patroom.enccode
+                LEFT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON patroom.wardcode = ward.wardcode
+                LEFT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON patroom.rmintkey = room.rmintkey
+            WHERE enctr.hpercode = ?
+                {$toecodeFilter}
+            ORDER BY enctr.encdate DESC
+        ", [$this->hpercode]))->all();
+
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
+    }
+
+    public function updatedEncounterAreaFilter()
+    {
+        $this->loadPatientEncountersList();
+    }
+
+    public function selectEncounterPrescriptions($enccode)
+    {
+        $this->selected_encounter_code = $enccode;
+
+        $this->selected_encounter_prescriptions = Prescription::where('enccode', $enccode)
+            ->with('data_active')
+            ->has('data_active')
+            ->get();
+    }
+
+    public function addPrescriptionFromEncounter($rxId, $dmdcomb, $dmdctr, $empid, $qty)
+    {
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+        $this->order_qty = $qty;
+
+        if ($this->toecode == 'OPD' || $this->toecode == 'WALKN') {
+            $this->showEncounterSelectorModal = false;
+            $this->showPrescribedItemModal = true;
+        } else {
+            $this->generic = Drug::select('drug_concat')
+                ->where('dmdcomb', $dmdcomb)
+                ->where('dmdctr', $dmdctr)
+                ->first()?->drug_concat ?? '';
+
+            if ($this->generic) {
+                $this->generic = explode(',', $this->generic)[0];
+            }
+
+            $this->showEncounterSelectorModal = false;
+        }
     }
 
     // ──────────────────────────────────────────────
