@@ -44,7 +44,7 @@
                             class="font-semibold">{{ $rxo_header->prescription_data && $rxo_header->prescription_data->employee ? 'Dr. ' . $rxo_header->prescription_data->employee->fullname : 'N/A' }}</span>
                     </div>
                     <div>Date/Time Ordered: <span
-                            class="font-semibold">{{ $rxo_header->prescription_data ? date('F j, Y h:i A', strtotime($rxo_header->prescription_data->created_at)) : 'N/A' }}</span>
+                            class="font-semibold">{{ $rxo_header->prescription_data ? date('F j, Y h:i A', strtotime($rxo_header->prescription_data->updated_at)) : 'N/A' }}</span>
                     </div>
                 </div>
             </div>
