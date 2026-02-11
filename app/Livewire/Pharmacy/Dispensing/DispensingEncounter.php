@@ -797,6 +797,17 @@ class DispensingEncounter extends Component
         $this->showEncounterSelectorModal = true;
     }
 
+    public function openChangePatient()
+    {
+        $this->reset('selector_search_hpercode', 'selector_search_lastname', 'selector_search_firstname', 'selector_patient_results');
+        $this->selector_selected_hpercode = null;
+        $this->selector_patient_name = null;
+        $this->patient_encounters = [];
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
+
+        $this->showEncounterSelectorModal = true;
+    }
+
     public function selectorSearchPatients()
     {
         $query = Patient::query();

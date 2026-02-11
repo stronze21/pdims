@@ -77,6 +77,8 @@
                         @endif
                         <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
                             wire:click="openEncounterSelector" />
+                        <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-outline"
+                            wire:click="openChangePatient" />
                     </div>
                 </div>
             </div>
@@ -1000,6 +1002,10 @@
                                     if (e.ctrlKey && e.key === 'i') {
                                         e.preventDefault();
                                         $wire.set('showIssueModal', true);
+                                    }
+                                    if (e.key === 'F2') {
+                                        e.preventDefault();
+                                        $wire.openChangePatient();
                                     }
                                 });
 
