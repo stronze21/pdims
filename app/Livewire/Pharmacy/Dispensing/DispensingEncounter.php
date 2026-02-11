@@ -64,6 +64,7 @@ class DispensingEncounter extends Component
     public $active_prescription = [], $extra_prescriptions = [];
     public $active_prescription_all = [], $extra_prescriptions_all = [];
     public $rx_id, $rx_dmdcomb, $rx_dmdctr, $empid, $rx_charge_code;
+    public $rx_available_charges = [];
 
     // Remarks Edit
     public $selected_remarks, $new_remarks;
@@ -232,6 +233,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
 
+        $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
     }
 
@@ -267,6 +269,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
 
+        $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
     }
 
@@ -915,6 +918,7 @@ class DispensingEncounter extends Component
         $this->order_qty = $qty;
 
         if ($this->toecode == 'OPD' || $this->toecode == 'WALKN') {
+            $this->loadAvailableCharges($dmdcomb, $dmdctr);
             $this->showEncounterSelectorModal = false;
             $this->showPrescribedItemModal = true;
         } else {
@@ -934,6 +938,26 @@ class DispensingEncounter extends Component
     // ──────────────────────────────────────────────
     // Helper Methods (Extracted & Reusable)
     // ──────────────────────────────────────────────
+
+    private function loadAvailableCharges(string $dmdcomb, string $dmdctr): void
+    {
+        $this->rx_charge_code = null;
+
+        $this->rx_available_charges = DB::select("
+            SELECT
+                pharm_drug_stocks.chrgcode,
+                hcharge.chrgdesc,
+                SUM(pharm_drug_stocks.stock_bal) AS stock_bal
+            FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
+            WHERE pharm_drug_stocks.dmdcomb = ?
+                AND pharm_drug_stocks.dmdctr = ?
+                AND pharm_drug_stocks.loc_code = ?
+                AND pharm_drug_stocks.stock_bal > 0
+            GROUP BY pharm_drug_stocks.chrgcode, hcharge.chrgdesc
+            ORDER BY hcharge.chrgdesc
+        ", [$dmdcomb, $dmdctr, $this->location_id]);
+    }
 
     private function decryptEnccode(): string
     {

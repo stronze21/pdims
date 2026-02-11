@@ -458,12 +458,26 @@
                             class="input-lg text-4xl text-center font-bold" autofocus />
                         <div>
                             <label class="label"><span class="label-text">Fund Source</span></label>
-                            <select wire:model="rx_charge_code" class="w-full select select-bordered">
-                                <option value="">Select fund source...</option>
-                                @foreach ($charges as $charge)
-                                    <option value="{{ $charge->chrgcode }}">{{ $charge->chrgdesc }}</option>
-                                @endforeach
-                            </select>
+                            @if (count($rx_available_charges) > 0)
+                                <div class="space-y-1">
+                                    @foreach ($rx_available_charges as $avail)
+                                        <label
+                                            class="flex items-center justify-between p-2 rounded-lg border cursor-pointer hover:bg-base-200 transition-colors {{ $rx_charge_code === $avail->chrgcode ? 'border-primary bg-primary/5' : 'border-base-300' }}">
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="rx_charge_code" class="radio radio-sm radio-primary"
+                                                    wire:model="rx_charge_code"
+                                                    value="{{ $avail->chrgcode }}" />
+                                                <span class="text-sm">{{ $avail->chrgdesc }}</span>
+                                            </div>
+                                            <span class="badge badge-sm badge-ghost font-semibold">{{ number_format($avail->stock_bal, 0) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="p-3 rounded-lg bg-warning/10 text-sm text-warning">
+                                    No stock available for this item in any fund source.
+                                </div>
+                            @endif
                         </div>
                         <div>
                             <label class="label"><span class="label-text">Remarks</span></label>
