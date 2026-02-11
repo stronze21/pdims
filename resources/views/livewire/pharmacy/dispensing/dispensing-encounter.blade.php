@@ -75,6 +75,8 @@
                                 <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
                             </div>
                         @endif
+                        <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
+                            wire:click="openEncounterSelector" />
                     </div>
                 </div>
             </div>
@@ -90,8 +92,6 @@
                     <div class="flex gap-2">
                         <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
                             wire:click="$set('showPrescriptionListModal', true)" />
-                        <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
-                            wire:click="openEncounterSelector" />
                         <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
                             wire:click="$set('showSummaryModal', true)" />
                         <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
