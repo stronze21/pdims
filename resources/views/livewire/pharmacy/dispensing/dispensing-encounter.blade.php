@@ -76,9 +76,9 @@
                             </div>
                         @endif
                         <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
-                            wire:click="openEncounterSelector" />
+                            wire:click="openEncounterSelector" tooltip-bottom="Browse Encounters (F3)" />
                         <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-outline"
-                            wire:click="openChangePatient" />
+                            wire:click="openChangePatient" tooltip-bottom="Change Patient (F2)" />
                     </div>
                 </div>
             </div>
@@ -93,11 +93,11 @@
                 <div class="flex items-center justify-between px-4 py-2">
                     <div class="flex gap-2">
                         <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
-                            wire:click="$set('showPrescriptionListModal', true)" />
+                            wire:click="$set('showPrescriptionListModal', true)" tooltip-bottom="View All Prescriptions (F4)" />
                         <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                            wire:click="$set('showSummaryModal', true)" />
+                            wire:click="$set('showSummaryModal', true)" tooltip-bottom="Summary of Issued Drugs (F5)" />
                         <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                            class="btn btn-sm btn-outline">
+                            class="btn btn-sm btn-outline tooltip tooltip-bottom" data-tip="View Issued with Return (F6)">
                             <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
                         </a>
                     </div>
@@ -105,19 +105,20 @@
                     @if ($billstat != '02' && $billstat != '03')
                         <div class="flex gap-2">
                             <x-mary-button label="Select All Pending" icon="o-check-circle" class="btn-sm btn-ghost"
-                                x-on:click="selectAllPending()" />
+                                x-on:click="selectAllPending()" tooltip-bottom="Select All Pending (Ctrl+A)" />
                             <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                                x-on:click="clearSelection()" />
+                                x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
 
                             <div class="border-l border-base-300 h-6 mx-1"></div>
 
                             <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
                                 wire:click="delete_item"
-                                wire:confirm="Delete selected pending items? This cannot be undone." />
+                                wire:confirm="Delete selected pending items? This cannot be undone."
+                                tooltip-bottom="Delete Selected (Del)" />
                             <x-mary-button label="Charge" icon="o-credit-card" class="btn-sm btn-info btn-outline"
-                                wire:click="charge_items" />
+                                wire:click="charge_items" tooltip-bottom="Charge Selected (Ctrl+C)" />
                             <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                wire:click="$wire.$set('showIssueModal', true)" />
+                                wire:click="$wire.$set('showIssueModal', true)" tooltip-bottom="Issue Charged Items (Ctrl+I)" />
                         </div>
                     @endif
                 </div>
@@ -195,7 +196,7 @@
                                     {{ $rxo->remarks }}</td>
                                 <td>
                                     <div class="dropdown dropdown-end">
-                                        <label tabindex="0" class="btn btn-ghost btn-xs">
+                                        <label tabindex="0" class="btn btn-ghost btn-xs tooltip tooltip-left" data-tip="Actions">
                                             <x-heroicon-o-ellipsis-vertical class="w-4 h-4" />
                                         </label>
                                         <ul tabindex="0"
@@ -366,18 +367,18 @@
                             </div>
                             @if ($billstat != '02' && $billstat != '03')
                                 @if ($toecode == 'OPD' || $toecode == 'WALKN')
-                                    <button class="btn btn-xs btn-primary"
+                                    <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add Prescribed Item"
                                         wire:click="openPrescribedItemModal({{ $presc_data->id }},'{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}','{{ $presc_data->qty }}')">
                                         <x-heroicon-o-plus class="w-3 h-3" />
                                     </button>
                                 @else
-                                    <button class="btn btn-xs btn-ghost"
+                                    <button class="btn btn-xs btn-ghost tooltip tooltip-left" data-tip="Search in Stocks"
                                         wire:click="searchGenericItem({{ $presc_data->id }},'{{ explode(',', $presc_data->dm->drug_concat())[0] }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
                                         <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                     </button>
                                 @endif
 
-                                <button class="btn btn-xs btn-ghost btn-error"
+                                <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate Rx"
                                     wire:click="confirmDeactivateRx({{ $presc_data->id }})">
                                     <x-heroicon-o-x-mark class="w-3 h-3" />
                                 </button>
@@ -408,7 +409,7 @@
                                             </div>
                                         </div>
                                         @if ($billstat != '02' && $billstat != '03')
-                                            <button class="btn btn-xs btn-ghost"
+                                            <button class="btn btn-xs btn-ghost tooltip tooltip-left" data-tip="Search in Stocks"
                                                 wire:click="searchExtraGeneric({{ $extra_data->id }},'{{ explode(',', $extra_data->dm->drug_concat())[0] }}','{{ $extra_data->dmdcomb }}','{{ $extra_data->dmdctr }}','{{ $extra->empid }}')">
                                                 <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                             </button>
@@ -690,9 +691,14 @@
                                     </td>
                                     <td>
                                         @if ($presc_all_data->stat == 'A')
-                                            <button class="btn btn-xs btn-ghost btn-error"
+                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate"
                                                 wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
                                                 <x-heroicon-o-x-mark class="w-3 h-3" />
+                                            </button>
+                                        @else
+                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left" data-tip="Reactivate"
+                                                wire:click="reactivate_rx({{ $presc_all_data->id }})">
+                                                <x-heroicon-o-check class="w-3 h-3" />
                                             </button>
                                         @endif
                                     </td>
@@ -752,13 +758,18 @@
                                                 </td>
                                                 <td>
                                                     @if ($extra_all_data->stat == 'A')
-                                                        <button class="btn btn-xs btn-ghost btn-error"
+                                                        <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate"
                                                             wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
                                                 $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
                                                 $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
                                                 $wire.$set('empid', '{{ $extra_all->empid }}');
                                                 $wire.$set('showDeactivateRxModal', true)">
                                                             <x-heroicon-o-x-mark class="w-3 h-3" />
+                                                        </button>
+                                                    @else
+                                                        <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left" data-tip="Reactivate"
+                                                            wire:click="reactivate_rx({{ $extra_all_data->id }})">
+                                                            <x-heroicon-o-check class="w-3 h-3" />
                                                         </button>
                                                     @endif
                                                 </td>
@@ -936,9 +947,8 @@
                                                                         </td>
                                                                         <td>
                                                                             @if ($hasEncounter && $billstat != '02' && $billstat != '03')
-                                                                                <button class="btn btn-xs btn-primary"
-                                                                                    wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')"
-                                                                                    title="Add to current encounter">
+                                                                                <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add to Current Encounter"
+                                                                                    wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')">
                                                                                     <x-heroicon-o-plus class="w-3 h-3" />
                                                                                 </button>
                                                                             @endif
@@ -995,17 +1005,70 @@
                         @script
                             <script>
                                 document.addEventListener('keydown', e => {
+                                    // Skip if user is typing in an input/textarea/select
+                                    const tag = e.target.tagName;
+                                    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+                                    // Ctrl+C - Charge items
                                     if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
                                         e.preventDefault();
                                         $wire.charge_items();
                                     }
+                                    // Ctrl+I - Open Issue modal
                                     if (e.ctrlKey && e.key === 'i') {
                                         e.preventDefault();
                                         $wire.set('showIssueModal', true);
                                     }
+                                    // Ctrl+A - Select all pending (only outside inputs)
+                                    if (e.ctrlKey && e.key === 'a' && !isInput) {
+                                        e.preventDefault();
+                                        document.querySelectorAll('.pending-checkbox').forEach(cb => {
+                                            const val = cb.value;
+                                            const items = $wire.get('selected_items') || [];
+                                            if (!items.includes(val)) items.push(val);
+                                            $wire.set('selected_items', items);
+                                        });
+                                        // Trigger Alpine selectAllPending
+                                        const el = document.querySelector('[x-data]');
+                                        if (el && el.__x) el.__x.$data.selectAllPending();
+                                    }
+                                    // Escape - Clear selection (only outside inputs)
+                                    if (e.key === 'Escape' && !isInput) {
+                                        const el = document.querySelector('[x-data]');
+                                        if (el && el.__x) el.__x.$data.clearSelection();
+                                    }
+                                    // Delete - Delete selected pending items
+                                    if (e.key === 'Delete' && !isInput) {
+                                        e.preventDefault();
+                                        $wire.delete_item();
+                                    }
+                                    // F2 - Change patient
                                     if (e.key === 'F2') {
                                         e.preventDefault();
                                         $wire.openChangePatient();
+                                    }
+                                    // F3 - Browse encounters
+                                    if (e.key === 'F3') {
+                                        e.preventDefault();
+                                        $wire.openEncounterSelector();
+                                    }
+                                    // F4 - Prescriptions list
+                                    if (e.key === 'F4') {
+                                        e.preventDefault();
+                                        $wire.set('showPrescriptionListModal', true);
+                                    }
+                                    // F5 - Summary
+                                    if (e.key === 'F5') {
+                                        e.preventDefault();
+                                        $wire.set('showSummaryModal', true);
+                                    }
+                                    // F6 - Open Issued with Return in new tab
+                                    if (e.key === 'F6') {
+                                        e.preventDefault();
+                                        const hpercode = '{{ $hpercode ?? '' }}';
+                                        if (hpercode) {
+                                            window.open('{{ url('/dispensing/return-slip') }}' + '/' + hpercode, '_blank');
+                                        }
                                     }
                                 });
 

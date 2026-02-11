@@ -752,7 +752,17 @@ class DispensingEncounter extends Component
         $data->addtl_remarks = $this->adttl_remarks;
         $data->save();
         $this->showDeactivateRxModal = false;
-        $this->success('Prescription updated!');
+        $this->success('Prescription deactivated!');
+    }
+
+    public function reactivate_rx($rxId)
+    {
+        $data = PrescriptionData::find($rxId);
+        if ($data) {
+            $data->stat = 'A';
+            $data->save();
+            $this->success('Prescription reactivated!');
+        }
     }
 
     #[On('updateSelectedItems')]
