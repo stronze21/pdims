@@ -786,9 +786,25 @@
                         </x-mary-modal>
 
                         {{-- Encounter / Prescription Selector Modal --}}
-                        <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Patient Encounters & Prescriptions" class="backdrop-blur"
+                        <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
                             box-class="max-w-5xl">
                             <div class="space-y-4">
+                                {{-- Mode Switcher --}}
+                                <div class="flex items-center justify-between">
+                                    <div class="flex gap-1 p-1 rounded-lg bg-base-200">
+                                        <button class="btn btn-sm {{ $selector_mode === 'patient' ? 'btn-primary' : 'btn-ghost' }}"
+                                            wire:click="switchSelectorMode('patient')">
+                                            <x-heroicon-o-user class="w-4 h-4" /> Patient Encounters
+                                        </button>
+                                        <button class="btn btn-sm {{ $selector_mode === 'rx_orders' ? 'btn-primary' : 'btn-ghost' }}"
+                                            wire:click="switchSelectorMode('rx_orders')">
+                                            <x-heroicon-o-clipboard-document-list class="w-4 h-4" /> Rx/Orders
+                                        </button>
+                                    </div>
+                                </div>
+
+                                @if ($selector_mode === 'patient')
+                                {{-- ═══════════ PATIENT ENCOUNTERS MODE ═══════════ --}}
                                 {{-- Patient Search Bar --}}
                                 <div class="p-3 rounded-lg border border-base-300 bg-base-200/30">
                                     @if ($selector_selected_hpercode)
@@ -1054,6 +1070,191 @@
                                         <p class="text-sm">Search for a patient above to view their encounters and prescriptions</p>
                                     </div>
                                 @endif
+
+                                @else
+                                {{-- ═══════════ RX/ORDERS BROWSING MODE ═══════════ --}}
+
+                                {{-- Area Tabs --}}
+                                <div class="flex justify-center gap-2">
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'ward' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('ward')">
+                                        <x-heroicon-o-building-office-2 class="w-4 h-4" /> Wards
+                                    </button>
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'opd' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('opd')">
+                                        <x-heroicon-o-user-group class="w-4 h-4" /> Out Patient Department
+                                    </button>
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'er' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('er')">
+                                        <x-heroicon-o-heart class="w-4 h-4" /> Emergency Room
+                                    </button>
+                                </div>
+
+                                {{-- Filters Row --}}
+                                <div class="grid grid-cols-3 gap-3 p-3 rounded-lg border border-base-300 bg-base-200/30">
+                                    {{-- Rx Tag Filter --}}
+                                    <div>
+                                        <div class="text-xs font-semibold text-base-content/70 mb-1">Rx Tag</div>
+                                        <div class="flex gap-1 flex-wrap">
+                                            <button wire:click="setRxBrowseTagFilter('all')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'all' ? 'btn-primary' : 'btn-ghost' }}">All</button>
+                                            <button wire:click="setRxBrowseTagFilter('basic')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'basic' ? 'btn-accent' : 'btn-ghost' }}">BASIC</button>
+                                            <button wire:click="setRxBrowseTagFilter('g24')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'g24' ? 'btn-error' : 'btn-ghost' }}">G24</button>
+                                            <button wire:click="setRxBrowseTagFilter('or')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'or' ? 'btn-secondary' : 'btn-ghost' }}">OR</button>
+                                        </div>
+                                    </div>
+                                    {{-- Patient Search --}}
+                                    <div>
+                                        <div class="text-xs font-semibold text-base-content/70 mb-1">Patient</div>
+                                        <x-mary-input wire:model.live.debounce.300ms="rx_browse_search" icon="o-magnifying-glass"
+                                            placeholder="Search patient..." class="input-sm" />
+                                    </div>
+                                    {{-- Date / Ward Filter --}}
+                                    <div>
+                                        @if ($rx_browse_area === 'ward')
+                                            <div class="text-xs font-semibold text-base-content/70 mb-1">Ward</div>
+                                            <select wire:model.live="rx_browse_wardcode" class="select select-sm select-bordered w-full">
+                                                <option value="">All Wards</option>
+                                                @foreach (\App\Models\Hospital\Ward::where('wardstat', 'A')->orderBy('wardname')->get() as $ward)
+                                                    <option value="{{ $ward->wardcode }}">{{ $ward->wardname }}</option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <div class="text-xs font-semibold text-base-content/70 mb-1">Date</div>
+                                            <x-mary-input type="date" wire:model.live="rx_browse_date" :max="date('Y-m-d')" class="input-sm" />
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Loading State --}}
+                                <div wire:loading wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode" class="flex items-center gap-2 p-4">
+                                    <span class="loading loading-spinner loading-sm"></span>
+                                    <span class="text-sm">Loading prescriptions...</span>
+                                </div>
+
+                                {{-- Results Table --}}
+                                <div wire:loading.remove wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode"
+                                    class="overflow-y-auto max-h-[400px] border rounded-lg border-base-300">
+                                    <table class="table table-xs table-pin-rows table-zebra">
+                                        <thead>
+                                            <tr class="bg-base-200">
+                                                <th class="w-8">#</th>
+                                                <th>Date</th>
+                                                <th>Patient Name</th>
+                                                <th>Department</th>
+                                                <th>Classification</th>
+                                                <th>Rx Tag</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php $rxRowNum = 0; @endphp
+                                            @forelse ($rx_browse_results as $rx)
+                                                @php
+                                                    // Rx Tag filter
+                                                    if ($rx_browse_tag_filter === 'basic') { $showRow = $rx->basic > 0; }
+                                                    elseif ($rx_browse_tag_filter === 'g24') { $showRow = $rx->g24 > 0; }
+                                                    elseif ($rx_browse_tag_filter === 'or') { $showRow = $rx->or > 0; }
+                                                    else { $showRow = true; }
+
+                                                    // Search filter
+                                                    if ($rx_browse_search && $showRow) {
+                                                        $s = strtolower($rx_browse_search);
+                                                        $name = strtolower($rx->patlast . ' ' . $rx->patfirst . ' ' . $rx->patmiddle);
+                                                        $showRow = str_contains($name, $s) || str_contains(strtolower($rx->hpercode), $s);
+                                                    }
+                                                @endphp
+
+                                                @if ($showRow)
+                                                    @php $rxRowNum++; @endphp
+                                                    <tr wire:key="rxb-{{ md5($rx->enccode) }}"
+                                                        wire:click="rxBrowseSelectEncounter('{{ $rx->enccode }}')"
+                                                        class="cursor-pointer hover">
+                                                        <td class="text-xs">{{ $rxRowNum }}</td>
+                                                        <td class="text-xs whitespace-nowrap">
+                                                            @if ($rx_browse_area === 'opd')
+                                                                {{ \Carbon\Carbon::parse($rx->opddate)->format('Y/m/d') }}
+                                                                <br><span class="text-base-content/50">{{ \Carbon\Carbon::parse($rx->opdtime)->format('g:i A') }}</span>
+                                                            @elseif ($rx_browse_area === 'ward')
+                                                                {{ $rx->admdate ? \Carbon\Carbon::parse($rx->admdate)->format('Y/m/d') : '---' }}
+                                                            @elseif ($rx_browse_area === 'er')
+                                                                {{ \Carbon\Carbon::parse($rx->erdate)->format('Y/m/d') }}
+                                                                <br><span class="text-base-content/50">{{ \Carbon\Carbon::parse($rx->ertime)->format('g:i A') }}</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="whitespace-nowrap">
+                                                            <div class="text-xs font-medium">
+                                                                {{ strtoupper($rx->patlast) }}, {{ strtoupper($rx->patfirst) }}
+                                                                {{ strtoupper($rx->patsuffix ?? '') }} {{ strtoupper($rx->patmiddle) }}
+                                                            </div>
+                                                            <span class="badge badge-ghost badge-xs">{{ $rx->hpercode }}</span>
+                                                        </td>
+                                                        <td class="text-xs whitespace-nowrap">
+                                                            @if ($rx_browse_area === 'opd')
+                                                                Out Patient Department
+                                                                @if ($rx->tsdesc)
+                                                                    <br><span class="text-base-content/50">{{ $rx->tsdesc }}</span>
+                                                                @endif
+                                                            @elseif ($rx_browse_area === 'ward')
+                                                                {{ $rx->wardname ?? '---' }}
+                                                                @if ($rx->rmname)
+                                                                    <br><span class="text-base-content/50">{{ $rx->rmname }}</span>
+                                                                @endif
+                                                            @elseif ($rx_browse_area === 'er')
+                                                                Emergency Room
+                                                                @if ($rx->tsdesc)
+                                                                    <br><span class="text-base-content/50">{{ $rx->tsdesc }}</span>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @php
+                                                                $class = match ($rx->mssikey) {
+                                                                    'MSSA11111999', 'MSSB11111999' => 'Pay',
+                                                                    'MSSC111111999' => 'PP1',
+                                                                    'MSSC211111999' => 'PP2',
+                                                                    'MSSC311111999' => 'PP3',
+                                                                    'MSSD11111999' => 'Indigent',
+                                                                    default => $rx->mssikey ? '---' : 'Indigent',
+                                                                };
+                                                                $badgeClass = match ($class) {
+                                                                    'Pay' => 'badge-success',
+                                                                    'PP1', 'PP2', 'PP3' => 'badge-warning',
+                                                                    'Indigent' => 'badge-ghost',
+                                                                    default => 'badge-info',
+                                                                };
+                                                            @endphp
+                                                            <span class="badge {{ $badgeClass }} badge-xs">{{ $class }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="flex gap-1">
+                                                                @if ($rx->basic)
+                                                                    <span class="badge badge-accent badge-xs tooltip" data-tip="BASIC">{{ $rx->basic }}</span>
+                                                                @endif
+                                                                @if ($rx->g24)
+                                                                    <span class="badge badge-error badge-xs tooltip" data-tip="Good For 24 Hrs">{{ $rx->g24 }}</span>
+                                                                @endif
+                                                                @if ($rx->or)
+                                                                    <span class="badge badge-secondary badge-xs tooltip" data-tip="For Operating Use">{{ $rx->or }}</span>
+                                                                @endif
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                @endif
+                                            @empty
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-8 text-base-content/50">
+                                                        <x-heroicon-o-clipboard-document-list class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        No prescriptions found
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @endif {{-- end selector_mode --}}
                             </div>
                             <x-slot:actions>
                                 <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />

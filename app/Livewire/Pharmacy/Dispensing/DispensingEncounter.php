@@ -23,6 +23,7 @@ use App\Models\Record\Patients\Patient;
 use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
+use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
 
 class DispensingEncounter extends Component
@@ -99,9 +100,19 @@ class DispensingEncounter extends Component
     public $selector_selected_hpercode = null;
     public $selector_patient_name = null;
 
+    // Rx/Orders Browsing (area-based)
+    public $selector_mode = 'patient'; // 'patient' or 'rx_orders'
+    public $rx_browse_area = 'opd'; // 'opd', 'ward', 'er'
+    public $rx_browse_date;
+    public $rx_browse_search = '';
+    public $rx_browse_tag_filter = 'all'; // 'all', 'basic', 'g24', 'or'
+    public $rx_browse_results = [];
+    public $rx_browse_wardcode = '';
+
     public function mount($enccode = null)
     {
         $this->location_id = auth()->user()->pharm_location_id;
+        $this->rx_browse_date = date('Y-m-d');
 
         if (!$this->charges) {
             $this->charges = ChargeCode::where('bentypcod', 'DRUME')
@@ -970,6 +981,151 @@ class DispensingEncounter extends Component
 
             $this->showEncounterSelectorModal = false;
         }
+    }
+
+    // ──────────────────────────────────────────────
+    // Rx/Orders Browsing (Area-Based)
+    // ──────────────────────────────────────────────
+
+    public function switchSelectorMode($mode)
+    {
+        $this->selector_mode = $mode;
+        if ($mode === 'rx_orders') {
+            $this->loadRxBrowseResults();
+        }
+    }
+
+    public function setRxBrowseArea($area)
+    {
+        $this->rx_browse_area = $area;
+        $this->rx_browse_search = '';
+        $this->rx_browse_tag_filter = 'all';
+        $this->rx_browse_wardcode = '';
+        $this->loadRxBrowseResults();
+    }
+
+    public function setRxBrowseTagFilter($filter)
+    {
+        $this->rx_browse_tag_filter = $filter;
+    }
+
+    public function updatedRxBrowseDate()
+    {
+        $this->loadRxBrowseResults();
+    }
+
+    public function updatedRxBrowseWardcode()
+    {
+        $this->loadRxBrowseResults();
+    }
+
+    public function loadRxBrowseResults()
+    {
+        $area = $this->rx_browse_area;
+
+        if ($area === 'opd') {
+            $this->loadRxBrowseOpd();
+        } elseif ($area === 'ward') {
+            $this->loadRxBrowseWard();
+        } elseif ($area === 'er') {
+            $this->loadRxBrowseEr();
+        }
+    }
+
+    private function loadRxBrowseOpd(): void
+    {
+        $from = Carbon::parse($this->rx_browse_date)->startOfDay();
+        $to = Carbon::parse($this->rx_browse_date)->endOfDay();
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, opd.opddate, opd.opdtime, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                mss.mssikey, ser.tsdesc,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
+                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
+            WHERE opdtime BETWEEN ? AND ?
+                AND toecode = 'OPD' AND rx.stat = 'A'
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC, rx.created_at DESC
+        ", [$from, $to]);
+    }
+
+    private function loadRxBrowseWard(): void
+    {
+        $wardFilter = $this->rx_browse_wardcode ? "AND ward.wardcode = ?" : "";
+        $params = $this->rx_browse_wardcode ? [$this->rx_browse_wardcode] : [];
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, adm.admdate, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                room.rmname, ward.wardname, ward.wardcode, mss.mssikey,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
+                RIGHT JOIN hospital.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
+                RIGHT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
+                RIGHT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
+                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+            WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
+                AND pat_room.patrmstat = 'A' AND rx.stat = 'A'
+                {$wardFilter}
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC, rx.created_at DESC
+        ", $params);
+    }
+
+    private function loadRxBrowseEr(): void
+    {
+        $from = Carbon::parse($this->rx_browse_date)->subDay()->startOfDay();
+        $to = Carbon::parse($this->rx_browse_date)->endOfDay();
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, er.erdate, er.ertime, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                ser.tsdesc, mss.mssikey,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                LEFT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
+                LEFT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+            WHERE erdate BETWEEN ? AND ?
+                AND toecode = 'ER' AND erstat = 'A'
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC
+        ", [$from, $to]);
+    }
+
+    public function rxBrowseSelectEncounter($enccode)
+    {
+        $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
+        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
     }
 
     // ──────────────────────────────────────────────
