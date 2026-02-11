@@ -864,6 +864,9 @@
                                                                 @else
                                                                     <span class="badge badge-xs badge-ghost">0 Rx</span>
                                                                 @endif
+                                                                @if ($enc->order_count > 0)
+                                                                    <span class="badge badge-xs badge-info">{{ $enc->order_count }} Ord</span>
+                                                                @endif
                                                             </div>
                                                         </div>
                                                         <div class="text-xs mt-1">
@@ -888,90 +891,158 @@
                                             </div>
                                         </div>
 
-                                        {{-- Right: Prescriptions for Selected Encounter --}}
+                                        {{-- Right: Prescriptions & Orders for Selected Encounter --}}
                                         <div class="col-span-3 border rounded-lg border-base-300 overflow-hidden flex flex-col">
-                                            <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300 flex items-center justify-between">
-                                                <span>
-                                                    Prescriptions
-                                                    @if ($selected_encounter_code)
-                                                        <span class="font-normal normal-case"> - Selected Encounter</span>
-                                                    @endif
-                                                </span>
+                                            <div class="px-3 py-1.5 bg-base-200 border-b border-base-300 flex items-center justify-between">
                                                 @if ($selected_encounter_code)
-                                                    <button class="btn btn-xs btn-accent"
-                                                        wire:click="navigateToEncounter('{{ $selected_encounter_code }}')"
-                                                        title="Open this encounter">
+                                                    <div class="flex gap-1">
+                                                        <button class="btn btn-xs {{ $encounter_detail_tab === 'prescriptions' ? 'btn-primary' : 'btn-ghost' }}"
+                                                            wire:click="$set('encounter_detail_tab', 'prescriptions')">
+                                                            Prescriptions
+                                                            <span class="badge badge-xs {{ $encounter_detail_tab === 'prescriptions' ? 'badge-primary-content' : 'badge-ghost' }}">{{ collect($selected_encounter_prescriptions)->sum(fn($p) => count($p->data_active ?? [])) }}</span>
+                                                        </button>
+                                                        <button class="btn btn-xs {{ $encounter_detail_tab === 'orders' ? 'btn-primary' : 'btn-ghost' }}"
+                                                            wire:click="$set('encounter_detail_tab', 'orders')">
+                                                            Orders
+                                                            <span class="badge badge-xs {{ $encounter_detail_tab === 'orders' ? 'badge-primary-content' : 'badge-ghost' }}">{{ count($selected_encounter_orders) }}</span>
+                                                        </button>
+                                                    </div>
+                                                    <button class="btn btn-xs btn-accent tooltip tooltip-left" data-tip="Open this Encounter"
+                                                        wire:click="navigateToEncounter('{{ $selected_encounter_code }}')">
                                                         <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3" /> Go to Encounter
                                                     </button>
+                                                @else
+                                                    <span class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                                                        Prescriptions & Orders
+                                                    </span>
                                                 @endif
                                             </div>
                                             <div class="flex-1 overflow-y-auto">
                                                 @if ($selected_encounter_code)
-                                                    <table class="table table-xs table-pin-rows">
-                                                        <thead>
-                                                            <tr class="bg-base-200">
-                                                                <th>Drug / Medicine</th>
-                                                                <th class="text-center">Type</th>
-                                                                <th class="text-center">Qty</th>
-                                                                <th class="text-center">Status</th>
-                                                                <th class="w-10"></th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @php $hasActiveRx = false; @endphp
-                                                            @forelse ($selected_encounter_prescriptions as $selPresc)
-                                                                @forelse ($selPresc->data_active ?? [] as $selData)
-                                                                    @php $hasActiveRx = true; @endphp
-                                                                    <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
-                                                                        <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
-                                                                            {{ $selData->dm->drug_concat() }}
-                                                                            @if ($selData->remark)
-                                                                                <br><span class="text-base-content/50">{{ $selData->remark }}</span>
-                                                                            @endif
-                                                                        </td>
-                                                                        <td class="text-xs text-center">
-                                                                            @switch(strtoupper($selData->order_type ?? ''))
-                                                                                @case('G24')
-                                                                                    <span class="badge badge-xs badge-error">G24</span>
-                                                                                @break
-                                                                                @case('OR')
-                                                                                    <span class="badge badge-xs badge-secondary">OR</span>
-                                                                                @break
-                                                                                @default
-                                                                                    <span class="badge badge-xs badge-accent">Basic</span>
-                                                                            @endswitch
-                                                                        </td>
-                                                                        <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
-                                                                        <td class="text-xs text-center">
-                                                                            <span class="badge badge-xs badge-primary">Active</span>
-                                                                        </td>
-                                                                        <td>
-                                                                            @if ($hasEncounter && $billstat != '02' && $billstat != '03')
-                                                                                <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add to Current Encounter"
-                                                                                    wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')">
-                                                                                    <x-heroicon-o-plus class="w-3 h-3" />
-                                                                                </button>
-                                                                            @endif
-                                                                        </td>
-                                                                    </tr>
+                                                    @if ($encounter_detail_tab === 'prescriptions')
+                                                        {{-- Prescriptions Tab --}}
+                                                        <table class="table table-xs table-pin-rows">
+                                                            <thead>
+                                                                <tr class="bg-base-200">
+                                                                    <th>Drug / Medicine</th>
+                                                                    <th class="text-center">Type</th>
+                                                                    <th class="text-center">Qty</th>
+                                                                    <th class="text-center">Status</th>
+                                                                    <th class="w-10"></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @php $hasActiveRx = false; @endphp
+                                                                @forelse ($selected_encounter_prescriptions as $selPresc)
+                                                                    @forelse ($selPresc->data_active ?? [] as $selData)
+                                                                        @php $hasActiveRx = true; @endphp
+                                                                        <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
+                                                                            <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
+                                                                                {{ $selData->dm->drug_concat() }}
+                                                                                @if ($selData->remark)
+                                                                                    <br><span class="text-base-content/50">{{ $selData->remark }}</span>
+                                                                                @endif
+                                                                            </td>
+                                                                            <td class="text-xs text-center">
+                                                                                @switch(strtoupper($selData->order_type ?? ''))
+                                                                                    @case('G24')
+                                                                                        <span class="badge badge-xs badge-error">G24</span>
+                                                                                    @break
+                                                                                    @case('OR')
+                                                                                        <span class="badge badge-xs badge-secondary">OR</span>
+                                                                                    @break
+                                                                                    @default
+                                                                                        <span class="badge badge-xs badge-accent">Basic</span>
+                                                                                @endswitch
+                                                                            </td>
+                                                                            <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
+                                                                            <td class="text-xs text-center">
+                                                                                <span class="badge badge-xs badge-primary">Active</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                @if ($hasEncounter && $billstat != '02' && $billstat != '03')
+                                                                                    <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add to Current Encounter"
+                                                                                        wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')">
+                                                                                        <x-heroicon-o-plus class="w-3 h-3" />
+                                                                                    </button>
+                                                                                @endif
+                                                                            </td>
+                                                                        </tr>
+                                                                    @empty
+                                                                    @endforelse
                                                                 @empty
                                                                 @endforelse
-                                                            @empty
-                                                            @endforelse
 
-                                                            @if (!$hasActiveRx)
-                                                                <tr>
-                                                                    <td colspan="5" class="text-center py-4 text-base-content/50">
-                                                                        No active prescriptions for this encounter
-                                                                    </td>
+                                                                @if (!$hasActiveRx)
+                                                                    <tr>
+                                                                        <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                            No active prescriptions for this encounter
+                                                                        </td>
+                                                                    </tr>
+                                                                @endif
+                                                            </tbody>
+                                                        </table>
+                                                    @else
+                                                        {{-- Orders Tab --}}
+                                                        <table class="table table-xs table-pin-rows">
+                                                            <thead>
+                                                                <tr class="bg-base-200">
+                                                                    <th class="text-center">Status</th>
+                                                                    <th>Drug / Medicine</th>
+                                                                    <th class="text-center">Qty</th>
+                                                                    <th class="text-right">Amount</th>
+                                                                    <th>Remarks</th>
                                                                 </tr>
-                                                            @endif
-                                                        </tbody>
-                                                    </table>
+                                                            </thead>
+                                                            <tbody>
+                                                                @forelse ($selected_encounter_orders as $selOrder)
+                                                                    <tr class="hover" wire:key="enc-ord-{{ $selOrder->docointkey }}">
+                                                                        <td class="text-xs text-center">
+                                                                            @if ($selOrder->pcchrgcod)
+                                                                                <span class="text-[10px] text-primary">{{ $selOrder->pcchrgcod }}</span><br>
+                                                                            @endif
+                                                                            @if ($selOrder->estatus == 'U' && !$selOrder->pcchrgcod)
+                                                                                <span class="badge badge-xs badge-warning">Pending</span>
+                                                                            @elseif ($selOrder->estatus == 'P' && $selOrder->pcchrgcod)
+                                                                                <span class="badge badge-xs badge-info">Charged</span>
+                                                                            @elseif ($selOrder->estatus == 'S')
+                                                                                <span class="badge badge-xs badge-success">Issued</span>
+                                                                                @if ($selOrder->tx_type)
+                                                                                    <span class="badge badge-xs badge-ghost">{{ strtoupper($selOrder->tx_type) }}</span>
+                                                                                @endif
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-xs font-medium max-w-[200px] truncate" title="{{ $selOrder->drug_concat }}">
+                                                                            {{ $selOrder->drug_concat }}
+                                                                            @if ($selOrder->prescription_data_id)
+                                                                                <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
+                                                                            @endif
+                                                                            <br><span class="badge badge-xs badge-ghost">{{ $selOrder->chrgdesc }}</span>
+                                                                        </td>
+                                                                        <td class="text-xs text-center font-semibold">
+                                                                            @if ($selOrder->estatus == 'S')
+                                                                                {{ number_format($selOrder->qtyissued, 0) }}
+                                                                            @else
+                                                                                {{ number_format($selOrder->pchrgqty, 0) }}
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-xs text-right">{{ number_format($selOrder->pcchrgamt, 2) }}</td>
+                                                                        <td class="text-xs max-w-[100px] truncate" title="{{ $selOrder->remarks }}">{{ $selOrder->remarks }}</td>
+                                                                    </tr>
+                                                                @empty
+                                                                    <tr>
+                                                                        <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                            No orders found for this encounter
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforelse
+                                                            </tbody>
+                                                        </table>
+                                                    @endif
                                                 @else
                                                     <div class="py-8 text-center text-base-content/50">
                                                         <x-heroicon-o-arrow-left class="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                        Select an encounter to view its prescriptions
+                                                        Select an encounter to view its prescriptions and orders
                                                     </div>
                                                 @endif
                                             </div>

@@ -87,7 +87,9 @@ class DispensingEncounter extends Component
     public $patient_encounters = [];
     public $selected_encounter_code = null;
     public $selected_encounter_prescriptions = [];
+    public $selected_encounter_orders = [];
     public $encounter_area_filter = 'all';
+    public $encounter_detail_tab = 'prescriptions';
 
     // Patient Search (within encounter selector)
     public $selector_search_hpercode = '';
@@ -861,7 +863,7 @@ class DispensingEncounter extends Component
         $this->selector_selected_hpercode = null;
         $this->selector_patient_name = null;
         $this->patient_encounters = [];
-        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions', 'selected_encounter_orders', 'encounter_detail_tab');
     }
 
     public function loadPatientEncountersList()
@@ -889,7 +891,9 @@ class DispensingEncounter extends Component
                 track.billstat,
                 (SELECT COUNT(*) FROM webapp.dbo.prescription rx WITH (NOLOCK)
                     INNER JOIN webapp.dbo.prescription_data rd WITH (NOLOCK) ON rx.id = rd.presc_id
-                    WHERE rx.enccode = enctr.enccode AND rd.stat = 'A') AS active_rx_count
+                    WHERE rx.enccode = enctr.enccode AND rd.stat = 'A') AS active_rx_count,
+                (SELECT COUNT(*) FROM hospital.dbo.hrxo WITH (NOLOCK)
+                    WHERE hrxo.enccode = enctr.enccode) AS order_count
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
                 LEFT JOIN hospital.dbo.hactrack track WITH (NOLOCK) ON enctr.enccode = track.enccode
                 LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK) ON enctr.enccode = diag.enccode
@@ -901,7 +905,7 @@ class DispensingEncounter extends Component
             ORDER BY enctr.encdate DESC
         ", [$hpercode]))->all();
 
-        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions', 'selected_encounter_orders', 'encounter_detail_tab');
     }
 
     public function updatedEncounterAreaFilter()
@@ -917,6 +921,18 @@ class DispensingEncounter extends Component
             ->with('data_active')
             ->has('data_active')
             ->get();
+
+        $this->selected_encounter_orders = DB::select("
+            SELECT hrxo.docointkey, hrxo.pcchrgcod, hrxo.dodate, hrxo.pchrgqty, hrxo.estatus,
+                   hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, hdmhdr.drug_concat,
+                   hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
+                   hrxo.dmdcomb, hrxo.dmdctr
+            FROM hospital.dbo.hrxo WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
+            INNER JOIN hospital.dbo.hcharge ON hrxo.orderfrom = hcharge.chrgcode
+            WHERE hrxo.enccode = ?
+            ORDER BY hrxo.dodate DESC
+        ", [$enccode]);
     }
 
     public function navigateToEncounter($enccode)
