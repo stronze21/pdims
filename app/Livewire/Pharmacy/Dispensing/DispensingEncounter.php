@@ -19,6 +19,7 @@ use App\Models\Pharmacy\Drugs\DrugStockCard;
 use App\Models\Pharmacy\Drugs\DrugStockIssue;
 use App\Models\Pharmacy\Drugs\DrugStockLog;
 use App\Models\Record\Encounters\EncounterLog;
+use App\Models\Record\Patients\Patient;
 use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
@@ -33,6 +34,7 @@ class DispensingEncounter extends Component
     public $patlast, $patfirst, $patmiddle;
     public $diagtext, $wardname, $rmname, $billstat;
     public $location_id;
+    public $hasEncounter = false;
     protected $encounter = [];
 
     // Drug Search & Filter
@@ -86,10 +88,32 @@ class DispensingEncounter extends Component
     public $selected_encounter_prescriptions = [];
     public $encounter_area_filter = 'all';
 
-    public function mount($enccode)
+    // Patient Search (within encounter selector)
+    public $selector_search_hpercode = '';
+    public $selector_search_lastname = '';
+    public $selector_search_firstname = '';
+    public $selector_patient_results = [];
+    public $selector_selected_hpercode = null;
+    public $selector_patient_name = null;
+
+    public function mount($enccode = null)
     {
-        $this->enccode = $enccode;
         $this->location_id = auth()->user()->pharm_location_id;
+
+        if (!$this->charges) {
+            $this->charges = ChargeCode::where('bentypcod', 'DRUME')
+                ->where('chrgstat', 'A')
+                ->whereIn('chrgcode', app('chargetable'))
+                ->get();
+        }
+
+        if (!$enccode) {
+            $this->hasEncounter = false;
+            return;
+        }
+
+        $this->enccode = $enccode;
+        $this->hasEncounter = true;
 
         $decrypted = $this->decryptEnccode();
 
@@ -126,18 +150,20 @@ class DispensingEncounter extends Component
         $this->wardname = $encounter->wardname;
         $this->rmname = $encounter->rmname;
         $this->billstat = $encounter->billstat;
-
-        if (!$this->charges) {
-            $this->charges = ChargeCode::where('bentypcod', 'DRUME')
-                ->where('chrgstat', 'A')
-                ->whereIn('chrgcode', app('chargetable'))
-                ->get();
-        }
     }
 
     #[Layout('layouts.dispensing')]
     public function render()
     {
+        if (!$this->hasEncounter) {
+            return view('livewire.pharmacy.dispensing.dispensing-encounter', [
+                'orders' => [],
+                'stocks' => [],
+                'departments' => [],
+                'summaries' => [],
+            ]);
+        }
+
         $enccode = $this->decryptEnccode();
 
         $orders = $this->fetchOrders($enccode);
@@ -753,12 +779,72 @@ class DispensingEncounter extends Component
 
     public function openEncounterSelector()
     {
-        $this->loadPatientEncountersList();
+        $this->reset('selector_search_hpercode', 'selector_search_lastname', 'selector_search_firstname', 'selector_patient_results');
+
+        if ($this->hpercode) {
+            $this->selector_selected_hpercode = $this->hpercode;
+            $this->selector_patient_name = trim($this->patlast . ', ' . $this->patfirst . ' ' . $this->patmiddle);
+            $this->loadPatientEncountersList();
+        } else {
+            $this->selector_selected_hpercode = null;
+            $this->selector_patient_name = null;
+            $this->patient_encounters = [];
+        }
+
         $this->showEncounterSelectorModal = true;
+    }
+
+    public function selectorSearchPatients()
+    {
+        $query = Patient::query();
+
+        if ($this->selector_search_hpercode) {
+            $query->where('hpercode', 'LIKE', $this->selector_search_hpercode . '%');
+        }
+        if ($this->selector_search_lastname) {
+            $query->where('patlast', 'LIKE', $this->selector_search_lastname . '%');
+        }
+        if ($this->selector_search_firstname) {
+            $query->where('patfirst', 'LIKE', $this->selector_search_firstname . '%');
+        }
+
+        if (!$this->selector_search_hpercode && !$this->selector_search_lastname && !$this->selector_search_firstname) {
+            $this->warning('Please enter at least one search criteria.');
+            return;
+        }
+
+        $this->selector_patient_results = $query->orderBy('patlast')->orderBy('patfirst')->limit(50)->get();
+
+        if ($this->selector_patient_results->isEmpty()) {
+            $this->warning('No patients found.');
+        }
+    }
+
+    public function selectorSelectPatient($hpercode)
+    {
+        $patient = Patient::where('hpercode', $hpercode)->first();
+        if (!$patient) return;
+
+        $this->selector_selected_hpercode = $hpercode;
+        $this->selector_patient_name = trim($patient->patlast . ', ' . $patient->patfirst . ' ' . $patient->patmiddle);
+        $this->selector_patient_results = [];
+
+        $this->loadPatientEncountersList();
+    }
+
+    public function selectorClearPatient()
+    {
+        $this->selector_selected_hpercode = null;
+        $this->selector_patient_name = null;
+        $this->patient_encounters = [];
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
     }
 
     public function loadPatientEncountersList()
     {
+        $hpercode = $this->selector_selected_hpercode;
+        if (!$hpercode) return;
+
         $filter = $this->encounter_area_filter;
 
         $toecodeFilter = match ($filter) {
@@ -789,7 +875,7 @@ class DispensingEncounter extends Component
             WHERE enctr.hpercode = ?
                 {$toecodeFilter}
             ORDER BY enctr.encdate DESC
-        ", [$this->hpercode]))->all();
+        ", [$hpercode]))->all();
 
         $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
     }
@@ -809,8 +895,19 @@ class DispensingEncounter extends Component
             ->get();
     }
 
+    public function navigateToEncounter($enccode)
+    {
+        $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
+        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
+    }
+
     public function addPrescriptionFromEncounter($rxId, $dmdcomb, $dmdctr, $empid, $qty)
     {
+        if (!$this->hasEncounter) {
+            $this->warning('Please navigate to an encounter first before adding prescriptions.');
+            return;
+        }
+
         $this->rx_id = $rxId;
         $this->rx_dmdcomb = $dmdcomb;
         $this->rx_dmdctr = $dmdctr;

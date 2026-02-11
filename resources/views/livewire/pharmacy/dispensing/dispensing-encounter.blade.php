@@ -26,48 +26,62 @@
         $wire.call('updateSelectedItems', this.selectedItems);
     }
 }">
-    {{-- Patient Info Bar --}}
-    <div class="border-b bg-base-100 border-base-200">
-        <div class="px-4 py-2">
-            <div class="flex items-start justify-between">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full bg-primary/10">
-                        <x-heroicon-o-user class="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}</h2>
-                        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70">
-                            <span>{{ $hpercode }}</span>
-                            <span>|</span>
-                            <span class="font-medium">
-                                @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
-                                    {{ $wardname }} - {{ $rmname }}
-                                @else
-                                    {{ $toecode }}
-                                @endif
-                            </span>
-                            <span>|</span>
-                            <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
-                            @if ($diagtext)
-                                <x-mary-hr />
-                                <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
-                            @endif
-                        </div>
-                    </div>
+    @if (!$hasEncounter)
+        {{-- Empty State: No patient/encounter selected --}}
+        <div class="flex flex-col items-center justify-center flex-1 p-8">
+            <div class="max-w-md text-center">
+                <div class="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full bg-base-200">
+                    <x-heroicon-o-clipboard-document-list class="w-10 h-10 text-base-content/30" />
                 </div>
-                <div class="flex items-center gap-2">
-                    @if ($billstat == '02' || $billstat == '03')
-                        <div class="badge badge-error gap-1">
-                            <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
+                <h2 class="text-2xl font-bold mb-2">Dispensing Encounter</h2>
+                <p class="text-base-content/60 mb-6">No patient or encounter selected. Search for a patient and select an encounter to begin dispensing.</p>
+                <x-mary-button label="Search Patient & Encounter" icon="o-magnifying-glass" class="btn-primary btn-lg"
+                    wire:click="openEncounterSelector" />
+            </div>
+        </div>
+    @else
+        {{-- Patient Info Bar --}}
+        <div class="border-b bg-base-100 border-base-200">
+            <div class="px-4 py-2">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full bg-primary/10">
+                            <x-heroicon-o-user class="w-6 h-6 text-primary" />
                         </div>
-                    @endif
+                        <div>
+                            <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}</h2>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70">
+                                <span>{{ $hpercode }}</span>
+                                <span>|</span>
+                                <span class="font-medium">
+                                    @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
+                                        {{ $wardname }} - {{ $rmname }}
+                                    @else
+                                        {{ $toecode }}
+                                    @endif
+                                </span>
+                                <span>|</span>
+                                <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
+                                @if ($diagtext)
+                                    <x-mary-hr />
+                                    <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        @if ($billstat == '02' || $billstat == '03')
+                            <div class="badge badge-error gap-1">
+                                <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- Main Content --}}
-    <div class="flex flex-1 overflow-hidden">
+        {{-- Main Content --}}
+        <div class="flex flex-1 overflow-hidden">
         {{-- Left: Orders Table --}}
         <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
             {{-- Action Bar --}}
@@ -406,6 +420,7 @@
                 </div>
             </div>
         </div>
+    @endif
 
             {{-- Add Stock Item Modal --}}
             <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
@@ -747,141 +762,201 @@
                         <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Patient Encounters & Prescriptions" class="backdrop-blur"
                             box-class="max-w-5xl">
                             <div class="space-y-4">
-                                {{-- Area Filter Tabs --}}
-                                <div class="flex gap-2">
-                                    @foreach (['all' => 'All', 'ward' => 'Ward (Admitted)', 'er' => 'ER', 'opd' => 'OPD'] as $filterKey => $filterLabel)
-                                        <button
-                                            class="btn btn-sm {{ $encounter_area_filter === $filterKey ? 'btn-primary' : 'btn-ghost' }}"
-                                            wire:click="$set('encounter_area_filter', '{{ $filterKey }}')">
-                                            {{ $filterLabel }}
-                                        </button>
-                                    @endforeach
-                                </div>
-
-                                <div class="grid grid-cols-5 gap-4 min-h-[400px]">
-                                    {{-- Left: Encounter List --}}
-                                    <div class="col-span-2 border rounded-lg border-base-300 overflow-hidden flex flex-col">
-                                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
-                                            Encounters
-                                        </div>
-                                        <div class="flex-1 overflow-y-auto">
-                                            @forelse ($patient_encounters as $enc)
-                                                <div wire:key="enc-sel-{{ md5($enc->enccode) }}"
-                                                    class="px-3 py-2 border-b border-base-200 cursor-pointer hover:bg-base-200/50 transition-colors {{ $selected_encounter_code === $enc->enccode ? 'bg-primary/10 border-l-4 border-l-primary' : '' }}"
-                                                    wire:click="selectEncounterPrescriptions('{{ $enc->enccode }}')">
-                                                    <div class="flex items-center justify-between">
-                                                        <span class="badge badge-xs {{ match($enc->toecode) { 'ADM', 'OPDAD', 'ERADM' => 'badge-info', 'ER' => 'badge-error', 'OPD' => 'badge-success', default => 'badge-ghost' } }}">
-                                                            {{ $enc->toecode }}
-                                                        </span>
-                                                        @if ($enc->active_rx_count > 0)
-                                                            <span class="badge badge-xs badge-primary">{{ $enc->active_rx_count }} Rx</span>
-                                                        @else
-                                                            <span class="badge badge-xs badge-ghost">0 Rx</span>
-                                                        @endif
-                                                    </div>
-                                                    <div class="text-xs mt-1">
-                                                        {{ date('M d, Y h:i A', strtotime($enc->encdate)) }}
-                                                    </div>
-                                                    @if ($enc->wardname)
-                                                        <div class="text-xs text-base-content/60">{{ $enc->wardname }} - {{ $enc->rmname }}</div>
-                                                    @endif
-                                                    @if ($enc->diagtext)
-                                                        <div class="text-xs text-base-content/50 truncate" title="{{ $enc->diagtext }}">Dx: {{ Illuminate\Support\Str::limit($enc->diagtext, 50) }}</div>
-                                                    @endif
-                                                    @if ($enc->billstat == '02' || $enc->billstat == '03')
-                                                        <span class="badge badge-xs badge-error mt-1">Final Bill</span>
-                                                    @endif
+                                {{-- Patient Search Bar --}}
+                                <div class="p-3 rounded-lg border border-base-300 bg-base-200/30">
+                                    @if ($selector_selected_hpercode)
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                                                    <x-heroicon-o-user class="w-4 h-4 text-primary" />
                                                 </div>
-                                            @empty
-                                                <div class="py-8 text-center text-base-content/50">
-                                                    <x-heroicon-o-folder-open class="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                    No encounters found
+                                                <div>
+                                                    <div class="font-semibold text-sm">{{ $selector_patient_name }}</div>
+                                                    <div class="text-xs text-base-content/60">{{ $selector_selected_hpercode }}</div>
                                                 </div>
-                                            @endforelse
+                                            </div>
+                                            <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-ghost"
+                                                wire:click="selectorClearPatient" />
                                         </div>
-                                    </div>
-
-                                    {{-- Right: Prescriptions for Selected Encounter --}}
-                                    <div class="col-span-3 border rounded-lg border-base-300 overflow-hidden flex flex-col">
-                                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
-                                            Prescriptions
-                                            @if ($selected_encounter_code)
-                                                <span class="font-normal normal-case"> - Selected Encounter</span>
+                                    @else
+                                        <div class="space-y-2">
+                                            <div class="text-xs font-semibold text-base-content/70">Search Patient</div>
+                                            <div class="flex gap-2">
+                                                <x-mary-input wire:model="selector_search_hpercode" placeholder="Hospital #" class="input-sm flex-1" />
+                                                <x-mary-input wire:model="selector_search_lastname" placeholder="Last Name" class="input-sm flex-1" />
+                                                <x-mary-input wire:model="selector_search_firstname" placeholder="First Name" class="input-sm flex-1" />
+                                                <x-mary-button label="Search" icon="o-magnifying-glass" class="btn-sm btn-primary"
+                                                    wire:click="selectorSearchPatients" spinner />
+                                            </div>
+                                            @if (count($selector_patient_results) > 0)
+                                                <div class="max-h-40 overflow-y-auto border rounded border-base-300 bg-base-100">
+                                                    @foreach ($selector_patient_results as $selectorPat)
+                                                        <div wire:key="sel-pat-{{ $selectorPat->hpercode }}"
+                                                            class="flex items-center justify-between px-3 py-1.5 text-xs border-b border-base-200 cursor-pointer hover:bg-base-200/50"
+                                                            wire:click="selectorSelectPatient('{{ $selectorPat->hpercode }}')">
+                                                            <span class="font-medium">{{ $selectorPat->patlast }}, {{ $selectorPat->patfirst }} {{ $selectorPat->patmiddle }}</span>
+                                                            <span class="text-base-content/50">{{ $selectorPat->hpercode }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         </div>
-                                        <div class="flex-1 overflow-y-auto">
-                                            @if ($selected_encounter_code)
-                                                <table class="table table-xs table-pin-rows">
-                                                    <thead>
-                                                        <tr class="bg-base-200">
-                                                            <th>Drug / Medicine</th>
-                                                            <th class="text-center">Type</th>
-                                                            <th class="text-center">Qty</th>
-                                                            <th class="text-center">Status</th>
-                                                            <th class="w-10"></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @php $hasActiveRx = false; @endphp
-                                                        @forelse ($selected_encounter_prescriptions as $selPresc)
-                                                            @forelse ($selPresc->data_active ?? [] as $selData)
-                                                                @php $hasActiveRx = true; @endphp
-                                                                <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
-                                                                    <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
-                                                                        {{ $selData->dm->drug_concat() }}
-                                                                        @if ($selData->remark)
-                                                                            <br><span class="text-base-content/50">{{ $selData->remark }}</span>
-                                                                        @endif
-                                                                    </td>
-                                                                    <td class="text-xs text-center">
-                                                                        @switch(strtoupper($selData->order_type ?? ''))
-                                                                            @case('G24')
-                                                                                <span class="badge badge-xs badge-error">G24</span>
-                                                                            @break
-                                                                            @case('OR')
-                                                                                <span class="badge badge-xs badge-secondary">OR</span>
-                                                                            @break
-                                                                            @default
-                                                                                <span class="badge badge-xs badge-accent">Basic</span>
-                                                                        @endswitch
-                                                                    </td>
-                                                                    <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
-                                                                    <td class="text-xs text-center">
-                                                                        <span class="badge badge-xs badge-primary">Active</span>
-                                                                    </td>
-                                                                    <td>
-                                                                        @if ($billstat != '02' && $billstat != '03')
-                                                                            <button class="btn btn-xs btn-primary"
-                                                                                wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')"
-                                                                                title="Add to current encounter">
-                                                                                <x-heroicon-o-plus class="w-3 h-3" />
-                                                                            </button>
-                                                                        @endif
-                                                                    </td>
-                                                                </tr>
+                                    @endif
+                                </div>
+
+                                @if ($selector_selected_hpercode)
+                                    {{-- Area Filter Tabs --}}
+                                    <div class="flex gap-2">
+                                        @foreach (['all' => 'All', 'ward' => 'Ward (Admitted)', 'er' => 'ER', 'opd' => 'OPD'] as $filterKey => $filterLabel)
+                                            <button
+                                                class="btn btn-sm {{ $encounter_area_filter === $filterKey ? 'btn-primary' : 'btn-ghost' }}"
+                                                wire:click="$set('encounter_area_filter', '{{ $filterKey }}')">
+                                                {{ $filterLabel }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+
+                                    <div class="grid grid-cols-5 gap-4 min-h-[400px]">
+                                        {{-- Left: Encounter List --}}
+                                        <div class="col-span-2 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                            <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                                                Encounters
+                                            </div>
+                                            <div class="flex-1 overflow-y-auto">
+                                                @forelse ($patient_encounters as $enc)
+                                                    <div wire:key="enc-sel-{{ md5($enc->enccode) }}"
+                                                        class="px-3 py-2 border-b border-base-200 cursor-pointer hover:bg-base-200/50 transition-colors {{ $selected_encounter_code === $enc->enccode ? 'bg-primary/10 border-l-4 border-l-primary' : '' }}"
+                                                        wire:click="selectEncounterPrescriptions('{{ $enc->enccode }}')">
+                                                        <div class="flex items-center justify-between">
+                                                            <span class="badge badge-xs {{ match($enc->toecode) { 'ADM', 'OPDAD', 'ERADM' => 'badge-info', 'ER' => 'badge-error', 'OPD' => 'badge-success', default => 'badge-ghost' } }}">
+                                                                {{ $enc->toecode }}
+                                                            </span>
+                                                            <div class="flex gap-1">
+                                                                @if ($enc->active_rx_count > 0)
+                                                                    <span class="badge badge-xs badge-primary">{{ $enc->active_rx_count }} Rx</span>
+                                                                @else
+                                                                    <span class="badge badge-xs badge-ghost">0 Rx</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-xs mt-1">
+                                                            {{ date('M d, Y h:i A', strtotime($enc->encdate)) }}
+                                                        </div>
+                                                        @if ($enc->wardname)
+                                                            <div class="text-xs text-base-content/60">{{ $enc->wardname }} - {{ $enc->rmname }}</div>
+                                                        @endif
+                                                        @if ($enc->diagtext)
+                                                            <div class="text-xs text-base-content/50 truncate" title="{{ $enc->diagtext }}">Dx: {{ Illuminate\Support\Str::limit($enc->diagtext, 50) }}</div>
+                                                        @endif
+                                                        @if ($enc->billstat == '02' || $enc->billstat == '03')
+                                                            <span class="badge badge-xs badge-error mt-1">Final Bill</span>
+                                                        @endif
+                                                    </div>
+                                                @empty
+                                                    <div class="py-8 text-center text-base-content/50">
+                                                        <x-heroicon-o-folder-open class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        No encounters found
+                                                    </div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+
+                                        {{-- Right: Prescriptions for Selected Encounter --}}
+                                        <div class="col-span-3 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                            <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300 flex items-center justify-between">
+                                                <span>
+                                                    Prescriptions
+                                                    @if ($selected_encounter_code)
+                                                        <span class="font-normal normal-case"> - Selected Encounter</span>
+                                                    @endif
+                                                </span>
+                                                @if ($selected_encounter_code)
+                                                    <button class="btn btn-xs btn-accent"
+                                                        wire:click="navigateToEncounter('{{ $selected_encounter_code }}')"
+                                                        title="Open this encounter">
+                                                        <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3" /> Go to Encounter
+                                                    </button>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1 overflow-y-auto">
+                                                @if ($selected_encounter_code)
+                                                    <table class="table table-xs table-pin-rows">
+                                                        <thead>
+                                                            <tr class="bg-base-200">
+                                                                <th>Drug / Medicine</th>
+                                                                <th class="text-center">Type</th>
+                                                                <th class="text-center">Qty</th>
+                                                                <th class="text-center">Status</th>
+                                                                <th class="w-10"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @php $hasActiveRx = false; @endphp
+                                                            @forelse ($selected_encounter_prescriptions as $selPresc)
+                                                                @forelse ($selPresc->data_active ?? [] as $selData)
+                                                                    @php $hasActiveRx = true; @endphp
+                                                                    <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
+                                                                        <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
+                                                                            {{ $selData->dm->drug_concat() }}
+                                                                            @if ($selData->remark)
+                                                                                <br><span class="text-base-content/50">{{ $selData->remark }}</span>
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-xs text-center">
+                                                                            @switch(strtoupper($selData->order_type ?? ''))
+                                                                                @case('G24')
+                                                                                    <span class="badge badge-xs badge-error">G24</span>
+                                                                                @break
+                                                                                @case('OR')
+                                                                                    <span class="badge badge-xs badge-secondary">OR</span>
+                                                                                @break
+                                                                                @default
+                                                                                    <span class="badge badge-xs badge-accent">Basic</span>
+                                                                            @endswitch
+                                                                        </td>
+                                                                        <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
+                                                                        <td class="text-xs text-center">
+                                                                            <span class="badge badge-xs badge-primary">Active</span>
+                                                                        </td>
+                                                                        <td>
+                                                                            @if ($hasEncounter && $billstat != '02' && $billstat != '03')
+                                                                                <button class="btn btn-xs btn-primary"
+                                                                                    wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')"
+                                                                                    title="Add to current encounter">
+                                                                                    <x-heroicon-o-plus class="w-3 h-3" />
+                                                                                </button>
+                                                                            @endif
+                                                                        </td>
+                                                                    </tr>
+                                                                @empty
+                                                                @endforelse
                                                             @empty
                                                             @endforelse
-                                                        @empty
-                                                        @endforelse
 
-                                                        @if (!$hasActiveRx)
-                                                            <tr>
-                                                                <td colspan="5" class="text-center py-4 text-base-content/50">
-                                                                    No active prescriptions for this encounter
-                                                                </td>
-                                                            </tr>
-                                                        @endif
-                                                    </tbody>
-                                                </table>
-                                            @else
-                                                <div class="py-8 text-center text-base-content/50">
-                                                    <x-heroicon-o-arrow-left class="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                                    Select an encounter to view its prescriptions
-                                                </div>
-                                            @endif
+                                                            @if (!$hasActiveRx)
+                                                                <tr>
+                                                                    <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                        No active prescriptions for this encounter
+                                                                    </td>
+                                                                </tr>
+                                                            @endif
+                                                        </tbody>
+                                                    </table>
+                                                @else
+                                                    <div class="py-8 text-center text-base-content/50">
+                                                        <x-heroicon-o-arrow-left class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        Select an encounter to view its prescriptions
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @else
+                                    <div class="py-12 text-center text-base-content/50 min-h-[300px] flex flex-col items-center justify-center">
+                                        <x-heroicon-o-magnifying-glass class="w-10 h-10 mx-auto mb-3 opacity-30" />
+                                        <p class="text-sm">Search for a patient above to view their encounters and prescriptions</p>
+                                    </div>
+                                @endif
                             </div>
                             <x-slot:actions>
                                 <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />
