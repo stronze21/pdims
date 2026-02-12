@@ -110,20 +110,11 @@
                     <div class="text-center py-8">
                         <x-mary-icon name="o-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
                         <div class="text-gray-500 mb-4">No active queue</div>
-                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target mb-4">
+                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
-                        <div class="divider text-xs">OR SELECT BY NUMBER</div>
-                        <form wire:submit="selectQueueByNumber" class="flex gap-2 justify-center max-w-xs mx-auto">
-                            <input type="text" wire:model="queueNumberSearch"
-                                placeholder="e.g. RX001"
-                                class="input input-bordered input-sm flex-1" />
-                            <button type="submit" class="btn btn-outline btn-sm btn-primary">
-                                <x-mary-icon name="o-magnifying-glass" class="w-4 h-4" />
-                                Select
-                            </button>
-                        </form>
+                        <div class="text-xs text-gray-400 mt-2">or select a specific queue from the table</div>
                     </div>
                 @endif
             </x-mary-card>
@@ -155,12 +146,6 @@
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
-                        <form wire:submit="selectQueueByNumber" class="flex gap-2 mt-2">
-                            <input type="text" wire:model="queueNumberSearch"
-                                placeholder="Queue #"
-                                class="input input-bordered input-xs flex-1" />
-                            <button type="submit" class="btn btn-outline btn-xs btn-primary">Select</button>
-                        </form>
                     </div>
                 </x-mary-card>
             @endif
@@ -277,9 +262,10 @@
                                     <td>
                                         <div class="flex gap-1">
                                             @if ($queue->isWaiting() && !$queue->assigned_window)
-                                                <button wire:click="forceCall({{ $queue->id }})"
-                                                    class="btn btn-xs btn-primary">
-                                                    Call
+                                                <button wire:click="selectQueue({{ $queue->id }})"
+                                                    class="btn btn-xs btn-primary"
+                                                    wire:confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
+                                                    Select
                                                 </button>
                                             @endif
                                             <button wire:click="viewQueue({{ $queue->id }})"

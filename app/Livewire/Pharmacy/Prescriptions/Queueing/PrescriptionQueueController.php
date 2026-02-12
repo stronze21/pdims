@@ -52,8 +52,6 @@ class PrescriptionQueueController extends Component
     public $printItems = [];
     public $selectedItems = [];
 
-    // Queue Number Search
-    public $queueNumberSearch = '';
 
     public function boot(PrescriptionQueueService $queueService)
     {
@@ -483,24 +481,12 @@ class PrescriptionQueueController extends Component
         );
     }
 
-    public function selectQueueByNumber()
+    public function selectQueue($queueId)
     {
-        $search = trim($this->queueNumberSearch);
-        if (empty($search)) {
-            $this->warning('Please enter a queue number');
-            return;
-        }
+        $queue = PrescriptionQueue::find($queueId);
 
-        $queue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
-            ->where('queue_number', 'LIKE', '%' . $search . '%')
-            ->where('queue_status', 'waiting')
-            ->whereNull('assigned_window')
-            ->whereDate('queued_at', $this->dateFilter)
-            ->orderBy('queued_at', 'asc')
-            ->first();
-
-        if (!$queue) {
-            $this->error("No waiting queue found matching \"{$search}\"");
+        if (!$queue || !$queue->isWaiting()) {
+            $this->error('Queue is not available for selection');
             return;
         }
 
@@ -508,7 +494,7 @@ class PrescriptionQueueController extends Component
             $queue->id,
             'preparing',
             auth()->user()->employeeid,
-            "Selected by number to Window {$this->selectedWindow}"
+            "Selected to Window {$this->selectedWindow}"
         );
 
         if ($result['success']) {
@@ -520,7 +506,6 @@ class PrescriptionQueueController extends Component
                     'preparing_at' => now(),
                 ]);
 
-            $this->queueNumberSearch = '';
             $this->success("Now serving: {$queue->queue_number}");
             $this->loadCurrentQueue();
         } else {

@@ -40,24 +40,31 @@
             </div>
         </div>
     @else
-        {{-- Queue Info Banner (when opened from queue controller) --}}
+        {{-- Queue Controller Panel (when opened from queue controller) --}}
         @if ($queueId)
-            <div class="border-b bg-primary/5 border-primary/20">
-                <div class="px-4 py-2 flex items-center justify-between">
+            <div class="border-b border-primary/20">
+                {{-- Queue Header Bar --}}
+                <div class="px-4 py-2 flex items-center justify-between bg-primary/5">
                     <div class="flex items-center gap-3">
                         <div class="badge badge-primary badge-lg font-mono font-bold gap-1">
                             <x-heroicon-o-queue-list class="w-4 h-4" />
                             {{ $currentQueueNumber }}
                         </div>
                         <span class="text-sm">
-                            Queue Status:
+                            Status:
                             <span class="font-semibold
                                 @if($currentQueueStatus === 'dispensed') text-success
                                 @elseif($currentQueueStatus === 'ready') text-accent
+                                @elseif($currentQueueStatus === 'charging') text-warning
                                 @else text-info @endif">
                                 {{ strtoupper($currentQueueStatus) }}
                             </span>
                         </span>
+                        @if ($queueChargeSlipNo)
+                            <span class="badge badge-ghost badge-sm font-mono">
+                                {{ $queueChargeSlipNo }}
+                            </span>
+                        @endif
                         @if ($currentQueueStatus === 'dispensed')
                             <div class="badge badge-success badge-sm gap-1">
                                 <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
@@ -66,16 +73,96 @@
                     </div>
                     <div class="flex items-center gap-2">
                         @if ($currentQueueStatus !== 'dispensed')
-                            <x-mary-button label="Complete Queue & Return" icon="o-check"
+                            <x-mary-button label="Complete & Next" icon="o-forward"
                                 class="btn-sm btn-success"
-                                wire:click="completeQueueAndReturn"
-                                wire:confirm="Mark this queue as dispensed and return to queue controller?" />
+                                wire:click="queueCompleteAndNext"
+                                wire:confirm="Mark this queue as dispensed and open the next queue?" />
+                        @else
+                            <x-mary-button label="Next Queue" icon="o-arrow-right"
+                                class="btn-sm btn-primary"
+                                wire:click="queueCallNext" />
                         @endif
-                        <x-mary-button label="Back to Queue" icon="o-arrow-left"
+                        <button wire:click="toggleQueuePanel"
+                            class="btn btn-sm btn-ghost gap-1">
+                            <x-heroicon-o-queue-list class="w-4 h-4" />
+                            {{ $showQueuePanel ? 'Hide' : 'Show' }} Queue
+                        </button>
+                        <x-mary-button label="Back to Queue Controller" icon="o-arrow-left"
                             class="btn-sm btn-outline"
                             wire:click="returnToQueueController" />
                     </div>
                 </div>
+
+                {{-- Expandable Queue List --}}
+                @if ($showQueuePanel)
+                    <div class="bg-base-100 border-t border-primary/10">
+                        <div class="overflow-x-auto max-h-48 overflow-y-auto">
+                            <table class="table table-xs">
+                                <thead class="sticky top-0 bg-base-200 z-10">
+                                    <tr>
+                                        <th>Queue #</th>
+                                        <th>Patient</th>
+                                        <th>Status</th>
+                                        <th>Priority</th>
+                                        <th>Time</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($queueList as $q)
+                                        <tr class="hover {{ $q['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
+                                            <td class="font-mono font-bold">{{ $q['queue_number'] }}</td>
+                                            <td class="text-xs">
+                                                @if ($q['patient'] ?? null)
+                                                    {{ $q['patient']['patlast'] }}, {{ $q['patient']['patfirst'] }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $badgeClass = match($q['queue_status']) {
+                                                        'waiting' => 'badge-warning',
+                                                        'preparing' => 'badge-info',
+                                                        'charging' => 'badge-secondary',
+                                                        'ready' => 'badge-success',
+                                                        default => 'badge-ghost',
+                                                    };
+                                                @endphp
+                                                <div class="badge badge-xs {{ $badgeClass }}">
+                                                    {{ strtoupper($q['queue_status']) }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (($q['priority'] ?? 'normal') !== 'normal')
+                                                    <div class="badge badge-xs badge-error">
+                                                        {{ strtoupper($q['priority']) }}
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="text-xs">
+                                                {{ \Carbon\Carbon::parse($q['queued_at'])->format('h:i A') }}
+                                            </td>
+                                            <td>
+                                                @if ($q['id'] != $queueId && $q['queue_status'] === 'waiting')
+                                                    <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
+                                                        class="btn btn-xs btn-primary"
+                                                        wire:confirm="Open queue {{ $q['queue_number'] }}?">
+                                                        Select
+                                                    </button>
+                                                @elseif ($q['id'] == $queueId)
+                                                    <span class="badge badge-xs badge-primary">Current</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-gray-400">No active queues</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
