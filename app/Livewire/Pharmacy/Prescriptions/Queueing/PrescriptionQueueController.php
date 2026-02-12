@@ -333,6 +333,7 @@ class PrescriptionQueueController extends Component
             ->where('queue_status', 'waiting')
             ->whereNull('assigned_window')
             ->whereNull('called_at')
+            ->whereDate('queued_at', $this->dateFilter)
             ->orderByRaw("
                 CASE
                     WHEN priority = 'stat' THEN 1
