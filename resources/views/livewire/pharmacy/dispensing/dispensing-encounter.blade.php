@@ -26,48 +26,66 @@
         $wire.call('updateSelectedItems', this.selectedItems);
     }
 }">
-    {{-- Patient Info Bar --}}
-    <div class="border-b bg-base-100 border-base-200">
-        <div class="px-4 py-2">
-            <div class="flex items-start justify-between">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full bg-primary/10">
-                        <x-heroicon-o-user class="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}</h2>
-                        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70">
-                            <span>{{ $hpercode }}</span>
-                            <span>|</span>
-                            <span class="font-medium">
-                                @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
-                                    {{ $wardname }} - {{ $rmname }}
-                                @else
-                                    {{ $toecode }}
-                                @endif
-                            </span>
-                            <span>|</span>
-                            <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
-                            @if ($diagtext)
-                                <x-mary-hr />
-                                <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
-                            @endif
-                        </div>
-                    </div>
+    @if (!$hasEncounter)
+        {{-- Empty State: No patient/encounter selected --}}
+        <div class="flex flex-col items-center justify-center flex-1 p-8">
+            <div class="max-w-md text-center">
+                <div class="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full bg-base-200">
+                    <x-heroicon-o-clipboard-document-list class="w-10 h-10 text-base-content/30" />
                 </div>
-                <div class="flex items-center gap-2">
-                    @if ($billstat == '02' || $billstat == '03')
-                        <div class="badge badge-error gap-1">
-                            <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
+                <h2 class="text-2xl font-bold mb-2">Dispensing Encounter</h2>
+                <p class="text-base-content/60 mb-6">No patient or encounter selected. Search for a patient and select an encounter to begin dispensing.</p>
+                <x-mary-button label="Search Patient & Encounter" icon="o-magnifying-glass" class="btn-primary btn-lg"
+                    wire:click="openEncounterSelector" />
+            </div>
+        </div>
+    @else
+        {{-- Patient Info Bar --}}
+        <div class="border-b bg-base-100 border-base-200">
+            <div class="px-4 py-2">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full bg-primary/10">
+                            <x-heroicon-o-user class="w-6 h-6 text-primary" />
                         </div>
-                    @endif
+                        <div>
+                            <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}</h2>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70">
+                                <span>{{ $hpercode }}</span>
+                                <span>|</span>
+                                <span class="font-medium">
+                                    @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
+                                        {{ $wardname }} - {{ $rmname }}
+                                    @else
+                                        {{ $toecode }}
+                                    @endif
+                                </span>
+                                <span>|</span>
+                                <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
+                                @if ($diagtext)
+                                    <x-mary-hr />
+                                    <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 pr-5">
+                        @if ($billstat == '02' || $billstat == '03')
+                            <div class="badge badge-error gap-1">
+                                <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
+                            </div>
+                        @endif
+                        <x-mary-button label="Browse Encounters" icon="o-queue-list" class="btn-sm btn-outline btn-accent"
+                            wire:click="openEncounterSelector" tooltip-bottom="Browse Encounters (F3)" />
+                        <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-outline"
+                            wire:click="openChangePatient" tooltip-bottom="Change Patient (F2)" />
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- Main Content --}}
-    <div class="flex flex-1 overflow-hidden">
+        {{-- Main Content --}}
+        <div class="flex flex-1 overflow-hidden">
         {{-- Left: Orders Table --}}
         <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
             {{-- Action Bar --}}
@@ -75,11 +93,11 @@
                 <div class="flex items-center justify-between px-4 py-2">
                     <div class="flex gap-2">
                         <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
-                            wire:click="$set('showPrescriptionListModal', true)" />
+                            wire:click="$set('showPrescriptionListModal', true)" tooltip-bottom="View All Prescriptions (F4)" />
                         <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                            wire:click="$set('showSummaryModal', true)" />
+                            wire:click="$set('showSummaryModal', true)" tooltip-bottom="Summary of Issued Drugs (F5)" />
                         <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                            class="btn btn-sm btn-outline">
+                            class="btn btn-sm btn-outline tooltip tooltip-bottom" data-tip="View Issued with Return (F6)">
                             <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
                         </a>
                     </div>
@@ -87,19 +105,20 @@
                     @if ($billstat != '02' && $billstat != '03')
                         <div class="flex gap-2">
                             <x-mary-button label="Select All Pending" icon="o-check-circle" class="btn-sm btn-ghost"
-                                x-on:click="selectAllPending()" />
+                                x-on:click="selectAllPending()" tooltip-bottom="Select All Pending (Ctrl+A)" />
                             <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                                x-on:click="clearSelection()" />
+                                x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
 
                             <div class="border-l border-base-300 h-6 mx-1"></div>
 
                             <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
                                 wire:click="delete_item"
-                                wire:confirm="Delete selected pending items? This cannot be undone." />
+                                wire:confirm="Delete selected pending items? This cannot be undone."
+                                tooltip-bottom="Delete Selected (Del)" />
                             <x-mary-button label="Charge" icon="o-credit-card" class="btn-sm btn-info btn-outline"
-                                wire:click="charge_items" />
+                                wire:click="charge_items" tooltip-bottom="Charge Selected (Ctrl+C)" />
                             <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                wire:click="$wire.$set('showIssueModal', true)" />
+                                wire:click="$wire.$set('showIssueModal', true)" tooltip-bottom="Issue Charged Items (Ctrl+I)" />
                         </div>
                     @endif
                 </div>
@@ -177,7 +196,7 @@
                                     {{ $rxo->remarks }}</td>
                                 <td>
                                     <div class="dropdown dropdown-end">
-                                        <label tabindex="0" class="btn btn-ghost btn-xs">
+                                        <label tabindex="0" class="btn btn-ghost btn-xs tooltip tooltip-left" data-tip="Actions">
                                             <x-heroicon-o-ellipsis-vertical class="w-4 h-4" />
                                         </label>
                                         <ul tabindex="0"
@@ -348,18 +367,18 @@
                             </div>
                             @if ($billstat != '02' && $billstat != '03')
                                 @if ($toecode == 'OPD' || $toecode == 'WALKN')
-                                    <button class="btn btn-xs btn-primary"
+                                    <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add Prescribed Item"
                                         wire:click="openPrescribedItemModal({{ $presc_data->id }},'{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}','{{ $presc_data->qty }}')">
                                         <x-heroicon-o-plus class="w-3 h-3" />
                                     </button>
                                 @else
-                                    <button class="btn btn-xs btn-ghost"
+                                    <button class="btn btn-xs btn-ghost tooltip tooltip-left" data-tip="Search in Stocks"
                                         wire:click="searchGenericItem({{ $presc_data->id }},'{{ explode(',', $presc_data->dm->drug_concat())[0] }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
                                         <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                     </button>
                                 @endif
 
-                                <button class="btn btn-xs btn-ghost btn-error"
+                                <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate Rx"
                                     wire:click="confirmDeactivateRx({{ $presc_data->id }})">
                                     <x-heroicon-o-x-mark class="w-3 h-3" />
                                 </button>
@@ -390,7 +409,7 @@
                                             </div>
                                         </div>
                                         @if ($billstat != '02' && $billstat != '03')
-                                            <button class="btn btn-xs btn-ghost"
+                                            <button class="btn btn-xs btn-ghost tooltip tooltip-left" data-tip="Search in Stocks"
                                                 wire:click="searchExtraGeneric({{ $extra_data->id }},'{{ explode(',', $extra_data->dm->drug_concat())[0] }}','{{ $extra_data->dmdcomb }}','{{ $extra_data->dmdctr }}','{{ $extra->empid }}')">
                                                 <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                             </button>
@@ -404,6 +423,7 @@
                 </div>
             </div>
         </div>
+    @endif
 
             {{-- Add Stock Item Modal --}}
             <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
@@ -441,12 +461,26 @@
                             class="input-lg text-4xl text-center font-bold" autofocus />
                         <div>
                             <label class="label"><span class="label-text">Fund Source</span></label>
-                            <select wire:model="rx_charge_code" class="w-full select select-bordered">
-                                <option value="">Select fund source...</option>
-                                @foreach ($charges as $charge)
-                                    <option value="{{ $charge->chrgcode }}">{{ $charge->chrgdesc }}</option>
-                                @endforeach
-                            </select>
+                            @if (count($rx_available_charges) > 0)
+                                <div class="space-y-1">
+                                    @foreach ($rx_available_charges as $avail)
+                                        <label
+                                            class="flex items-center justify-between p-2 rounded-lg border cursor-pointer hover:bg-base-200 transition-colors {{ $rx_charge_code === $avail->chrgcode ? 'border-primary bg-primary/5' : 'border-base-300' }}">
+                                            <div class="flex items-center gap-2">
+                                                <input type="radio" name="rx_charge_code" class="radio radio-sm radio-primary"
+                                                    wire:model="rx_charge_code"
+                                                    value="{{ $avail->chrgcode }}" />
+                                                <span class="text-sm">{{ $avail->chrgdesc }}</span>
+                                            </div>
+                                            <span class="badge badge-sm badge-ghost font-semibold">{{ number_format($avail->stock_bal, 0) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="p-3 rounded-lg bg-warning/10 text-sm text-warning">
+                                    No stock available for this item in any fund source.
+                                </div>
+                            @endif
                         </div>
                         <div>
                             <label class="label"><span class="label-text">Remarks</span></label>
@@ -657,9 +691,14 @@
                                     </td>
                                     <td>
                                         @if ($presc_all_data->stat == 'A')
-                                            <button class="btn btn-xs btn-ghost btn-error"
+                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate"
                                                 wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
                                                 <x-heroicon-o-x-mark class="w-3 h-3" />
+                                            </button>
+                                        @else
+                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left" data-tip="Reactivate"
+                                                wire:click="reactivate_rx({{ $presc_all_data->id }})">
+                                                <x-heroicon-o-check class="w-3 h-3" />
                                             </button>
                                         @endif
                                     </td>
@@ -719,13 +758,18 @@
                                                 </td>
                                                 <td>
                                                     @if ($extra_all_data->stat == 'A')
-                                                        <button class="btn btn-xs btn-ghost btn-error"
+                                                        <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left" data-tip="Deactivate"
                                                             wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
                                                 $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
                                                 $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
                                                 $wire.$set('empid', '{{ $extra_all->empid }}');
                                                 $wire.$set('showDeactivateRxModal', true)">
                                                             <x-heroicon-o-x-mark class="w-3 h-3" />
+                                                        </button>
+                                                    @else
+                                                        <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left" data-tip="Reactivate"
+                                                            wire:click="reactivate_rx({{ $extra_all_data->id }})">
+                                                            <x-heroicon-o-check class="w-3 h-3" />
                                                         </button>
                                                     @endif
                                                 </td>
@@ -738,6 +782,482 @@
                             </table>
                             <x-slot:actions>
                                 <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
+                            </x-slot:actions>
+                        </x-mary-modal>
+
+                        {{-- Encounter / Prescription Selector Modal --}}
+                        <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
+                            box-class="max-w-5xl">
+                            <div class="space-y-4">
+                                {{-- Mode Switcher --}}
+                                <div class="flex items-center justify-between">
+                                    <div class="flex gap-1 p-1 rounded-lg bg-base-200">
+                                        <button class="btn btn-sm {{ $selector_mode === 'patient' ? 'btn-primary' : 'btn-ghost' }}"
+                                            wire:click="switchSelectorMode('patient')">
+                                            <x-heroicon-o-user class="w-4 h-4" /> Patient Encounters
+                                        </button>
+                                        <button class="btn btn-sm {{ $selector_mode === 'rx_orders' ? 'btn-primary' : 'btn-ghost' }}"
+                                            wire:click="switchSelectorMode('rx_orders')">
+                                            <x-heroicon-o-clipboard-document-list class="w-4 h-4" /> Rx/Orders
+                                        </button>
+                                    </div>
+                                </div>
+
+                                @if ($selector_mode === 'patient')
+                                {{-- ═══════════ PATIENT ENCOUNTERS MODE ═══════════ --}}
+                                {{-- Patient Search Bar --}}
+                                <div class="p-3 rounded-lg border border-base-300 bg-base-200/30">
+                                    @if ($selector_selected_hpercode)
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                                                    <x-heroicon-o-user class="w-4 h-4 text-primary" />
+                                                </div>
+                                                <div>
+                                                    <div class="font-semibold text-sm">{{ $selector_patient_name }}</div>
+                                                    <div class="text-xs text-base-content/60">{{ $selector_selected_hpercode }}</div>
+                                                </div>
+                                            </div>
+                                            <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-ghost"
+                                                wire:click="selectorClearPatient" />
+                                        </div>
+                                    @else
+                                        <div class="space-y-2">
+                                            <div class="text-xs font-semibold text-base-content/70">Search Patient</div>
+                                            <div class="flex gap-2">
+                                                <x-mary-input wire:model="selector_search_hpercode" placeholder="Hospital #" class="input-sm flex-1" />
+                                                <x-mary-input wire:model="selector_search_lastname" placeholder="Last Name" class="input-sm flex-1" />
+                                                <x-mary-input wire:model="selector_search_firstname" placeholder="First Name" class="input-sm flex-1" />
+                                                <x-mary-button label="Search" icon="o-magnifying-glass" class="btn-sm btn-primary"
+                                                    wire:click="selectorSearchPatients" spinner />
+                                            </div>
+                                            @if (count($selector_patient_results) > 0)
+                                                <div class="max-h-40 overflow-y-auto border rounded border-base-300 bg-base-100">
+                                                    @foreach ($selector_patient_results as $selectorPat)
+                                                        <div wire:key="sel-pat-{{ $selectorPat->hpercode }}"
+                                                            class="flex items-center justify-between px-3 py-1.5 text-xs border-b border-base-200 cursor-pointer hover:bg-base-200/50"
+                                                            wire:click="selectorSelectPatient('{{ $selectorPat->hpercode }}')">
+                                                            <span class="font-medium">{{ $selectorPat->patlast }}, {{ $selectorPat->patfirst }} {{ $selectorPat->patmiddle }}</span>
+                                                            <span class="text-base-content/50">{{ $selectorPat->hpercode }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+
+                                @if ($selector_selected_hpercode)
+                                    {{-- Area Filter Tabs --}}
+                                    <div class="flex gap-2">
+                                        @foreach (['all' => 'All', 'ward' => 'Ward (Admitted)', 'er' => 'ER', 'opd' => 'OPD'] as $filterKey => $filterLabel)
+                                            <button
+                                                class="btn btn-sm {{ $encounter_area_filter === $filterKey ? 'btn-primary' : 'btn-ghost' }}"
+                                                wire:click="$set('encounter_area_filter', '{{ $filterKey }}')">
+                                                {{ $filterLabel }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+
+                                    <div class="grid grid-cols-5 gap-4 min-h-[400px]">
+                                        {{-- Left: Encounter List --}}
+                                        <div class="col-span-2 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                            <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70 border-b border-base-300">
+                                                Encounters
+                                            </div>
+                                            <div class="flex-1 overflow-y-auto">
+                                                @forelse ($patient_encounters as $enc)
+                                                    <div wire:key="enc-sel-{{ md5($enc->enccode) }}"
+                                                        class="px-3 py-2 border-b border-base-200 cursor-pointer hover:bg-base-200/50 transition-colors {{ $selected_encounter_code === $enc->enccode ? 'bg-primary/10 border-l-4 border-l-primary' : '' }}"
+                                                        wire:click="selectEncounterPrescriptions('{{ $enc->enccode }}')">
+                                                        <div class="flex items-center justify-between">
+                                                            <span class="badge badge-xs {{ match($enc->toecode) { 'ADM', 'OPDAD', 'ERADM' => 'badge-info', 'ER' => 'badge-error', 'OPD' => 'badge-success', default => 'badge-ghost' } }}">
+                                                                {{ $enc->toecode }}
+                                                            </span>
+                                                            <div class="flex gap-1">
+                                                                @if ($enc->active_rx_count > 0)
+                                                                    <span class="badge badge-xs badge-primary">{{ $enc->active_rx_count }} Rx</span>
+                                                                @else
+                                                                    <span class="badge badge-xs badge-ghost">0 Rx</span>
+                                                                @endif
+                                                                @if ($enc->order_count > 0)
+                                                                    <span class="badge badge-xs badge-info">{{ $enc->order_count }} Ord</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-xs mt-1">
+                                                            {{ date('M d, Y h:i A', strtotime($enc->encdate)) }}
+                                                        </div>
+                                                        @if ($enc->wardname)
+                                                            <div class="text-xs text-base-content/60">{{ $enc->wardname }} - {{ $enc->rmname }}</div>
+                                                        @endif
+                                                        @if ($enc->diagtext)
+                                                            <div class="text-xs text-base-content/50 truncate" title="{{ $enc->diagtext }}">Dx: {{ Illuminate\Support\Str::limit($enc->diagtext, 50) }}</div>
+                                                        @endif
+                                                        @if ($enc->billstat == '02' || $enc->billstat == '03')
+                                                            <span class="badge badge-xs badge-error mt-1">Final Bill</span>
+                                                        @endif
+                                                    </div>
+                                                @empty
+                                                    <div class="py-8 text-center text-base-content/50">
+                                                        <x-heroicon-o-folder-open class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        No encounters found
+                                                    </div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+
+                                        {{-- Right: Prescriptions & Orders for Selected Encounter --}}
+                                        <div class="col-span-3 border rounded-lg border-base-300 overflow-hidden flex flex-col">
+                                            <div class="px-3 py-1.5 bg-base-200 border-b border-base-300 flex items-center justify-between">
+                                                @if ($selected_encounter_code)
+                                                    <div class="flex gap-1">
+                                                        <button class="btn btn-xs {{ $encounter_detail_tab === 'prescriptions' ? 'btn-primary' : 'btn-ghost' }}"
+                                                            wire:click="$set('encounter_detail_tab', 'prescriptions')">
+                                                            Prescriptions
+                                                            <span class="badge badge-xs {{ $encounter_detail_tab === 'prescriptions' ? 'badge-primary-content' : 'badge-ghost' }}">{{ collect($selected_encounter_prescriptions)->sum(fn($p) => count($p->data_active ?? [])) }}</span>
+                                                        </button>
+                                                        <button class="btn btn-xs {{ $encounter_detail_tab === 'orders' ? 'btn-primary' : 'btn-ghost' }}"
+                                                            wire:click="$set('encounter_detail_tab', 'orders')">
+                                                            Orders
+                                                            <span class="badge badge-xs {{ $encounter_detail_tab === 'orders' ? 'badge-primary-content' : 'badge-ghost' }}">{{ count($selected_encounter_orders) }}</span>
+                                                        </button>
+                                                    </div>
+                                                    <button class="btn btn-xs btn-accent tooltip tooltip-left" data-tip="Open this Encounter"
+                                                        wire:click="navigateToEncounter('{{ $selected_encounter_code }}')">
+                                                        <x-heroicon-o-arrow-top-right-on-square class="w-3 h-3" /> Go to Encounter
+                                                    </button>
+                                                @else
+                                                    <span class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
+                                                        Prescriptions & Orders
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="flex-1 overflow-y-auto">
+                                                @if ($selected_encounter_code)
+                                                    @if ($encounter_detail_tab === 'prescriptions')
+                                                        {{-- Prescriptions Tab --}}
+                                                        <table class="table table-xs table-pin-rows">
+                                                            <thead>
+                                                                <tr class="bg-base-200">
+                                                                    <th>Drug / Medicine</th>
+                                                                    <th class="text-center">Type</th>
+                                                                    <th class="text-center">Qty</th>
+                                                                    <th class="text-center">Status</th>
+                                                                    <th class="w-10"></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @php $hasActiveRx = false; @endphp
+                                                                @forelse ($selected_encounter_prescriptions as $selPresc)
+                                                                    @forelse ($selPresc->data_active ?? [] as $selData)
+                                                                        @php $hasActiveRx = true; @endphp
+                                                                        <tr class="hover" wire:key="enc-rx-{{ $selData->id }}">
+                                                                            <td class="text-xs font-medium max-w-[220px] truncate" title="{{ $selData->dm->drug_concat() }}">
+                                                                                {{ $selData->dm->drug_concat() }}
+                                                                                @if ($selData->remark)
+                                                                                    <br><span class="text-base-content/50">{{ $selData->remark }}</span>
+                                                                                @endif
+                                                                            </td>
+                                                                            <td class="text-xs text-center">
+                                                                                @switch(strtoupper($selData->order_type ?? ''))
+                                                                                    @case('G24')
+                                                                                        <span class="badge badge-xs badge-error">G24</span>
+                                                                                    @break
+                                                                                    @case('OR')
+                                                                                        <span class="badge badge-xs badge-secondary">OR</span>
+                                                                                    @break
+                                                                                    @default
+                                                                                        <span class="badge badge-xs badge-accent">Basic</span>
+                                                                                @endswitch
+                                                                            </td>
+                                                                            <td class="text-xs text-center font-semibold">{{ $selData->qty }}</td>
+                                                                            <td class="text-xs text-center">
+                                                                                <span class="badge badge-xs badge-primary">Active</span>
+                                                                            </td>
+                                                                            <td>
+                                                                                @if ($hasEncounter && $billstat != '02' && $billstat != '03')
+                                                                                    <button class="btn btn-xs btn-primary tooltip tooltip-left" data-tip="Add to Current Encounter"
+                                                                                        wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')">
+                                                                                        <x-heroicon-o-plus class="w-3 h-3" />
+                                                                                    </button>
+                                                                                @endif
+                                                                            </td>
+                                                                        </tr>
+                                                                    @empty
+                                                                    @endforelse
+                                                                @empty
+                                                                @endforelse
+
+                                                                @if (!$hasActiveRx)
+                                                                    <tr>
+                                                                        <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                            No active prescriptions for this encounter
+                                                                        </td>
+                                                                    </tr>
+                                                                @endif
+                                                            </tbody>
+                                                        </table>
+                                                    @else
+                                                        {{-- Orders Tab --}}
+                                                        <table class="table table-xs table-pin-rows">
+                                                            <thead>
+                                                                <tr class="bg-base-200">
+                                                                    <th class="text-center">Status</th>
+                                                                    <th>Drug / Medicine</th>
+                                                                    <th class="text-center">Qty</th>
+                                                                    <th class="text-right">Amount</th>
+                                                                    <th>Remarks</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @forelse ($selected_encounter_orders as $selOrder)
+                                                                    <tr class="hover" wire:key="enc-ord-{{ $selOrder->docointkey }}">
+                                                                        <td class="text-xs text-center">
+                                                                            @if ($selOrder->pcchrgcod)
+                                                                                <span class="text-[10px] text-primary">{{ $selOrder->pcchrgcod }}</span><br>
+                                                                            @endif
+                                                                            @if ($selOrder->estatus == 'U' && !$selOrder->pcchrgcod)
+                                                                                <span class="badge badge-xs badge-warning">Pending</span>
+                                                                            @elseif ($selOrder->estatus == 'P' && $selOrder->pcchrgcod)
+                                                                                <span class="badge badge-xs badge-info">Charged</span>
+                                                                            @elseif ($selOrder->estatus == 'S')
+                                                                                <span class="badge badge-xs badge-success">Issued</span>
+                                                                                @if ($selOrder->tx_type)
+                                                                                    <span class="badge badge-xs badge-ghost">{{ strtoupper($selOrder->tx_type) }}</span>
+                                                                                @endif
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-xs font-medium max-w-[200px] truncate" title="{{ $selOrder->drug_concat }}">
+                                                                            {{ $selOrder->drug_concat }}
+                                                                            @if ($selOrder->prescription_data_id)
+                                                                                <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
+                                                                            @endif
+                                                                            <br><span class="badge badge-xs badge-ghost">{{ $selOrder->chrgdesc }}</span>
+                                                                        </td>
+                                                                        <td class="text-xs text-center font-semibold">
+                                                                            @if ($selOrder->estatus == 'S')
+                                                                                {{ number_format($selOrder->qtyissued, 0) }}
+                                                                            @else
+                                                                                {{ number_format($selOrder->pchrgqty, 0) }}
+                                                                            @endif
+                                                                        </td>
+                                                                        <td class="text-xs text-right">{{ number_format($selOrder->pcchrgamt, 2) }}</td>
+                                                                        <td class="text-xs max-w-[100px] truncate" title="{{ $selOrder->remarks }}">{{ $selOrder->remarks }}</td>
+                                                                    </tr>
+                                                                @empty
+                                                                    <tr>
+                                                                        <td colspan="5" class="text-center py-4 text-base-content/50">
+                                                                            No orders found for this encounter
+                                                                        </td>
+                                                                    </tr>
+                                                                @endforelse
+                                                            </tbody>
+                                                        </table>
+                                                    @endif
+                                                @else
+                                                    <div class="py-8 text-center text-base-content/50">
+                                                        <x-heroicon-o-arrow-left class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        Select an encounter to view its prescriptions and orders
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="py-12 text-center text-base-content/50 min-h-[300px] flex flex-col items-center justify-center">
+                                        <x-heroicon-o-magnifying-glass class="w-10 h-10 mx-auto mb-3 opacity-30" />
+                                        <p class="text-sm">Search for a patient above to view their encounters and prescriptions</p>
+                                    </div>
+                                @endif
+
+                                @else
+                                {{-- ═══════════ RX/ORDERS BROWSING MODE ═══════════ --}}
+
+                                {{-- Area Tabs --}}
+                                <div class="flex justify-center gap-2">
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'ward' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('ward')">
+                                        <x-heroicon-o-building-office-2 class="w-4 h-4" /> Wards
+                                    </button>
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'opd' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('opd')">
+                                        <x-heroicon-o-user-group class="w-4 h-4" /> Out Patient Department
+                                    </button>
+                                    <button class="btn btn-sm {{ $rx_browse_area === 'er' ? 'btn-primary' : 'btn-ghost' }}"
+                                        wire:click="setRxBrowseArea('er')">
+                                        <x-heroicon-o-heart class="w-4 h-4" /> Emergency Room
+                                    </button>
+                                </div>
+
+                                {{-- Filters Row --}}
+                                <div class="grid grid-cols-3 gap-3 p-3 rounded-lg border border-base-300 bg-base-200/30">
+                                    {{-- Rx Tag Filter --}}
+                                    <div>
+                                        <div class="text-xs font-semibold text-base-content/70 mb-1">Rx Tag</div>
+                                        <div class="flex gap-1 flex-wrap">
+                                            <button wire:click="setRxBrowseTagFilter('all')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'all' ? 'btn-primary' : 'btn-ghost' }}">All</button>
+                                            <button wire:click="setRxBrowseTagFilter('basic')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'basic' ? 'btn-accent' : 'btn-ghost' }}">BASIC</button>
+                                            <button wire:click="setRxBrowseTagFilter('g24')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'g24' ? 'btn-error' : 'btn-ghost' }}">G24</button>
+                                            <button wire:click="setRxBrowseTagFilter('or')"
+                                                class="btn btn-xs {{ $rx_browse_tag_filter === 'or' ? 'btn-secondary' : 'btn-ghost' }}">OR</button>
+                                        </div>
+                                    </div>
+                                    {{-- Patient Search --}}
+                                    <div>
+                                        <div class="text-xs font-semibold text-base-content/70 mb-1">Patient</div>
+                                        <x-mary-input wire:model.live.debounce.300ms="rx_browse_search" icon="o-magnifying-glass"
+                                            placeholder="Search patient..." class="input-sm" />
+                                    </div>
+                                    {{-- Date / Ward Filter --}}
+                                    <div>
+                                        @if ($rx_browse_area === 'ward')
+                                            <div class="text-xs font-semibold text-base-content/70 mb-1">Ward</div>
+                                            <select wire:model.live="rx_browse_wardcode" class="select select-sm select-bordered w-full">
+                                                <option value="">All Wards</option>
+                                                @foreach (\App\Models\Hospital\Ward::where('wardstat', 'A')->orderBy('wardname')->get() as $ward)
+                                                    <option value="{{ $ward->wardcode }}">{{ $ward->wardname }}</option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <div class="text-xs font-semibold text-base-content/70 mb-1">Date</div>
+                                            <x-mary-input type="date" wire:model.live="rx_browse_date" :max="date('Y-m-d')" class="input-sm" />
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Loading State --}}
+                                <div wire:loading wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode" class="flex items-center gap-2 p-4">
+                                    <span class="loading loading-spinner loading-sm"></span>
+                                    <span class="text-sm">Loading prescriptions...</span>
+                                </div>
+
+                                {{-- Results Table --}}
+                                <div wire:loading.remove wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode"
+                                    class="overflow-y-auto max-h-[400px] border rounded-lg border-base-300">
+                                    <table class="table table-xs table-pin-rows table-zebra">
+                                        <thead>
+                                            <tr class="bg-base-200">
+                                                <th class="w-8">#</th>
+                                                <th>Date</th>
+                                                <th>Patient Name</th>
+                                                <th>Department</th>
+                                                <th>Classification</th>
+                                                <th>Rx Tag</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php $rxRowNum = 0; @endphp
+                                            @forelse ($rx_browse_results as $rx)
+                                                @php
+                                                    // Rx Tag filter
+                                                    if ($rx_browse_tag_filter === 'basic') { $showRow = $rx->basic > 0; }
+                                                    elseif ($rx_browse_tag_filter === 'g24') { $showRow = $rx->g24 > 0; }
+                                                    elseif ($rx_browse_tag_filter === 'or') { $showRow = $rx->or > 0; }
+                                                    else { $showRow = true; }
+
+                                                    // Search filter
+                                                    if ($rx_browse_search && $showRow) {
+                                                        $s = strtolower($rx_browse_search);
+                                                        $name = strtolower($rx->patlast . ' ' . $rx->patfirst . ' ' . $rx->patmiddle);
+                                                        $showRow = str_contains($name, $s) || str_contains(strtolower($rx->hpercode), $s);
+                                                    }
+                                                @endphp
+
+                                                @if ($showRow)
+                                                    @php $rxRowNum++; @endphp
+                                                    <tr wire:key="rxb-{{ md5($rx->enccode) }}"
+                                                        wire:click="rxBrowseSelectEncounter('{{ $rx->enccode }}')"
+                                                        class="cursor-pointer hover">
+                                                        <td class="text-xs">{{ $rxRowNum }}</td>
+                                                        <td class="text-xs whitespace-nowrap">
+                                                            @if ($rx_browse_area === 'opd')
+                                                                {{ \Carbon\Carbon::parse($rx->opddate)->format('Y/m/d') }}
+                                                                <br><span class="text-base-content/50">{{ \Carbon\Carbon::parse($rx->opdtime)->format('g:i A') }}</span>
+                                                            @elseif ($rx_browse_area === 'ward')
+                                                                {{ $rx->admdate ? \Carbon\Carbon::parse($rx->admdate)->format('Y/m/d') : '---' }}
+                                                            @elseif ($rx_browse_area === 'er')
+                                                                {{ \Carbon\Carbon::parse($rx->erdate)->format('Y/m/d') }}
+                                                                <br><span class="text-base-content/50">{{ \Carbon\Carbon::parse($rx->ertime)->format('g:i A') }}</span>
+                                                            @endif
+                                                        </td>
+                                                        <td class="whitespace-nowrap">
+                                                            <div class="text-xs font-medium">
+                                                                {{ strtoupper($rx->patlast) }}, {{ strtoupper($rx->patfirst) }}
+                                                                {{ strtoupper($rx->patsuffix ?? '') }} {{ strtoupper($rx->patmiddle) }}
+                                                            </div>
+                                                            <span class="badge badge-ghost badge-xs">{{ $rx->hpercode }}</span>
+                                                        </td>
+                                                        <td class="text-xs whitespace-nowrap">
+                                                            @if ($rx_browse_area === 'opd')
+                                                                Out Patient Department
+                                                                @if ($rx->tsdesc)
+                                                                    <br><span class="text-base-content/50">{{ $rx->tsdesc }}</span>
+                                                                @endif
+                                                            @elseif ($rx_browse_area === 'ward')
+                                                                {{ $rx->wardname ?? '---' }}
+                                                                @if ($rx->rmname)
+                                                                    <br><span class="text-base-content/50">{{ $rx->rmname }}</span>
+                                                                @endif
+                                                            @elseif ($rx_browse_area === 'er')
+                                                                Emergency Room
+                                                                @if ($rx->tsdesc)
+                                                                    <br><span class="text-base-content/50">{{ $rx->tsdesc }}</span>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                        <td>
+                                                            @php
+                                                                $class = match ($rx->mssikey) {
+                                                                    'MSSA11111999', 'MSSB11111999' => 'Pay',
+                                                                    'MSSC111111999' => 'PP1',
+                                                                    'MSSC211111999' => 'PP2',
+                                                                    'MSSC311111999' => 'PP3',
+                                                                    'MSSD11111999' => 'Indigent',
+                                                                    default => $rx->mssikey ? '---' : 'Indigent',
+                                                                };
+                                                                $badgeClass = match ($class) {
+                                                                    'Pay' => 'badge-success',
+                                                                    'PP1', 'PP2', 'PP3' => 'badge-warning',
+                                                                    'Indigent' => 'badge-ghost',
+                                                                    default => 'badge-info',
+                                                                };
+                                                            @endphp
+                                                            <span class="badge {{ $badgeClass }} badge-xs">{{ $class }}</span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="flex gap-1">
+                                                                @if ($rx->basic)
+                                                                    <span class="badge badge-accent badge-xs tooltip" data-tip="BASIC">{{ $rx->basic }}</span>
+                                                                @endif
+                                                                @if ($rx->g24)
+                                                                    <span class="badge badge-error badge-xs tooltip" data-tip="Good For 24 Hrs">{{ $rx->g24 }}</span>
+                                                                @endif
+                                                                @if ($rx->or)
+                                                                    <span class="badge badge-secondary badge-xs tooltip" data-tip="For Operating Use">{{ $rx->or }}</span>
+                                                                @endif
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                @endif
+                                            @empty
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-8 text-base-content/50">
+                                                        <x-heroicon-o-clipboard-document-list class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                        No prescriptions found
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @endif {{-- end selector_mode --}}
+                            </div>
+                            <x-slot:actions>
+                                <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />
                             </x-slot:actions>
                         </x-mary-modal>
 
@@ -757,13 +1277,70 @@
                         @script
                             <script>
                                 document.addEventListener('keydown', e => {
+                                    // Skip if user is typing in an input/textarea/select
+                                    const tag = e.target.tagName;
+                                    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+                                    // Ctrl+C - Charge items
                                     if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
                                         e.preventDefault();
                                         $wire.charge_items();
                                     }
+                                    // Ctrl+I - Open Issue modal
                                     if (e.ctrlKey && e.key === 'i') {
                                         e.preventDefault();
                                         $wire.set('showIssueModal', true);
+                                    }
+                                    // Ctrl+A - Select all pending (only outside inputs)
+                                    if (e.ctrlKey && e.key === 'a' && !isInput) {
+                                        e.preventDefault();
+                                        document.querySelectorAll('.pending-checkbox').forEach(cb => {
+                                            const val = cb.value;
+                                            const items = $wire.get('selected_items') || [];
+                                            if (!items.includes(val)) items.push(val);
+                                            $wire.set('selected_items', items);
+                                        });
+                                        // Trigger Alpine selectAllPending
+                                        const el = document.querySelector('[x-data]');
+                                        if (el && el.__x) el.__x.$data.selectAllPending();
+                                    }
+                                    // Escape - Clear selection (only outside inputs)
+                                    if (e.key === 'Escape' && !isInput) {
+                                        const el = document.querySelector('[x-data]');
+                                        if (el && el.__x) el.__x.$data.clearSelection();
+                                    }
+                                    // Delete - Delete selected pending items
+                                    if (e.key === 'Delete' && !isInput) {
+                                        e.preventDefault();
+                                        $wire.delete_item();
+                                    }
+                                    // F2 - Change patient
+                                    if (e.key === 'F2') {
+                                        e.preventDefault();
+                                        $wire.openChangePatient();
+                                    }
+                                    // F3 - Browse encounters
+                                    if (e.key === 'F3') {
+                                        e.preventDefault();
+                                        $wire.openEncounterSelector();
+                                    }
+                                    // F4 - Prescriptions list
+                                    if (e.key === 'F4') {
+                                        e.preventDefault();
+                                        $wire.set('showPrescriptionListModal', true);
+                                    }
+                                    // F5 - Summary
+                                    if (e.key === 'F5') {
+                                        e.preventDefault();
+                                        $wire.set('showSummaryModal', true);
+                                    }
+                                    // F6 - Open Issued with Return in new tab
+                                    if (e.key === 'F6') {
+                                        e.preventDefault();
+                                        const hpercode = '{{ $hpercode ?? '' }}';
+                                        if (hpercode) {
+                                            window.open('{{ url('/dispensing/return-slip') }}' + '/' + hpercode, '_blank');
+                                        }
                                     }
                                 });
 

@@ -57,7 +57,7 @@ Route::middleware([
     });
 
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
-        Route::get('/dispensing/encounter/{enccode}', DispensingEncounter::class)
+        Route::get('/encounter/{enccode?}', DispensingEncounter::class)
             ->where('enccode', '.*')->name('view.enctr');
         Route::get('/encounter/charge/{pcchrgcod}', RxoChargeSlip::class)
             ->name('rxo.chargeslip');

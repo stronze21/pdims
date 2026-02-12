@@ -19,9 +19,11 @@ use App\Models\Pharmacy\Drugs\DrugStockCard;
 use App\Models\Pharmacy\Drugs\DrugStockIssue;
 use App\Models\Pharmacy\Drugs\DrugStockLog;
 use App\Models\Record\Encounters\EncounterLog;
+use App\Models\Record\Patients\Patient;
 use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
+use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
 
 class DispensingEncounter extends Component
@@ -33,6 +35,7 @@ class DispensingEncounter extends Component
     public $patlast, $patfirst, $patmiddle;
     public $diagtext, $wardname, $rmname, $billstat;
     public $location_id;
+    public $hasEncounter = false;
     protected $encounter = [];
 
     // Drug Search & Filter
@@ -62,6 +65,7 @@ class DispensingEncounter extends Component
     public $active_prescription = [], $extra_prescriptions = [];
     public $active_prescription_all = [], $extra_prescriptions_all = [];
     public $rx_id, $rx_dmdcomb, $rx_dmdctr, $empid, $rx_charge_code;
+    public $rx_available_charges = [];
 
     // Remarks Edit
     public $selected_remarks, $new_remarks;
@@ -78,11 +82,52 @@ class DispensingEncounter extends Component
     public $showSummaryModal = false;
     public $showIssueModal = false;
     public $showPrescriptionListModal = false;
+    public $showEncounterSelectorModal = false;
 
-    public function mount($enccode)
+    // Encounter / Prescription Selector
+    public $patient_encounters = [];
+    public $selected_encounter_code = null;
+    public $selected_encounter_prescriptions = [];
+    public $selected_encounter_orders = [];
+    public $encounter_area_filter = 'all';
+    public $encounter_detail_tab = 'prescriptions';
+
+    // Patient Search (within encounter selector)
+    public $selector_search_hpercode = '';
+    public $selector_search_lastname = '';
+    public $selector_search_firstname = '';
+    public $selector_patient_results = [];
+    public $selector_selected_hpercode = null;
+    public $selector_patient_name = null;
+
+    // Rx/Orders Browsing (area-based)
+    public $selector_mode = 'patient'; // 'patient' or 'rx_orders'
+    public $rx_browse_area = 'opd'; // 'opd', 'ward', 'er'
+    public $rx_browse_date;
+    public $rx_browse_search = '';
+    public $rx_browse_tag_filter = 'all'; // 'all', 'basic', 'g24', 'or'
+    public $rx_browse_results = [];
+    public $rx_browse_wardcode = '';
+
+    public function mount($enccode = null)
     {
-        $this->enccode = $enccode;
         $this->location_id = auth()->user()->pharm_location_id;
+        $this->rx_browse_date = date('Y-m-d');
+
+        if (!$this->charges) {
+            $this->charges = ChargeCode::where('bentypcod', 'DRUME')
+                ->where('chrgstat', 'A')
+                ->whereIn('chrgcode', app('chargetable'))
+                ->get();
+        }
+
+        if (!$enccode) {
+            $this->hasEncounter = false;
+            return;
+        }
+
+        $this->enccode = $enccode;
+        $this->hasEncounter = true;
 
         $decrypted = $this->decryptEnccode();
 
@@ -119,18 +164,20 @@ class DispensingEncounter extends Component
         $this->wardname = $encounter->wardname;
         $this->rmname = $encounter->rmname;
         $this->billstat = $encounter->billstat;
-
-        if (!$this->charges) {
-            $this->charges = ChargeCode::where('bentypcod', 'DRUME')
-                ->where('chrgstat', 'A')
-                ->whereIn('chrgcode', app('chargetable'))
-                ->get();
-        }
     }
 
     #[Layout('layouts.dispensing')]
     public function render()
     {
+        if (!$this->hasEncounter) {
+            return view('livewire.pharmacy.dispensing.dispensing-encounter', [
+                'orders' => [],
+                'stocks' => [],
+                'departments' => [],
+                'summaries' => [],
+            ]);
+        }
+
         $enccode = $this->decryptEnccode();
 
         $orders = $this->fetchOrders($enccode);
@@ -199,6 +246,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
 
+        $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
     }
 
@@ -234,6 +282,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
 
+        $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
     }
 
@@ -456,7 +505,15 @@ class DispensingEncounter extends Component
             }
 
             $this->showAddItemModal = false;
-            $this->resetExcept('code', 'generic', 'rx_dmdcomb', 'rx_dmdctr', 'rx_id', 'empid', 'stocks', 'enccode', 'location_id', 'encounter', 'charges', 'hpercode', 'toecode', 'selected_items', 'patient', 'active_prescription', 'adm', 'wardname', 'rmname', 'mss', 'summaries', 'charge_code_filter', 'stocksDisplayCount');
+            $this->resetExcept(
+                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
+                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
+                'location_id', 'hasEncounter', 'encounter', 'charges',
+                'generic', 'rx_dmdcomb', 'rx_dmdctr', 'rx_id', 'empid',
+                'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
+                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
+                'adm', 'summaries',
+            );
             $this->success('Item added.');
         } else {
             $this->error('Insufficient stock!');
@@ -532,7 +589,14 @@ class DispensingEncounter extends Component
                 ->update(['stat' => 'I']);
 
             $this->showPrescribedItemModal = false;
-            $this->resetExcept('generic', 'stocks', 'enccode', 'location_id', 'encounter', 'charges', 'hpercode', 'toecode', 'selected_items', 'patient', 'active_prescription', 'adm', 'wardname', 'rmname', 'summaries', 'charge_code_filter', 'stocksDisplayCount');
+            $this->resetExcept(
+                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
+                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
+                'location_id', 'hasEncounter', 'encounter', 'charges',
+                'generic', 'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
+                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
+                'adm', 'summaries',
+            );
             $this->success('Item added.');
         } else {
             $this->error('Insufficient stock!');
@@ -716,7 +780,17 @@ class DispensingEncounter extends Component
         $data->addtl_remarks = $this->adttl_remarks;
         $data->save();
         $this->showDeactivateRxModal = false;
-        $this->success('Prescription updated!');
+        $this->success('Prescription deactivated!');
+    }
+
+    public function reactivate_rx($rxId)
+    {
+        $data = PrescriptionData::find($rxId);
+        if ($data) {
+            $data->stat = 'A';
+            $data->save();
+            $this->success('Prescription reactivated!');
+        }
     }
 
     #[On('updateSelectedItems')]
@@ -741,8 +815,357 @@ class DispensingEncounter extends Component
     }
 
     // ──────────────────────────────────────────────
+    // Encounter / Prescription Selector
+    // ──────────────────────────────────────────────
+
+    public function openEncounterSelector()
+    {
+        $this->reset('selector_search_hpercode', 'selector_search_lastname', 'selector_search_firstname', 'selector_patient_results');
+
+        if ($this->hpercode) {
+            $this->selector_selected_hpercode = $this->hpercode;
+            $this->selector_patient_name = trim($this->patlast . ', ' . $this->patfirst . ' ' . $this->patmiddle);
+            $this->loadPatientEncountersList();
+        } else {
+            $this->selector_selected_hpercode = null;
+            $this->selector_patient_name = null;
+            $this->patient_encounters = [];
+        }
+
+        $this->showEncounterSelectorModal = true;
+    }
+
+    public function openChangePatient()
+    {
+        $this->reset('selector_search_hpercode', 'selector_search_lastname', 'selector_search_firstname', 'selector_patient_results');
+        $this->selector_selected_hpercode = null;
+        $this->selector_patient_name = null;
+        $this->patient_encounters = [];
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions');
+
+        $this->showEncounterSelectorModal = true;
+    }
+
+    public function selectorSearchPatients()
+    {
+        $query = Patient::query();
+
+        if ($this->selector_search_hpercode) {
+            $query->where('hpercode', 'LIKE', $this->selector_search_hpercode . '%');
+        }
+        if ($this->selector_search_lastname) {
+            $query->where('patlast', 'LIKE', $this->selector_search_lastname . '%');
+        }
+        if ($this->selector_search_firstname) {
+            $query->where('patfirst', 'LIKE', $this->selector_search_firstname . '%');
+        }
+
+        if (!$this->selector_search_hpercode && !$this->selector_search_lastname && !$this->selector_search_firstname) {
+            $this->warning('Please enter at least one search criteria.');
+            return;
+        }
+
+        $this->selector_patient_results = $query->orderBy('patlast')->orderBy('patfirst')->limit(50)->get();
+
+        if ($this->selector_patient_results->isEmpty()) {
+            $this->warning('No patients found.');
+        }
+    }
+
+    public function selectorSelectPatient($hpercode)
+    {
+        $patient = Patient::where('hpercode', $hpercode)->first();
+        if (!$patient) return;
+
+        $this->selector_selected_hpercode = $hpercode;
+        $this->selector_patient_name = trim($patient->patlast . ', ' . $patient->patfirst . ' ' . $patient->patmiddle);
+        $this->selector_patient_results = [];
+
+        $this->loadPatientEncountersList();
+    }
+
+    public function selectorClearPatient()
+    {
+        $this->selector_selected_hpercode = null;
+        $this->selector_patient_name = null;
+        $this->patient_encounters = [];
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions', 'selected_encounter_orders', 'encounter_detail_tab');
+    }
+
+    public function loadPatientEncountersList()
+    {
+        $hpercode = $this->selector_selected_hpercode;
+        if (!$hpercode) return;
+
+        $filter = $this->encounter_area_filter;
+
+        $toecodeFilter = match ($filter) {
+            'ward' => "AND enctr.toecode IN ('ADM', 'OPDAD', 'ERADM')",
+            'er' => "AND enctr.toecode = 'ER'",
+            'opd' => "AND enctr.toecode = 'OPD'",
+            default => "AND enctr.toecode != 'WALKN'",
+        };
+
+        $this->patient_encounters = collect(DB::select("
+            SELECT TOP 20
+                enctr.enccode,
+                enctr.toecode,
+                enctr.encdate,
+                ward.wardname,
+                room.rmname,
+                diag.diagtext,
+                track.billstat,
+                (SELECT COUNT(*) FROM webapp.dbo.prescription rx WITH (NOLOCK)
+                    INNER JOIN webapp.dbo.prescription_data rd WITH (NOLOCK) ON rx.id = rd.presc_id
+                    WHERE rx.enccode = enctr.enccode AND rd.stat = 'A') AS active_rx_count,
+                (SELECT COUNT(*) FROM hospital.dbo.hrxo WITH (NOLOCK)
+                    WHERE hrxo.enccode = enctr.enccode) AS order_count
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                LEFT JOIN hospital.dbo.hactrack track WITH (NOLOCK) ON enctr.enccode = track.enccode
+                LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK) ON enctr.enccode = diag.enccode
+                LEFT JOIN hospital.dbo.hpatroom patroom WITH (NOLOCK) ON enctr.enccode = patroom.enccode
+                LEFT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON patroom.wardcode = ward.wardcode
+                LEFT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON patroom.rmintkey = room.rmintkey
+            WHERE enctr.hpercode = ?
+                {$toecodeFilter}
+            ORDER BY enctr.encdate DESC
+        ", [$hpercode]))->all();
+
+        $this->reset('selected_encounter_code', 'selected_encounter_prescriptions', 'selected_encounter_orders', 'encounter_detail_tab');
+    }
+
+    public function updatedEncounterAreaFilter()
+    {
+        $this->loadPatientEncountersList();
+    }
+
+    public function selectEncounterPrescriptions($enccode)
+    {
+        $this->selected_encounter_code = $enccode;
+
+        $this->selected_encounter_prescriptions = Prescription::where('enccode', $enccode)
+            ->with('data_active')
+            ->has('data_active')
+            ->get();
+
+        $this->selected_encounter_orders = DB::select("
+            SELECT hrxo.docointkey, hrxo.pcchrgcod, hrxo.dodate, hrxo.pchrgqty, hrxo.estatus,
+                   hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, hdmhdr.drug_concat,
+                   hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
+                   hrxo.dmdcomb, hrxo.dmdctr
+            FROM hospital.dbo.hrxo WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
+            INNER JOIN hospital.dbo.hcharge ON hrxo.orderfrom = hcharge.chrgcode
+            WHERE hrxo.enccode = ?
+            ORDER BY hrxo.dodate DESC
+        ", [$enccode]);
+    }
+
+    public function navigateToEncounter($enccode)
+    {
+        $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
+        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
+    }
+
+    public function addPrescriptionFromEncounter($rxId, $dmdcomb, $dmdctr, $empid, $qty)
+    {
+        if (!$this->hasEncounter) {
+            $this->warning('Please navigate to an encounter first before adding prescriptions.');
+            return;
+        }
+
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+        $this->order_qty = $qty;
+
+        if ($this->toecode == 'OPD' || $this->toecode == 'WALKN') {
+            $this->loadAvailableCharges($dmdcomb, $dmdctr);
+            $this->showEncounterSelectorModal = false;
+            $this->showPrescribedItemModal = true;
+        } else {
+            $this->generic = Drug::select('drug_concat')
+                ->where('dmdcomb', $dmdcomb)
+                ->where('dmdctr', $dmdctr)
+                ->first()?->drug_concat ?? '';
+
+            if ($this->generic) {
+                $this->generic = explode(',', $this->generic)[0];
+            }
+
+            $this->showEncounterSelectorModal = false;
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    // Rx/Orders Browsing (Area-Based)
+    // ──────────────────────────────────────────────
+
+    public function switchSelectorMode($mode)
+    {
+        $this->selector_mode = $mode;
+        if ($mode === 'rx_orders') {
+            $this->loadRxBrowseResults();
+        }
+    }
+
+    public function setRxBrowseArea($area)
+    {
+        $this->rx_browse_area = $area;
+        $this->rx_browse_search = '';
+        $this->rx_browse_tag_filter = 'all';
+        $this->rx_browse_wardcode = '';
+        $this->loadRxBrowseResults();
+    }
+
+    public function setRxBrowseTagFilter($filter)
+    {
+        $this->rx_browse_tag_filter = $filter;
+    }
+
+    public function updatedRxBrowseDate()
+    {
+        $this->loadRxBrowseResults();
+    }
+
+    public function updatedRxBrowseWardcode()
+    {
+        $this->loadRxBrowseResults();
+    }
+
+    public function loadRxBrowseResults()
+    {
+        $area = $this->rx_browse_area;
+
+        if ($area === 'opd') {
+            $this->loadRxBrowseOpd();
+        } elseif ($area === 'ward') {
+            $this->loadRxBrowseWard();
+        } elseif ($area === 'er') {
+            $this->loadRxBrowseEr();
+        }
+    }
+
+    private function loadRxBrowseOpd(): void
+    {
+        $from = Carbon::parse($this->rx_browse_date)->startOfDay();
+        $to = Carbon::parse($this->rx_browse_date)->endOfDay();
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, opd.opddate, opd.opdtime, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                mss.mssikey, ser.tsdesc,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
+                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
+            WHERE opdtime BETWEEN ? AND ?
+                AND toecode = 'OPD' AND rx.stat = 'A'
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC, rx.created_at DESC
+        ", [$from, $to]);
+    }
+
+    private function loadRxBrowseWard(): void
+    {
+        $wardFilter = $this->rx_browse_wardcode ? "AND ward.wardcode = ?" : "";
+        $params = $this->rx_browse_wardcode ? [$this->rx_browse_wardcode] : [];
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, adm.admdate, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                room.rmname, ward.wardname, ward.wardcode, mss.mssikey,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
+                RIGHT JOIN hospital.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
+                RIGHT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
+                RIGHT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
+                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+            WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
+                AND pat_room.patrmstat = 'A' AND rx.stat = 'A'
+                {$wardFilter}
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC, rx.created_at DESC
+        ", $params);
+    }
+
+    private function loadRxBrowseEr(): void
+    {
+        $from = Carbon::parse($this->rx_browse_date)->subDay()->startOfDay();
+        $to = Carbon::parse($this->rx_browse_date)->endOfDay();
+
+        $this->rx_browse_results = DB::select("
+            SELECT
+                enctr.enccode, er.erdate, er.ertime, enctr.hpercode,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                ser.tsdesc, mss.mssikey,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A'
+                    AND (data.order_type = '' OR data.order_type IS NULL)) AS basic,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
+                (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
+                    WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+                LEFT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
+                LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
+                LEFT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
+                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+            WHERE erdate BETWEEN ? AND ?
+                AND toecode = 'ER' AND erstat = 'A'
+            ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC
+        ", [$from, $to]);
+    }
+
+    public function rxBrowseSelectEncounter($enccode)
+    {
+        $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
+        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
+    }
+
+    // ──────────────────────────────────────────────
     // Helper Methods (Extracted & Reusable)
     // ──────────────────────────────────────────────
+
+    private function loadAvailableCharges(string $dmdcomb, string $dmdctr): void
+    {
+        $this->rx_charge_code = null;
+
+        $this->rx_available_charges = DB::select("
+            SELECT
+                pharm_drug_stocks.chrgcode,
+                hcharge.chrgdesc,
+                SUM(pharm_drug_stocks.stock_bal) AS stock_bal
+            FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
+            WHERE pharm_drug_stocks.dmdcomb = ?
+                AND pharm_drug_stocks.dmdctr = ?
+                AND pharm_drug_stocks.loc_code = ?
+                AND pharm_drug_stocks.stock_bal > 0
+            GROUP BY pharm_drug_stocks.chrgcode, hcharge.chrgdesc
+            ORDER BY hcharge.chrgdesc
+        ", [$dmdcomb, $dmdctr, $this->location_id]);
+    }
 
     private function decryptEnccode(): string
     {
