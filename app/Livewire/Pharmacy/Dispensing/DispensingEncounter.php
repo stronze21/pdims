@@ -40,6 +40,7 @@ class DispensingEncounter extends Component
     public $showQueuePanel = false;
     public $queueList = [];
     public $chargedQueues = [];
+    public $chargedEncounters = [];
 
     // Patient / Encounter
     public $enccode, $code, $encdate, $hpercode, $toecode, $mssikey;
@@ -83,6 +84,11 @@ class DispensingEncounter extends Component
 
     // Deactivate Rx
     public $adttl_remarks;
+
+    // Print Prescriptions
+    public $showPrintModal = false;
+    public $printItems = [];
+    public $printSelectedItems = [];
 
     // Modal States
     public $showAddItemModal = false;
@@ -138,8 +144,13 @@ class DispensingEncounter extends Component
             $this->loadQueueContext($requestQueueId);
         }
 
+        // Always load queue list for the queue controller bar
+        $this->loadQueueList();
+
         if (!$enccode) {
             $this->hasEncounter = false;
+            // Show queue panel by default in empty state
+            $this->showQueuePanel = true;
             return;
         }
 
@@ -359,12 +370,28 @@ class DispensingEncounter extends Component
         }
 
         if ($cnt && $cnt != 0) {
-            // Auto-link charge slip number to queue
+            // Auto-link charge slip number and update queue status to charging
             if ($this->queueId) {
-                DB::connection('webapp')->table('prescription_queues')
-                    ->where('id', $this->queueId)
-                    ->update(['charge_slip_no' => $pcchrgcod]);
-                $this->queueChargeSlipNo = $pcchrgcod;
+                $queue = PrescriptionQueue::find($this->queueId);
+                if ($queue && !$queue->isDispensed() && !$queue->isCancelled()) {
+                    $queueService = app(PrescriptionQueueService::class);
+                    $queueService->updateQueueStatus(
+                        $this->queueId,
+                        'charging',
+                        auth()->user()->employeeid,
+                        'Charge slip issued: ' . $pcchrgcod
+                    );
+
+                    DB::connection('webapp')->table('prescription_queues')
+                        ->where('id', $this->queueId)
+                        ->update([
+                            'charge_slip_no' => $pcchrgcod,
+                            'charging_at' => now(),
+                            'charged_by' => auth()->user()->employeeid,
+                        ]);
+                    $this->queueChargeSlipNo = $pcchrgcod;
+                    $this->currentQueueStatus = 'charging';
+                }
             }
 
             $this->dispatch('open-charge-slip', pcchrgcod: $pcchrgcod);
@@ -1461,6 +1488,38 @@ class DispensingEncounter extends Component
             ->orderBy('queued_at', 'asc')
             ->get()
             ->toArray();
+
+        // Also load charged encounters not in queue (have charged items but no queue entry)
+        $queueEnccodes = collect($this->chargedQueues)->pluck('enccode')->filter()->toArray();
+
+        $excludeClause = '';
+        $params = [auth()->user()->pharm_location_id, today()->toDateString()];
+
+        if (!empty($queueEnccodes)) {
+            $placeholders = implode(',', array_fill(0, count($queueEnccodes), '?'));
+            $excludeClause = "AND hrxo.enccode NOT IN ($placeholders)";
+            $params = array_merge($params, $queueEnccodes);
+        }
+
+        $this->chargedEncounters = DB::select("
+            SELECT DISTINCT
+                hrxo.enccode,
+                hrxo.pcchrgcod,
+                pt.patlast,
+                pt.patfirst,
+                pt.patmiddle,
+                pt.hpercode,
+                MAX(hrxo.dodate) as last_charge_date
+            FROM hospital.dbo.hrxo WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON hrxo.hpercode = pt.hpercode
+            WHERE hrxo.loc_code = ?
+                AND hrxo.estatus = 'P'
+                AND hrxo.pcchrgcod IS NOT NULL
+                AND CAST(hrxo.dodate AS DATE) = ?
+                $excludeClause
+            GROUP BY hrxo.enccode, hrxo.pcchrgcod, pt.patlast, pt.patfirst, pt.patmiddle, pt.hpercode
+            ORDER BY MAX(hrxo.dodate) DESC
+        ", $params);
     }
 
     public function queueSelectAndOpen($queueId): mixed
@@ -1559,27 +1618,25 @@ class DispensingEncounter extends Component
         if (!$this->queueId) return;
 
         $queue = PrescriptionQueue::find($this->queueId);
-        if (!$queue || $queue->isDispensed()) return;
+        if (!$queue || $queue->isDispensed() || $queue->isCancelled()) return;
 
-        // If queue is in ready state, mark as dispensed
-        if ($queue->isReady()) {
-            $queueService = app(PrescriptionQueueService::class);
-            $queueService->updateQueueStatus(
-                $this->queueId,
-                'dispensed',
-                auth()->user()->employeeid,
-                'Auto-dispensed via dispensing encounter'
-            );
+        // Mark as dispensed when items are issued (from any active state)
+        $queueService = app(PrescriptionQueueService::class);
+        $queueService->updateQueueStatus(
+            $this->queueId,
+            'dispensed',
+            auth()->user()->employeeid,
+            'Auto-dispensed via dispensing encounter'
+        );
 
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $this->queueId)
-                ->update([
-                    'dispensed_by' => auth()->user()->employeeid,
-                    'dispensed_at' => now(),
-                ]);
+        DB::connection('webapp')->table('prescription_queues')
+            ->where('id', $this->queueId)
+            ->update([
+                'dispensed_by' => auth()->user()->employeeid,
+                'dispensed_at' => now(),
+            ]);
 
-            $this->currentQueueStatus = 'dispensed';
-        }
+        $this->currentQueueStatus = 'dispensed';
     }
 
     public function completeQueueAndReturn(): mixed
@@ -1621,6 +1678,75 @@ class DispensingEncounter extends Component
     public function returnToQueueController(): mixed
     {
         return redirect()->route('prescriptions.queue.controller2');
+    }
+
+    // ──────────────────────────────────────────────
+    // Print Prescriptions
+    // ──────────────────────────────────────────────
+
+    public function openPrintPrescriptionsModal(): void
+    {
+        if (!$this->hasEncounter) {
+            $this->warning('No encounter loaded.');
+            return;
+        }
+
+        $enccode = $this->decryptEnccode();
+
+        $prescriptionItems = DB::connection('webapp')->select("
+            SELECT
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.remark, pd.addtl_remarks,
+                pd.frequency, pd.duration, dm.drug_concat
+            FROM prescription_data pd
+            INNER JOIN prescription rx ON pd.presc_id = rx.id
+            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            WHERE rx.enccode = ? AND pd.stat = 'A'
+            ORDER BY pd.created_at ASC
+        ", [$enccode]);
+
+        $this->printItems = array_map(function ($item) {
+            return (array) $item;
+        }, $prescriptionItems);
+
+        // Select all by default
+        $this->printSelectedItems = array_column($this->printItems, 'id');
+        $this->showPrintModal = true;
+    }
+
+    public function togglePrintItemSelection($itemId): void
+    {
+        if (in_array($itemId, $this->printSelectedItems)) {
+            $this->printSelectedItems = array_values(array_diff($this->printSelectedItems, [$itemId]));
+        } else {
+            $this->printSelectedItems[] = $itemId;
+        }
+    }
+
+    public function selectAllPrintItems(): void
+    {
+        if (count($this->printSelectedItems) === count($this->printItems)) {
+            $this->printSelectedItems = [];
+        } else {
+            $this->printSelectedItems = array_column($this->printItems, 'id');
+        }
+    }
+
+    public function printPrescriptions(): void
+    {
+        if (empty($this->printSelectedItems)) {
+            $this->warning('Please select at least one item to print.');
+            return;
+        }
+
+        $enccode = $this->decryptEnccode();
+
+        session([
+            'print_encounter_enccode' => $enccode,
+            'print_encounter_items' => $this->printSelectedItems,
+        ]);
+
+        $this->dispatch('open-print-window', url: url("/dispensing/prescription/print/" . urlencode($enccode)));
     }
 
     private function logStockIssue($stock_id, $docointkey, $dmdcomb, $dmdctr, $loc_code, $chrgcode, $exp_date, $trans_qty, $unit_price, $pcchrgamt, $user_id, $hpercode, $enccode, $toecode, $pcchrgcod, $tag, $ris, $dmdprdte, $retail_price, $concat, $stock_date, $date, $active_consumption = null, $unit_cost = 0): void

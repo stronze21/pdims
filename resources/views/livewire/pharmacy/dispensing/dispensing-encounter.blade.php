@@ -26,6 +26,242 @@
         $wire.call('updateSelectedItems', this.selectedItems);
     }
 }">
+    {{-- Queue Controller Bar (always visible) --}}
+    <div class="border-b border-primary/20">
+        {{-- Queue Header Bar --}}
+        <div class="px-4 py-2 flex items-center justify-between bg-primary/5">
+            <div class="flex items-center gap-3">
+                @if ($queueId)
+                    <div class="badge badge-primary badge-lg font-mono font-bold gap-1">
+                        <x-heroicon-o-queue-list class="w-4 h-4" />
+                        {{ $currentQueueNumber }}
+                    </div>
+                    <span class="text-sm">
+                        Status:
+                        <span class="font-semibold
+                            @if($currentQueueStatus === 'dispensed') text-success
+                            @elseif($currentQueueStatus === 'ready') text-accent
+                            @elseif($currentQueueStatus === 'charging') text-warning
+                            @else text-info @endif">
+                            {{ strtoupper($currentQueueStatus) }}
+                        </span>
+                    </span>
+                    @if ($queueChargeSlipNo)
+                        <span class="badge badge-ghost badge-sm font-mono">
+                            {{ $queueChargeSlipNo }}
+                        </span>
+                    @endif
+                    @if ($currentQueueStatus === 'dispensed')
+                        <div class="badge badge-success badge-sm gap-1">
+                            <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
+                        </div>
+                    @endif
+                @else
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-queue-list class="w-4 h-4 text-primary" />
+                        <span class="text-sm font-semibold">Queue</span>
+                        @php $waitingCount = collect($queueList)->where('queue_status', 'waiting')->count(); @endphp
+                        @if ($waitingCount > 0)
+                            <span class="badge badge-warning badge-sm">{{ $waitingCount }} waiting</span>
+                        @endif
+                    </div>
+                @endif
+            </div>
+            <div class="flex items-center gap-2">
+                @if ($queueId)
+                    @if ($currentQueueStatus !== 'dispensed')
+                        <x-mary-button label="Complete & Next" icon="o-forward"
+                            class="btn-sm btn-success"
+                            wire:click="queueCompleteAndNext"
+                            wire:confirm="Mark this queue as dispensed and open the next queue?" />
+                    @else
+                        <x-mary-button label="Next Queue" icon="o-arrow-right"
+                            class="btn-sm btn-primary"
+                            wire:click="queueCallNext" />
+                    @endif
+                @else
+                    <x-mary-button label="Call Next Queue" icon="o-arrow-right"
+                        class="btn-sm btn-primary"
+                        wire:click="queueCallNext" />
+                @endif
+                <button wire:click="toggleQueuePanel"
+                    class="btn btn-sm btn-ghost gap-1">
+                    <x-heroicon-o-queue-list class="w-4 h-4" />
+                    {{ $showQueuePanel ? 'Hide' : 'Show' }} Queue
+                </button>
+                <x-mary-button label="Back to Queue Controller" icon="o-arrow-left"
+                    class="btn-sm btn-outline"
+                    wire:click="returnToQueueController" />
+            </div>
+        </div>
+
+        {{-- Expandable Queue Panel --}}
+        @if ($showQueuePanel)
+            <div class="bg-base-100 border-t border-primary/10">
+                <div class="flex gap-0 divide-x divide-base-200">
+                    {{-- Left: Waiting Queues --}}
+                    <div class="flex-1 min-w-0">
+                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                            Waiting Queues
+                        </div>
+                        <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                            <table class="table table-xs">
+                                <thead class="sticky top-0 bg-base-100 z-10">
+                                    <tr>
+                                        <th>Queue #</th>
+                                        <th>Patient</th>
+                                        <th>Priority</th>
+                                        <th>Time</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @php $waitingQueues = collect($queueList)->where('queue_status', 'waiting'); @endphp
+                                    @forelse ($waitingQueues as $q)
+                                        <tr class="hover">
+                                            <td class="font-mono font-bold">{{ $q['queue_number'] }}</td>
+                                            <td class="text-xs">
+                                                @if ($q['patient'] ?? null)
+                                                    {{ $q['patient']['patlast'] }}, {{ $q['patient']['patfirst'] }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if (($q['priority'] ?? 'normal') !== 'normal')
+                                                    <div class="badge badge-xs badge-error">
+                                                        {{ strtoupper($q['priority']) }}
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="text-xs">
+                                                {{ \Carbon\Carbon::parse($q['queued_at'])->format('h:i A') }}
+                                            </td>
+                                            <td>
+                                                <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
+                                                    class="btn btn-xs btn-primary"
+                                                    wire:confirm="Open queue {{ $q['queue_number'] }}?">
+                                                    Select
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No waiting queues</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {{-- Middle: Charged Queues --}}
+                    <div class="flex-1 min-w-0">
+                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                            Charged Queues
+                            @if (count($chargedQueues) > 0)
+                                <span class="badge badge-xs badge-warning ml-1">{{ count($chargedQueues) }}</span>
+                            @endif
+                        </div>
+                        <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                            <table class="table table-xs">
+                                <thead class="sticky top-0 bg-base-100 z-10">
+                                    <tr>
+                                        <th>Queue #</th>
+                                        <th>Patient</th>
+                                        <th>Status</th>
+                                        <th>Charge Slip</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($chargedQueues as $cq)
+                                        <tr class="hover {{ $queueId && $cq['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
+                                            <td class="font-mono font-bold">{{ $cq['queue_number'] }}</td>
+                                            <td class="text-xs">
+                                                @if ($cq['patient'] ?? null)
+                                                    {{ $cq['patient']['patlast'] }}, {{ $cq['patient']['patfirst'] }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $cqBadge = $cq['queue_status'] === 'ready' ? 'badge-success' : 'badge-secondary';
+                                                @endphp
+                                                <div class="badge badge-xs {{ $cqBadge }}">
+                                                    {{ strtoupper($cq['queue_status']) }}
+                                                </div>
+                                            </td>
+                                            <td class="text-xs font-mono">
+                                                {{ $cq['charge_slip_no'] ?? '-' }}
+                                            </td>
+                                            <td>
+                                                @if ($queueId && $cq['id'] == $queueId)
+                                                    <span class="badge badge-xs badge-primary">Current</span>
+                                                @else
+                                                    <button wire:click="queueSelectAndOpen({{ $cq['id'] }})"
+                                                        class="btn btn-xs btn-accent"
+                                                        wire:confirm="Open {{ $cq['queue_number'] }} for dispensing?">
+                                                        Dispense
+                                                    </button>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No charged queues</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {{-- Right: Charged Encounters (not in queue) --}}
+                    <div class="flex-1 min-w-0">
+                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                            Charged Encounters
+                            @if (count($chargedEncounters) > 0)
+                                <span class="badge badge-xs badge-info ml-1">{{ count($chargedEncounters) }}</span>
+                            @endif
+                        </div>
+                        <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                            <table class="table table-xs">
+                                <thead class="sticky top-0 bg-base-100 z-10">
+                                    <tr>
+                                        <th>Patient</th>
+                                        <th>Charge Slip</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($chargedEncounters as $ce)
+                                        <tr class="hover">
+                                            <td class="text-xs">
+                                                {{ $ce->patlast }}, {{ $ce->patfirst }}
+                                                <br><span class="text-base-content/50">{{ $ce->hpercode }}</span>
+                                            </td>
+                                            <td class="text-xs font-mono">
+                                                {{ $ce->pcchrgcod }}
+                                            </td>
+                                            <td>
+                                                <button wire:click="navigateToEncounter('{{ $ce->enccode }}')"
+                                                    class="btn btn-xs btn-accent">
+                                                    Open
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="3" class="text-center py-3 text-gray-400 text-xs">No charged encounters outside queue</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    </div>
+
     @if (!$hasEncounter)
         {{-- Empty State: No patient/encounter selected --}}
         <div class="flex flex-col items-center justify-center flex-1 p-8">
@@ -40,182 +276,6 @@
             </div>
         </div>
     @else
-        {{-- Queue Controller Panel (when opened from queue controller) --}}
-        @if ($queueId)
-            <div class="border-b border-primary/20">
-                {{-- Queue Header Bar --}}
-                <div class="px-4 py-2 flex items-center justify-between bg-primary/5">
-                    <div class="flex items-center gap-3">
-                        <div class="badge badge-primary badge-lg font-mono font-bold gap-1">
-                            <x-heroicon-o-queue-list class="w-4 h-4" />
-                            {{ $currentQueueNumber }}
-                        </div>
-                        <span class="text-sm">
-                            Status:
-                            <span class="font-semibold
-                                @if($currentQueueStatus === 'dispensed') text-success
-                                @elseif($currentQueueStatus === 'ready') text-accent
-                                @elseif($currentQueueStatus === 'charging') text-warning
-                                @else text-info @endif">
-                                {{ strtoupper($currentQueueStatus) }}
-                            </span>
-                        </span>
-                        @if ($queueChargeSlipNo)
-                            <span class="badge badge-ghost badge-sm font-mono">
-                                {{ $queueChargeSlipNo }}
-                            </span>
-                        @endif
-                        @if ($currentQueueStatus === 'dispensed')
-                            <div class="badge badge-success badge-sm gap-1">
-                                <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
-                            </div>
-                        @endif
-                    </div>
-                    <div class="flex items-center gap-2">
-                        @if ($currentQueueStatus !== 'dispensed')
-                            <x-mary-button label="Complete & Next" icon="o-forward"
-                                class="btn-sm btn-success"
-                                wire:click="queueCompleteAndNext"
-                                wire:confirm="Mark this queue as dispensed and open the next queue?" />
-                        @else
-                            <x-mary-button label="Next Queue" icon="o-arrow-right"
-                                class="btn-sm btn-primary"
-                                wire:click="queueCallNext" />
-                        @endif
-                        <button wire:click="toggleQueuePanel"
-                            class="btn btn-sm btn-ghost gap-1">
-                            <x-heroicon-o-queue-list class="w-4 h-4" />
-                            {{ $showQueuePanel ? 'Hide' : 'Show' }} Queue
-                        </button>
-                        <x-mary-button label="Back to Queue Controller" icon="o-arrow-left"
-                            class="btn-sm btn-outline"
-                            wire:click="returnToQueueController" />
-                    </div>
-                </div>
-
-                {{-- Expandable Queue Panel --}}
-                @if ($showQueuePanel)
-                    <div class="bg-base-100 border-t border-primary/10">
-                        <div class="flex gap-0 divide-x divide-base-200">
-                            {{-- Left: Waiting Queues --}}
-                            <div class="flex-1 min-w-0">
-                                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
-                                    Waiting Queues
-                                </div>
-                                <div class="overflow-x-auto max-h-40 overflow-y-auto">
-                                    <table class="table table-xs">
-                                        <thead class="sticky top-0 bg-base-100 z-10">
-                                            <tr>
-                                                <th>Queue #</th>
-                                                <th>Patient</th>
-                                                <th>Priority</th>
-                                                <th>Time</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @php $waitingQueues = collect($queueList)->where('queue_status', 'waiting'); @endphp
-                                            @forelse ($waitingQueues as $q)
-                                                <tr class="hover">
-                                                    <td class="font-mono font-bold">{{ $q['queue_number'] }}</td>
-                                                    <td class="text-xs">
-                                                        @if ($q['patient'] ?? null)
-                                                            {{ $q['patient']['patlast'] }}, {{ $q['patient']['patfirst'] }}
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if (($q['priority'] ?? 'normal') !== 'normal')
-                                                            <div class="badge badge-xs badge-error">
-                                                                {{ strtoupper($q['priority']) }}
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                    <td class="text-xs">
-                                                        {{ \Carbon\Carbon::parse($q['queued_at'])->format('h:i A') }}
-                                                    </td>
-                                                    <td>
-                                                        <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
-                                                            class="btn btn-xs btn-primary"
-                                                            wire:confirm="Open queue {{ $q['queue_number'] }}?">
-                                                            Select
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No waiting queues</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {{-- Right: Charged Encounters --}}
-                            <div class="flex-1 min-w-0">
-                                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
-                                    Charged Encounters
-                                    @if (count($chargedQueues) > 0)
-                                        <span class="badge badge-xs badge-warning ml-1">{{ count($chargedQueues) }}</span>
-                                    @endif
-                                </div>
-                                <div class="overflow-x-auto max-h-40 overflow-y-auto">
-                                    <table class="table table-xs">
-                                        <thead class="sticky top-0 bg-base-100 z-10">
-                                            <tr>
-                                                <th>Queue #</th>
-                                                <th>Patient</th>
-                                                <th>Status</th>
-                                                <th>Charge Slip</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse ($chargedQueues as $cq)
-                                                <tr class="hover {{ $cq['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
-                                                    <td class="font-mono font-bold">{{ $cq['queue_number'] }}</td>
-                                                    <td class="text-xs">
-                                                        @if ($cq['patient'] ?? null)
-                                                            {{ $cq['patient']['patlast'] }}, {{ $cq['patient']['patfirst'] }}
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @php
-                                                            $cqBadge = $cq['queue_status'] === 'ready' ? 'badge-success' : 'badge-secondary';
-                                                        @endphp
-                                                        <div class="badge badge-xs {{ $cqBadge }}">
-                                                            {{ strtoupper($cq['queue_status']) }}
-                                                        </div>
-                                                    </td>
-                                                    <td class="text-xs font-mono">
-                                                        {{ $cq['charge_slip_no'] ?? '-' }}
-                                                    </td>
-                                                    <td>
-                                                        @if ($cq['id'] == $queueId)
-                                                            <span class="badge badge-xs badge-primary">Current</span>
-                                                        @else
-                                                            <button wire:click="queueSelectAndOpen({{ $cq['id'] }})"
-                                                                class="btn btn-xs btn-accent"
-                                                                wire:confirm="Open {{ $cq['queue_number'] }} for dispensing?">
-                                                                Dispense
-                                                            </button>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No charged encounters</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        @endif
 
         {{-- Patient Info Bar --}}
         <div class="border-b bg-base-100 border-base-200">
@@ -271,6 +331,8 @@
                     <div class="flex gap-2">
                         <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
                             wire:click="$set('showPrescriptionListModal', true)" tooltip-bottom="View All Prescriptions (F4)" />
+                        <x-mary-button label="Print Rx" icon="o-printer" class="btn-sm btn-outline btn-info"
+                            wire:click="openPrintPrescriptionsModal" tooltip-bottom="Print Prescriptions (F7)" />
                         <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
                             wire:click="$set('showSummaryModal', true)" tooltip-bottom="Summary of Issued Drugs (F5)" />
                         <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
@@ -1450,6 +1512,95 @@
                             </x-mary-modal>
                         @endif
 
+                        {{-- Print Prescriptions Modal --}}
+                        <x-mary-modal wire:model="showPrintModal" title="Print Prescriptions" class="backdrop-blur"
+                            box-class="max-w-3xl">
+                            <div class="space-y-4">
+                                <div class="p-3 rounded-lg bg-base-200">
+                                    <div class="text-sm">
+                                        <strong>Patient:</strong> {{ $patlast ?? '' }}, {{ $patfirst ?? '' }} {{ $patmiddle ?? '' }}
+                                    </div>
+                                    <div class="text-xs text-base-content/60">{{ $hpercode ?? '' }}</div>
+                                </div>
+
+                                @if (count($printItems) > 0)
+                                    <div>
+                                        <div class="flex justify-between items-center mb-3">
+                                            <div class="font-semibold">Select Items to Print</div>
+                                            <div class="flex gap-2">
+                                                <button wire:click="selectAllPrintItems" class="btn btn-xs btn-primary">
+                                                    {{ count($printSelectedItems) === count($printItems) ? 'Deselect All' : 'Select All' }}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="overflow-x-auto max-h-96 overflow-y-auto border rounded">
+                                            <table class="table table-sm">
+                                                <thead class="sticky top-0 bg-base-100">
+                                                    <tr>
+                                                        <th class="w-8">
+                                                            <input type="checkbox" class="checkbox checkbox-sm"
+                                                                @if (count($printSelectedItems) === count($printItems)) checked @endif
+                                                                wire:click="selectAllPrintItems">
+                                                        </th>
+                                                        <th>Drug</th>
+                                                        <th>Qty</th>
+                                                        <th>Frequency</th>
+                                                        <th>Duration</th>
+                                                        <th>Type</th>
+                                                        <th>Remarks</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($printItems as $pItem)
+                                                        <tr class="hover">
+                                                            <td>
+                                                                <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                                                                    @if (in_array($pItem['id'], $printSelectedItems)) checked @endif
+                                                                    wire:click="togglePrintItemSelection({{ $pItem['id'] }})">
+                                                            </td>
+                                                            <td>
+                                                                <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
+                                                            </td>
+                                                            <td>{{ $pItem['qty'] }}</td>
+                                                            <td>{{ $pItem['frequency'] ?? '' }}</td>
+                                                            <td>{{ $pItem['duration'] ?? '' }}</td>
+                                                            <td>
+                                                                <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>
+                                                            </td>
+                                                            <td class="text-xs">
+                                                                @if ($pItem['remark'] ?? null)
+                                                                    <div>{{ $pItem['remark'] }}</div>
+                                                                @endif
+                                                                @if ($pItem['addtl_remarks'] ?? null)
+                                                                    <div class="text-warning">{{ $pItem['addtl_remarks'] }}</div>
+                                                                @endif
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="mt-3 text-sm opacity-70">
+                                            Selected: <span class="font-semibold">{{ count($printSelectedItems) }}</span> of
+                                            <span class="font-semibold">{{ count($printItems) }}</span> items
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="py-8 text-center text-base-content/50">
+                                        <x-heroicon-o-clipboard-document class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                        No active prescriptions to print
+                                    </div>
+                                @endif
+                            </div>
+                            <x-slot:actions>
+                                <x-mary-button label="Cancel" @click="$wire.showPrintModal = false" />
+                                <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary"
+                                    wire:click="printPrescriptions" spinner />
+                            </x-slot:actions>
+                        </x-mary-modal>
+
                         {{-- Keyboard Shortcuts --}}
                         @script
                             <script>
@@ -1519,12 +1670,23 @@
                                             window.open('{{ url('/dispensing/return-slip') }}' + '/' + hpercode, '_blank');
                                         }
                                     }
+                                    // F7 - Print Prescriptions
+                                    if (e.key === 'F7') {
+                                        e.preventDefault();
+                                        $wire.openPrintPrescriptionsModal();
+                                    }
                                 });
 
                                 $wire.on('open-charge-slip', ({
                                     pcchrgcod
                                 }) => {
                                     window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
+                                });
+
+                                $wire.on('open-print-window', ({
+                                    url
+                                }) => {
+                                    window.open(url, '_blank', 'width=800,height=600');
                                 });
                             </script>
                         @endscript
