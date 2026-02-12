@@ -93,73 +93,124 @@
                     </div>
                 </div>
 
-                {{-- Expandable Queue List --}}
+                {{-- Expandable Queue Panel --}}
                 @if ($showQueuePanel)
                     <div class="bg-base-100 border-t border-primary/10">
-                        <div class="overflow-x-auto max-h-48 overflow-y-auto">
-                            <table class="table table-xs">
-                                <thead class="sticky top-0 bg-base-200 z-10">
-                                    <tr>
-                                        <th>Queue #</th>
-                                        <th>Patient</th>
-                                        <th>Status</th>
-                                        <th>Priority</th>
-                                        <th>Time</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($queueList as $q)
-                                        <tr class="hover {{ $q['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
-                                            <td class="font-mono font-bold">{{ $q['queue_number'] }}</td>
-                                            <td class="text-xs">
-                                                @if ($q['patient'] ?? null)
-                                                    {{ $q['patient']['patlast'] }}, {{ $q['patient']['patfirst'] }}
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @php
-                                                    $badgeClass = match($q['queue_status']) {
-                                                        'waiting' => 'badge-warning',
-                                                        'preparing' => 'badge-info',
-                                                        'charging' => 'badge-secondary',
-                                                        'ready' => 'badge-success',
-                                                        default => 'badge-ghost',
-                                                    };
-                                                @endphp
-                                                <div class="badge badge-xs {{ $badgeClass }}">
-                                                    {{ strtoupper($q['queue_status']) }}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                @if (($q['priority'] ?? 'normal') !== 'normal')
-                                                    <div class="badge badge-xs badge-error">
-                                                        {{ strtoupper($q['priority']) }}
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            <td class="text-xs">
-                                                {{ \Carbon\Carbon::parse($q['queued_at'])->format('h:i A') }}
-                                            </td>
-                                            <td>
-                                                @if ($q['id'] != $queueId && $q['queue_status'] === 'waiting')
-                                                    <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
-                                                        class="btn btn-xs btn-primary"
-                                                        wire:confirm="Open queue {{ $q['queue_number'] }}?">
-                                                        Select
-                                                    </button>
-                                                @elseif ($q['id'] == $queueId)
-                                                    <span class="badge badge-xs badge-primary">Current</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="6" class="text-center py-4 text-gray-400">No active queues</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                        <div class="flex gap-0 divide-x divide-base-200">
+                            {{-- Left: Waiting Queues --}}
+                            <div class="flex-1 min-w-0">
+                                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                                    Waiting Queues
+                                </div>
+                                <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                                    <table class="table table-xs">
+                                        <thead class="sticky top-0 bg-base-100 z-10">
+                                            <tr>
+                                                <th>Queue #</th>
+                                                <th>Patient</th>
+                                                <th>Priority</th>
+                                                <th>Time</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php $waitingQueues = collect($queueList)->where('queue_status', 'waiting'); @endphp
+                                            @forelse ($waitingQueues as $q)
+                                                <tr class="hover">
+                                                    <td class="font-mono font-bold">{{ $q['queue_number'] }}</td>
+                                                    <td class="text-xs">
+                                                        @if ($q['patient'] ?? null)
+                                                            {{ $q['patient']['patlast'] }}, {{ $q['patient']['patfirst'] }}
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if (($q['priority'] ?? 'normal') !== 'normal')
+                                                            <div class="badge badge-xs badge-error">
+                                                                {{ strtoupper($q['priority']) }}
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-xs">
+                                                        {{ \Carbon\Carbon::parse($q['queued_at'])->format('h:i A') }}
+                                                    </td>
+                                                    <td>
+                                                        <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
+                                                            class="btn btn-xs btn-primary"
+                                                            wire:confirm="Open queue {{ $q['queue_number'] }}?">
+                                                            Select
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No waiting queues</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {{-- Right: Charged Encounters --}}
+                            <div class="flex-1 min-w-0">
+                                <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                                    Charged Encounters
+                                    @if (count($chargedQueues) > 0)
+                                        <span class="badge badge-xs badge-warning ml-1">{{ count($chargedQueues) }}</span>
+                                    @endif
+                                </div>
+                                <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                                    <table class="table table-xs">
+                                        <thead class="sticky top-0 bg-base-100 z-10">
+                                            <tr>
+                                                <th>Queue #</th>
+                                                <th>Patient</th>
+                                                <th>Status</th>
+                                                <th>Charge Slip</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($chargedQueues as $cq)
+                                                <tr class="hover {{ $cq['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
+                                                    <td class="font-mono font-bold">{{ $cq['queue_number'] }}</td>
+                                                    <td class="text-xs">
+                                                        @if ($cq['patient'] ?? null)
+                                                            {{ $cq['patient']['patlast'] }}, {{ $cq['patient']['patfirst'] }}
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @php
+                                                            $cqBadge = $cq['queue_status'] === 'ready' ? 'badge-success' : 'badge-secondary';
+                                                        @endphp
+                                                        <div class="badge badge-xs {{ $cqBadge }}">
+                                                            {{ strtoupper($cq['queue_status']) }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-xs font-mono">
+                                                        {{ $cq['charge_slip_no'] ?? '-' }}
+                                                    </td>
+                                                    <td>
+                                                        @if ($cq['id'] == $queueId)
+                                                            <span class="badge badge-xs badge-primary">Current</span>
+                                                        @else
+                                                            <button wire:click="queueSelectAndOpen({{ $cq['id'] }})"
+                                                                class="btn btn-xs btn-accent"
+                                                                wire:confirm="Open {{ $cq['queue_number'] }} for dispensing?">
+                                                                Dispense
+                                                            </button>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No charged encounters</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 @endif

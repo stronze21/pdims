@@ -84,6 +84,13 @@
                                 </div>
                             @endif
 
+                            {{-- Next Queue (always visible) --}}
+                            <button wire:click="nextQueue"
+                                class="btn btn-outline btn-primary btn-block btn-sm touch-target">
+                                <x-mary-icon name="o-arrow-right" class="w-4 h-4" />
+                                Next Queue
+                            </button>
+
                             {{-- Secondary Actions --}}
                             <div class="flex gap-2">
                                 <button wire:click="skipQueue"

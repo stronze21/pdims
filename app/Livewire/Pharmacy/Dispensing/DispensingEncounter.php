@@ -39,6 +39,7 @@ class DispensingEncounter extends Component
     public $queueChargeSlipNo = null;
     public $showQueuePanel = false;
     public $queueList = [];
+    public $chargedQueues = [];
 
     // Patient / Encounter
     public $enccode, $code, $encdate, $hpercode, $toecode, $mssikey;
@@ -1437,6 +1438,27 @@ class DispensingEncounter extends Component
             ")
             ->orderBy('queued_at', 'asc')
             ->limit(30)
+            ->get()
+            ->toArray();
+
+        $this->loadChargedQueues();
+    }
+
+    public function loadChargedQueues(): void
+    {
+        $this->chargedQueues = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->whereDate('queued_at', today())
+            ->whereIn('queue_status', ['charging', 'ready'])
+            ->whereNotNull('enccode')
+            ->with(['patient'])
+            ->orderByRaw("
+                CASE
+                    WHEN queue_status = 'ready' THEN 1
+                    WHEN queue_status = 'charging' THEN 2
+                    ELSE 3
+                END
+            ")
+            ->orderBy('queued_at', 'asc')
             ->get()
             ->toArray();
     }
