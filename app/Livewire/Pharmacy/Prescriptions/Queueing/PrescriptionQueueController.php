@@ -6,6 +6,7 @@ use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
 use App\Models\PharmLocation;
 use App\Services\Pharmacy\PrescriptionQueueService;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -50,6 +51,9 @@ class PrescriptionQueueController extends Component
     public $printQueue = null;
     public $printItems = [];
     public $selectedItems = [];
+
+    // Queue Number Search
+    public $queueNumberSearch = '';
 
     public function boot(PrescriptionQueueService $queueService)
     {
@@ -454,6 +458,110 @@ class PrescriptionQueueController extends Component
 
             $this->success("Queue {$queue->queue_number} force called!");
             $this->loadCurrentQueue();
+        } else {
+            $this->error($result['message']);
+        }
+    }
+
+    #[Locked]
+    public function openDispensing()
+    {
+        if (!$this->currentQueue) {
+            $this->warning('No queue selected');
+            return;
+        }
+
+        if (!$this->currentQueue->enccode) {
+            $this->error('No encounter linked to this queue');
+            return;
+        }
+
+        $encrypted = Crypt::encrypt(str_replace(' ', '--', $this->currentQueue->enccode));
+
+        return redirect()->to(
+            route('dispensing.view.enctr', ['enccode' => $encrypted]) . '?queue_id=' . $this->currentQueue->id
+        );
+    }
+
+    public function selectQueueByNumber()
+    {
+        $search = trim($this->queueNumberSearch);
+        if (empty($search)) {
+            $this->warning('Please enter a queue number');
+            return;
+        }
+
+        $queue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->where('queue_number', 'LIKE', '%' . $search . '%')
+            ->where('queue_status', 'waiting')
+            ->whereNull('assigned_window')
+            ->whereDate('queued_at', $this->dateFilter)
+            ->orderBy('queued_at', 'asc')
+            ->first();
+
+        if (!$queue) {
+            $this->error("No waiting queue found matching \"{$search}\"");
+            return;
+        }
+
+        $result = $this->queueService->updateQueueStatus(
+            $queue->id,
+            'preparing',
+            auth()->user()->employeeid,
+            "Selected by number to Window {$this->selectedWindow}"
+        );
+
+        if ($result['success']) {
+            DB::connection('webapp')->table('prescription_queues')
+                ->where('id', $queue->id)
+                ->update([
+                    'assigned_window' => $this->selectedWindow,
+                    'prepared_by' => auth()->user()->employeeid,
+                    'preparing_at' => now(),
+                ]);
+
+            $this->queueNumberSearch = '';
+            $this->success("Now serving: {$queue->queue_number}");
+            $this->loadCurrentQueue();
+        } else {
+            $this->error($result['message']);
+        }
+    }
+
+    public function dispenseAndNext()
+    {
+        if (!$this->currentQueue) {
+            $this->warning('No queue to dispense');
+            return;
+        }
+
+        if (!$this->currentQueue->isReady()) {
+            $this->warning('Queue must be ready for dispensing');
+            return;
+        }
+
+        $result = $this->queueService->updateQueueStatus(
+            $this->currentQueue->id,
+            'dispensed',
+            auth()->user()->employeeid,
+            'Items dispensed to patient'
+        );
+
+        if ($result['success']) {
+            DB::connection('webapp')->table('prescription_queues')
+                ->where('id', $this->currentQueue->id)
+                ->update([
+                    'dispensed_by' => auth()->user()->employeeid,
+                    'dispensed_at' => now(),
+                ]);
+
+            $this->success("Queue {$this->currentQueue->queue_number} completed!");
+
+            // Auto-call the next waiting queue
+            $this->loadCurrentQueue();
+            if (!$this->currentQueue) {
+                $this->nextQueue();
+            }
         } else {
             $this->error($result['message']);
         }

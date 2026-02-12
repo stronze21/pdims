@@ -64,13 +64,23 @@
                                     <span class="text-xs">Patient called. Click when patient arrives.</span>
                                 </div>
                             @elseif ($currentQueue->isReady())
-                                {{-- Stage 4: Ready → Dispense Items --}}
-                                <button wire:click="dispenseQueue" class="btn btn-accent btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-cube" class="w-5 h-5" />
-                                    DISPENSE ITEMS
+                                {{-- Stage 4: Ready → Open Dispensing or Quick Dispense --}}
+                                <button wire:click="openDispensing" class="btn btn-accent btn-block btn-lg touch-target">
+                                    <x-mary-icon name="o-clipboard-document-check" class="w-5 h-5" />
+                                    OPEN DISPENSING
                                 </button>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button wire:click="dispenseQueue" class="btn btn-success btn-sm touch-target">
+                                        <x-mary-icon name="o-check" class="w-4 h-4" />
+                                        Mark Dispensed
+                                    </button>
+                                    <button wire:click="dispenseAndNext" class="btn btn-primary btn-sm touch-target">
+                                        <x-mary-icon name="o-forward" class="w-4 h-4" />
+                                        Dispense & Next
+                                    </button>
+                                </div>
                                 <div class="alert alert-success">
-                                    <span class="text-xs">Patient has paid. Dispense medications.</span>
+                                    <span class="text-xs">Patient has paid. Open dispensing to issue medications, or mark as dispensed directly.</span>
                                 </div>
                             @endif
 
@@ -97,13 +107,23 @@
                         </div>
                     </div>
                 @else
-                    <div class="text-center py-12">
+                    <div class="text-center py-8">
                         <x-mary-icon name="o-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
                         <div class="text-gray-500 mb-4">No active queue</div>
-                        <button wire:click="nextQueue" class="btn btn-primary touch-target">
+                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target mb-4">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
+                        <div class="divider text-xs">OR SELECT BY NUMBER</div>
+                        <form wire:submit="selectQueueByNumber" class="flex gap-2 justify-center max-w-xs mx-auto">
+                            <input type="text" wire:model="queueNumberSearch"
+                                placeholder="e.g. RX001"
+                                class="input input-bordered input-sm flex-1" />
+                            <button type="submit" class="btn btn-outline btn-sm btn-primary">
+                                <x-mary-icon name="o-magnifying-glass" class="w-4 h-4" />
+                                Select
+                            </button>
+                        </form>
                     </div>
                 @endif
             </x-mary-card>
@@ -131,11 +151,16 @@
                             Waiting for payment confirmation from cashier
                         </div>
 
-                        <button wire:click="nextQueue" class="btn btn-primary btn-block touch-target"
-                            @if (!$currentQueue) disabled @endif>
+                        <button wire:click="nextQueue" class="btn btn-primary btn-block btn-sm touch-target">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
+                        <form wire:submit="selectQueueByNumber" class="flex gap-2 mt-2">
+                            <input type="text" wire:model="queueNumberSearch"
+                                placeholder="Queue #"
+                                class="input input-bordered input-xs flex-1" />
+                            <button type="submit" class="btn btn-outline btn-xs btn-primary">Select</button>
+                        </form>
                     </div>
                 </x-mary-card>
             @endif

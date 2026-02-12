@@ -40,6 +40,45 @@
             </div>
         </div>
     @else
+        {{-- Queue Info Banner (when opened from queue controller) --}}
+        @if ($queueId)
+            <div class="border-b bg-primary/5 border-primary/20">
+                <div class="px-4 py-2 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="badge badge-primary badge-lg font-mono font-bold gap-1">
+                            <x-heroicon-o-queue-list class="w-4 h-4" />
+                            {{ $currentQueueNumber }}
+                        </div>
+                        <span class="text-sm">
+                            Queue Status:
+                            <span class="font-semibold
+                                @if($currentQueueStatus === 'dispensed') text-success
+                                @elseif($currentQueueStatus === 'ready') text-accent
+                                @else text-info @endif">
+                                {{ strtoupper($currentQueueStatus) }}
+                            </span>
+                        </span>
+                        @if ($currentQueueStatus === 'dispensed')
+                            <div class="badge badge-success badge-sm gap-1">
+                                <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
+                            </div>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2">
+                        @if ($currentQueueStatus !== 'dispensed')
+                            <x-mary-button label="Complete Queue & Return" icon="o-check"
+                                class="btn-sm btn-success"
+                                wire:click="completeQueueAndReturn"
+                                wire:confirm="Mark this queue as dispensed and return to queue controller?" />
+                        @endif
+                        <x-mary-button label="Back to Queue" icon="o-arrow-left"
+                            class="btn-sm btn-outline"
+                            wire:click="returnToQueueController" />
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Patient Info Bar --}}
         <div class="border-b bg-base-100 border-base-200">
             <div class="px-4 py-2">
