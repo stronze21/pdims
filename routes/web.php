@@ -116,6 +116,43 @@ Route::middleware([
         ]);
     })->name('prescriptions.print');
 
+    Route::get('/dispensing/prescription/print/{enccode}', function ($enccode) {
+        $printItems = session('print_encounter_items', []);
+
+        if (empty($printItems)) {
+            return redirect()->back()->with('error', 'No items selected for printing');
+        }
+
+        $encounter = collect(DB::select("
+            SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate,
+                   pat.patlast, pat.patfirst, pat.patmiddle
+            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hperson pat WITH (NOLOCK) ON enctr.hpercode = pat.hpercode
+            WHERE enctr.enccode = ?
+        ", [$enccode]))->first();
+
+        if (!$encounter) {
+            return redirect()->back()->with('error', 'Encounter not found');
+        }
+
+        $items = collect(DB::connection('webapp')->select("
+            SELECT
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.remark, pd.addtl_remarks,
+                pd.frequency, pd.duration, dm.drug_concat
+            FROM prescription_data pd
+            INNER JOIN prescription rx ON pd.presc_id = rx.id
+            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            WHERE rx.enccode = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
+            ORDER BY pd.created_at ASC
+        ", array_merge([$enccode], $printItems)));
+
+        return view('pharmacy.dispensing.print-prescription', [
+            'encounter' => $encounter,
+            'items' => $items,
+        ]);
+    })->name('dispensing.print.prescription');
+
     // User Management Routes
     Route::get('/users', ManageUsers::class)
         ->name('users.index');

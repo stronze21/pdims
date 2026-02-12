@@ -64,15 +64,32 @@
                                     <span class="text-xs">Patient called. Click when patient arrives.</span>
                                 </div>
                             @elseif ($currentQueue->isReady())
-                                {{-- Stage 4: Ready → Dispense Items --}}
-                                <button wire:click="dispenseQueue" class="btn btn-accent btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-cube" class="w-5 h-5" />
-                                    DISPENSE ITEMS
+                                {{-- Stage 4: Ready → Open Dispensing or Quick Dispense --}}
+                                <button wire:click="openDispensing" class="btn btn-accent btn-block btn-lg touch-target">
+                                    <x-mary-icon name="o-clipboard-document-check" class="w-5 h-5" />
+                                    OPEN DISPENSING
                                 </button>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button wire:click="dispenseQueue" class="btn btn-success btn-sm touch-target">
+                                        <x-mary-icon name="o-check" class="w-4 h-4" />
+                                        Mark Dispensed
+                                    </button>
+                                    <button wire:click="dispenseAndNext" class="btn btn-primary btn-sm touch-target">
+                                        <x-mary-icon name="o-forward" class="w-4 h-4" />
+                                        Dispense & Next
+                                    </button>
+                                </div>
                                 <div class="alert alert-success">
-                                    <span class="text-xs">Patient has paid. Dispense medications.</span>
+                                    <span class="text-xs">Patient has paid. Open dispensing to issue medications, or mark as dispensed directly.</span>
                                 </div>
                             @endif
+
+                            {{-- Next Queue (always visible) --}}
+                            <button wire:click="nextQueue"
+                                class="btn btn-outline btn-primary btn-block btn-sm touch-target">
+                                <x-mary-icon name="o-arrow-right" class="w-4 h-4" />
+                                Next Queue
+                            </button>
 
                             {{-- Secondary Actions --}}
                             <div class="flex gap-2">
@@ -97,13 +114,14 @@
                         </div>
                     </div>
                 @else
-                    <div class="text-center py-12">
+                    <div class="text-center py-8">
                         <x-mary-icon name="o-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
                         <div class="text-gray-500 mb-4">No active queue</div>
-                        <button wire:click="nextQueue" class="btn btn-primary touch-target">
+                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
+                        <div class="text-xs text-gray-400 mt-2">or select a specific queue from the table</div>
                     </div>
                 @endif
             </x-mary-card>
@@ -131,8 +149,7 @@
                             Waiting for payment confirmation from cashier
                         </div>
 
-                        <button wire:click="nextQueue" class="btn btn-primary btn-block touch-target"
-                            @if (!$currentQueue) disabled @endif>
+                        <button wire:click="nextQueue" class="btn btn-primary btn-block btn-sm touch-target">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
@@ -252,9 +269,10 @@
                                     <td>
                                         <div class="flex gap-1">
                                             @if ($queue->isWaiting() && !$queue->assigned_window)
-                                                <button wire:click="forceCall({{ $queue->id }})"
-                                                    class="btn btn-xs btn-primary">
-                                                    Call
+                                                <button wire:click="selectQueue({{ $queue->id }})"
+                                                    class="btn btn-xs btn-primary"
+                                                    wire:confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
+                                                    Select
                                                 </button>
                                             @endif
                                             <button wire:click="viewQueue({{ $queue->id }})"
