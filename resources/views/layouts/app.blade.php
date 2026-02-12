@@ -56,7 +56,8 @@
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
                 <x-mary-menu-item title="Inventory" icon="o-cube" link="{{ route('inventory.stocks.list') }}" />
-                <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list" link="/dispensing" />
+                <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list"
+                    link="{{ route('dispensing.view.enctr') }}" />
                 <x-mary-menu-sub title="Records" icon="o-document-text">
                     <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
                     <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
