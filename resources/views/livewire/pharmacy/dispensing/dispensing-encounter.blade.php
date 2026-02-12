@@ -69,7 +69,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 pr-5">
                         @if ($billstat == '02' || $billstat == '03')
                             <div class="badge badge-error gap-1">
                                 <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
