@@ -38,8 +38,9 @@
                     </div>
                     <span class="text-sm">
                         Status:
-                        <span class="font-semibold
-                            @if($currentQueueStatus === 'dispensed') text-success
+                        <span
+                            class="font-semibold
+                            @if ($currentQueueStatus === 'dispensed') text-success
                             @elseif($currentQueueStatus === 'ready') text-accent
                             @elseif($currentQueueStatus === 'charging') text-warning
                             @else text-info @endif">
@@ -70,27 +71,22 @@
             <div class="flex items-center gap-2">
                 @if ($queueId)
                     @if ($currentQueueStatus !== 'dispensed')
-                        <x-mary-button label="Complete & Next" icon="o-forward"
-                            class="btn-sm btn-success"
+                        <x-mary-button label="Complete & Next" icon="o-forward" class="btn-sm btn-success"
                             wire:click="queueCompleteAndNext"
                             wire:confirm="Mark this queue as dispensed and open the next queue?" />
                     @else
-                        <x-mary-button label="Next Queue" icon="o-arrow-right"
-                            class="btn-sm btn-primary"
+                        <x-mary-button label="Next Queue" icon="o-arrow-right" class="btn-sm btn-primary"
                             wire:click="queueCallNext" />
                     @endif
                 @else
-                    <x-mary-button label="Call Next Queue" icon="o-arrow-right"
-                        class="btn-sm btn-primary"
+                    <x-mary-button label="Call Next Queue" icon="o-arrow-right" class="btn-sm btn-primary"
                         wire:click="queueCallNext" />
                 @endif
-                <button wire:click="toggleQueuePanel"
-                    class="btn btn-sm btn-ghost gap-1">
+                <button wire:click="toggleQueuePanel" class="btn btn-sm btn-ghost gap-1">
                     <x-heroicon-o-queue-list class="w-4 h-4" />
                     {{ $showQueuePanel ? 'Hide' : 'Show' }} Queue
                 </button>
-                <x-mary-button label="Back to Queue Controller" icon="o-arrow-left"
-                    class="btn-sm btn-outline"
+                <x-mary-button label="Back to Queue Controller" icon="o-arrow-left" class="btn-sm btn-outline"
                     wire:click="returnToQueueController" />
             </div>
         </div>
@@ -101,7 +97,8 @@
                 <div class="flex gap-0 divide-x divide-base-200">
                     {{-- Left: Waiting Queues --}}
                     <div class="flex-1 min-w-0">
-                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                        <div
+                            class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
                             Waiting Queues
                         </div>
                         <div class="overflow-x-auto max-h-40 overflow-y-auto">
@@ -145,7 +142,8 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No waiting queues</td>
+                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No waiting
+                                                queues</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -155,7 +153,8 @@
 
                     {{-- Middle: Charged Queues --}}
                     <div class="flex-1 min-w-0">
-                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                        <div
+                            class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
                             Charged Queues
                             @if (count($chargedQueues) > 0)
                                 <span class="badge badge-xs badge-warning ml-1">{{ count($chargedQueues) }}</span>
@@ -174,7 +173,8 @@
                                 </thead>
                                 <tbody>
                                     @forelse ($chargedQueues as $cq)
-                                        <tr class="hover {{ $queueId && $cq['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
+                                        <tr
+                                            class="hover {{ $queueId && $cq['id'] == $queueId ? 'bg-primary/10 font-semibold' : '' }}">
                                             <td class="font-mono font-bold">{{ $cq['queue_number'] }}</td>
                                             <td class="text-xs">
                                                 @if ($cq['patient'] ?? null)
@@ -183,7 +183,10 @@
                                             </td>
                                             <td>
                                                 @php
-                                                    $cqBadge = $cq['queue_status'] === 'ready' ? 'badge-success' : 'badge-secondary';
+                                                    $cqBadge =
+                                                        $cq['queue_status'] === 'ready'
+                                                            ? 'badge-success'
+                                                            : 'badge-secondary';
                                                 @endphp
                                                 <div class="badge badge-xs {{ $cqBadge }}">
                                                     {{ strtoupper($cq['queue_status']) }}
@@ -206,7 +209,8 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No charged queues</td>
+                                            <td colspan="5" class="text-center py-3 text-gray-400 text-xs">No charged
+                                                queues</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -216,7 +220,8 @@
 
                     {{-- Right: Charged Encounters (not in queue) --}}
                     <div class="flex-1 min-w-0">
-                        <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
+                        <div
+                            class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide bg-base-200 text-base-content/70">
                             Charged Encounters
                             @if (count($chargedEncounters) > 0)
                                 <span class="badge badge-xs badge-info ml-1">{{ count($chargedEncounters) }}</span>
@@ -250,7 +255,8 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="3" class="text-center py-3 text-gray-400 text-xs">No charged encounters outside queue</td>
+                                            <td colspan="3" class="text-center py-3 text-gray-400 text-xs">No charged
+                                                encounters outside queue</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -270,14 +276,14 @@
                     <x-heroicon-o-clipboard-document-list class="w-10 h-10 text-base-content/30" />
                 </div>
                 <h2 class="text-2xl font-bold mb-2">Dispensing Encounter</h2>
-                <p class="text-base-content/60 mb-6">No patient or encounter selected. Search for a patient and select an
+                <p class="text-base-content/60 mb-6">No patient or encounter selected. Search for a patient and select
+                    an
                     encounter to begin dispensing.</p>
                 <x-mary-button label="Search Patient & Encounter" icon="o-magnifying-glass" class="btn-primary btn-lg"
                     wire:click="openEncounterSelector" />
             </div>
         </div>
     @else
-
         {{-- Patient Info Bar --}}
         <div class="border-b bg-base-100 border-base-200">
             <div class="px-4 py-2">
@@ -288,7 +294,8 @@
                             <x-heroicon-o-user class="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }} {{ $patmiddle }}
+                            <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }}
+                                {{ $patmiddle }}
                             </h2>
                             <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70">
                                 <span>{{ $hpercode }}</span>
@@ -327,29 +334,17 @@
 
         {{-- Main Content --}}
         <div class="flex flex-1 overflow-hidden">
-        {{-- Left: Orders Table --}}
-        <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
-            {{-- Action Bar --}}
-            <div class="border-b bg-base-200/50 border-base-200">
-                <div class="flex items-center justify-between px-4 py-2">
-                    <div class="flex gap-2">
-                        <x-mary-button label="Prescriptions" icon="o-clipboard-document-list" class="btn-sm btn-outline"
-                            wire:click="$set('showPrescriptionListModal', true)" tooltip-bottom="View All Prescriptions (F4)" />
-                        <x-mary-button label="Print Rx" icon="o-printer" class="btn-sm btn-outline btn-info"
-                            wire:click="openPrintPrescriptionsModal" tooltip-bottom="Print Prescriptions (F7)" />
-                        <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                            wire:click="$set('showSummaryModal', true)" tooltip-bottom="Summary of Issued Drugs (F5)" />
-                        <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                            class="btn btn-sm btn-outline tooltip tooltip-bottom" data-tip="View Issued with Return (F6)">
-                            <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
-                        </a>
-                    </div>
-
-                    @if ($billstat != '02' && $billstat != '03')
+            {{-- Left: Orders Table --}}
+            <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
+                {{-- Action Bar --}}
+                <div class="border-b bg-base-200/50 border-base-200">
+                    <div class="flex items-center justify-between px-4 py-2">
                         <div class="flex gap-2">
                             <x-mary-button label="Prescriptions" icon="o-clipboard-document-list"
                                 class="btn-sm btn-outline" wire:click="$set('showPrescriptionListModal', true)"
                                 tooltip-bottom="View All Prescriptions (F4)" />
+                            <x-mary-button label="Print Rx" icon="o-printer" class="btn-sm btn-outline btn-info"
+                                wire:click="openPrintPrescriptionsModal" tooltip-bottom="Print Prescriptions (F7)" />
                             <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
                                 wire:click="$set('showSummaryModal', true)"
                                 tooltip-bottom="Summary of Issued Drugs (F5)" />
@@ -362,24 +357,41 @@
 
                         @if ($billstat != '02' && $billstat != '03')
                             <div class="flex gap-2">
-                                <x-mary-button label="Select All Pending" icon="o-check-circle" class="btn-sm btn-ghost"
-                                    x-on:click="selectAllPending()" tooltip-bottom="Select All Pending (Ctrl+A)" />
-                                <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                                    x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
-
-                                <div class="border-l border-base-300 h-6 mx-1"></div>
-
-                                <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
-                                    wire:click="delete_item"
-                                    wire:confirm="Delete selected pending items? This cannot be undone."
-                                    tooltip-bottom="Delete Selected (Del)" />
-                                <x-mary-button label="Charge" icon="o-credit-card" class="btn-sm btn-info btn-outline"
-                                    wire:click="charge_items" tooltip-bottom="Charge Selected (Ctrl+C)" />
-                                <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                    wire:click="$wire.$set('showIssueModal', true)"
-                                    tooltip-bottom="Issue Charged Items (Ctrl+I)" />
+                                <x-mary-button label="Prescriptions" icon="o-clipboard-document-list"
+                                    class="btn-sm btn-outline" wire:click="$set('showPrescriptionListModal', true)"
+                                    tooltip-bottom="View All Prescriptions (F4)" />
+                                <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
+                                    wire:click="$set('showSummaryModal', true)"
+                                    tooltip-bottom="Summary of Issued Drugs (F5)" />
+                                <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
+                                    class="btn btn-sm btn-outline tooltip tooltip-bottom"
+                                    data-tip="View Issued with Return (F6)">
+                                    <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
+                                </a>
                             </div>
-                        @endif
+
+                            @if ($billstat != '02' && $billstat != '03')
+                                <div class="flex gap-2">
+                                    <x-mary-button label="Select All Pending" icon="o-check-circle"
+                                        class="btn-sm btn-ghost" x-on:click="selectAllPending()"
+                                        tooltip-bottom="Select All Pending (Ctrl+A)" />
+                                    <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
+                                        x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
+
+                                    <div class="border-l border-base-300 h-6 mx-1"></div>
+
+                                    <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
+                                        wire:click="delete_item"
+                                        wire:confirm="Delete selected pending items? This cannot be undone."
+                                        tooltip-bottom="Delete Selected (Del)" />
+                                    <x-mary-button label="Charge" icon="o-credit-card"
+                                        class="btn-sm btn-info btn-outline" wire:click="charge_items"
+                                        tooltip-bottom="Charge Selected (Ctrl+C)" />
+                                    <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
+                                        wire:click="$wire.$set('showIssueModal', true)"
+                                        tooltip-bottom="Issue Charged Items (Ctrl+I)" />
+                                </div>
+                            @endif
                     </div>
                 </div>
                 <div class="flex-1 overflow-y-auto">
@@ -849,7 +861,8 @@
                                         class="flex items-center gap-2 p-2 rounded-lg border border-base-300 cursor-pointer hover:bg-base-200 transition-colors"
                                         :class="{ 'border-primary bg-primary/5': $wire.{{ $key }} }">
                                         <input type="radio" name="issue_tag" class="radio radio-sm radio-primary"
-                                            wire:click="selectIssueTag('{{ $key }}')" @checked($$key ?? false) />
+                                            wire:click="selectIssueTag('{{ $key }}')"
+                                            @checked($$key ?? false) />
                                         <span class="text-sm">{{ $label }}</span>
                                     </label>
                                 @endforeach
@@ -1059,6 +1072,7 @@
                                 <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
                             </x-slot:actions>
                         </x-mary-modal>
+                        @endif {{-- End: @if (!$hasEncounter) --}}
 
                         {{-- Encounter / Prescription Selector Modal --}}
                         <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
@@ -1616,102 +1630,103 @@
                                     </x-mary-modal>
                                 @endif
 
-                        {{-- Print Prescriptions Modal --}}
-                        <x-mary-modal wire:model="showPrintModal" title="Print Prescriptions" class="backdrop-blur"
-                            box-class="max-w-3xl">
-                            <div class="space-y-4">
-                                <div class="p-3 rounded-lg bg-base-200">
-                                    <div class="text-sm">
-                                        <strong>Patient:</strong> {{ $patlast ?? '' }}, {{ $patfirst ?? '' }} {{ $patmiddle ?? '' }}
-                                    </div>
-                                    <div class="text-xs text-base-content/60">{{ $hpercode ?? '' }}</div>
-                                </div>
-
-                                @if (count($printItems) > 0)
-                                    <div>
-                                        <div class="flex justify-between items-center mb-3">
-                                            <div class="font-semibold">Select Items to Print</div>
-                                            <div class="flex gap-2">
-                                                <button wire:click="selectAllPrintItems" class="btn btn-xs btn-primary">
-                                                    {{ count($printSelectedItems) === count($printItems) ? 'Deselect All' : 'Select All' }}
-                                                </button>
+                                {{-- Print Prescriptions Modal --}}
+                                <x-mary-modal wire:model="showPrintModal" title="Print Prescriptions" class="backdrop-blur"
+                                    box-class="max-w-3xl">
+                                    <div class="space-y-4">
+                                        <div class="p-3 rounded-lg bg-base-200">
+                                            <div class="text-sm">
+                                                <strong>Patient:</strong> {{ $patlast ?? '' }}, {{ $patfirst ?? '' }} {{ $patmiddle ?? '' }}
                                             </div>
+                                            <div class="text-xs text-base-content/60">{{ $hpercode ?? '' }}</div>
                                         </div>
 
-                                        <div class="overflow-x-auto max-h-96 overflow-y-auto border rounded">
-                                            <table class="table table-sm">
-                                                <thead class="sticky top-0 bg-base-100">
-                                                    <tr>
-                                                        <th class="w-8">
-                                                            <input type="checkbox" class="checkbox checkbox-sm"
-                                                                @if (count($printSelectedItems) === count($printItems)) checked @endif
-                                                                wire:click="selectAllPrintItems">
-                                                        </th>
-                                                        <th>Drug</th>
-                                                        <th>Qty</th>
-                                                        <th>Frequency</th>
-                                                        <th>Duration</th>
-                                                        <th>Type</th>
-                                                        <th>Remarks</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach ($printItems as $pItem)
-                                                        <tr class="hover">
-                                                            <td>
-                                                                <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
-                                                                    @if (in_array($pItem['id'], $printSelectedItems)) checked @endif
-                                                                    wire:click="togglePrintItemSelection({{ $pItem['id'] }})">
-                                                            </td>
-                                                            <td>
-                                                                <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
-                                                            </td>
-                                                            <td>{{ $pItem['qty'] }}</td>
-                                                            <td>{{ $pItem['frequency'] ?? '' }}</td>
-                                                            <td>{{ $pItem['duration'] ?? '' }}</td>
-                                                            <td>
-                                                                <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>
-                                                            </td>
-                                                            <td class="text-xs">
-                                                                @if ($pItem['remark'] ?? null)
-                                                                    <div>{{ $pItem['remark'] }}</div>
-                                                                @endif
-                                                                @if ($pItem['addtl_remarks'] ?? null)
-                                                                    <div class="text-warning">{{ $pItem['addtl_remarks'] }}</div>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        @if (count($printItems) > 0)
+                                            <div>
+                                                <div class="flex justify-between items-center mb-3">
+                                                    <div class="font-semibold">Select Items to Print</div>
+                                                    <div class="flex gap-2">
+                                                        <button wire:click="selectAllPrintItems" class="btn btn-xs btn-primary">
+                                                            {{ count($printSelectedItems) === count($printItems) ? 'Deselect All' : 'Select All' }}
+                                                        </button>
+                                                    </div>
+                                                </div>
 
-                                        <div class="mt-3 text-sm opacity-70">
-                                            Selected: <span class="font-semibold">{{ count($printSelectedItems) }}</span> of
-                                            <span class="font-semibold">{{ count($printItems) }}</span> items
-                                        </div>
+                                                <div class="overflow-x-auto max-h-96 overflow-y-auto border rounded">
+                                                    <table class="table table-sm">
+                                                        <thead class="sticky top-0 bg-base-100">
+                                                            <tr>
+                                                                <th class="w-8">
+                                                                    <input type="checkbox" class="checkbox checkbox-sm"
+                                                                        @if (count($printSelectedItems) === count($printItems)) checked @endif
+                                                                        wire:click="selectAllPrintItems">
+                                                                </th>
+                                                                <th>Drug</th>
+                                                                <th>Qty</th>
+                                                                <th>Frequency</th>
+                                                                <th>Duration</th>
+                                                                <th>Type</th>
+                                                                <th>Remarks</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach ($printItems as $pItem)
+                                                                <tr class="hover">
+                                                                    <td>
+                                                                        <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                                                                            @if (in_array($pItem['id'], $printSelectedItems)) checked @endif
+                                                                            wire:click="togglePrintItemSelection({{ $pItem['id'] }})">
+                                                                    </td>
+                                                                    <td>
+                                                                        <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
+                                                                    </td>
+                                                                    <td>{{ $pItem['qty'] }}</td>
+                                                                    <td>{{ $pItem['frequency'] ?? '' }}</td>
+                                                                    <td>{{ $pItem['duration'] ?? '' }}</td>
+                                                                    <td>
+                                                                        <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>
+                                                                    </td>
+                                                                    <td class="text-xs">
+                                                                        @if ($pItem['remark'] ?? null)
+                                                                            <div>{{ $pItem['remark'] }}</div>
+                                                                        @endif
+                                                                        @if ($pItem['addtl_remarks'] ?? null)
+                                                                            <div class="text-warning">{{ $pItem['addtl_remarks'] }}</div>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <div class="mt-3 text-sm opacity-70">
+                                                    Selected: <span class="font-semibold">{{ count($printSelectedItems) }}</span> of
+                                                    <span class="font-semibold">{{ count($printItems) }}</span> items
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="py-8 text-center text-base-content/50">
+                                                <x-heroicon-o-clipboard-document class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                No active prescriptions to print
+                                            </div>
+                                        @endif
                                     </div>
-                                @else
-                                    <div class="py-8 text-center text-base-content/50">
-                                        <x-heroicon-o-clipboard-document class="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                        No active prescriptions to print
-                                    </div>
-                                @endif
-                            </div>
-                            <x-slot:actions>
-                                <x-mary-button label="Cancel" @click="$wire.showPrintModal = false" />
-                                <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary"
-                                    wire:click="printPrescriptions" spinner />
-                            </x-slot:actions>
-                        </x-mary-modal>
+                                    <x-slot:actions>
+                                        <x-mary-button label="Cancel" @click="$wire.showPrintModal = false" />
+                                        <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary"
+                                            wire:click="printPrescriptions" spinner />
+                                    </x-slot:actions>
+                                </x-mary-modal>
 
-                        {{-- Keyboard Shortcuts --}}
-                        @script
-                            <script>
-                                document.addEventListener('keydown', e => {
-                                    // Skip if user is typing in an input/textarea/select
-                                    const tag = e.target.tagName;
-                                    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+                                {{-- Keyboard Shortcuts --}}
+                                @script
+                                    <script>
+                                        document.addEventListener('keydown', e => {
+                                            // Skip if user is typing in an input/textarea/select
+                                            const tag = e.target.tagName;
+                                            const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
                                             // Ctrl+C - Charge items
                                             if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
@@ -1775,66 +1790,18 @@
                                                 }
                                             }
                                         });
-                                        // Trigger Alpine selectAllPending
-                                        const el = document.querySelector('[x-data]');
-                                        if (el && el.__x) el.__x.$data.selectAllPending();
-                                    }
-                                    // Escape - Clear selection (only outside inputs)
-                                    if (e.key === 'Escape' && !isInput) {
-                                        const el = document.querySelector('[x-data]');
-                                        if (el && el.__x) el.__x.$data.clearSelection();
-                                    }
-                                    // Delete - Delete selected pending items
-                                    if (e.key === 'Delete' && !isInput) {
-                                        e.preventDefault();
-                                        $wire.delete_item();
-                                    }
-                                    // F2 - Change patient
-                                    if (e.key === 'F2') {
-                                        e.preventDefault();
-                                        $wire.openChangePatient();
-                                    }
-                                    // F3 - Browse encounters
-                                    if (e.key === 'F3') {
-                                        e.preventDefault();
-                                        $wire.openEncounterSelector();
-                                    }
-                                    // F4 - Prescriptions list
-                                    if (e.key === 'F4') {
-                                        e.preventDefault();
-                                        $wire.set('showPrescriptionListModal', true);
-                                    }
-                                    // F5 - Summary
-                                    if (e.key === 'F5') {
-                                        e.preventDefault();
-                                        $wire.set('showSummaryModal', true);
-                                    }
-                                    // F6 - Open Issued with Return in new tab
-                                    if (e.key === 'F6') {
-                                        e.preventDefault();
-                                        const hpercode = '{{ $hpercode ?? '' }}';
-                                        if (hpercode) {
-                                            window.open('{{ url('/dispensing/return-slip') }}' + '/' + hpercode, '_blank');
-                                        }
-                                    }
-                                    // F7 - Print Prescriptions
-                                    if (e.key === 'F7') {
-                                        e.preventDefault();
-                                        $wire.openPrintPrescriptionsModal();
-                                    }
-                                });
 
-                                $wire.on('open-charge-slip', ({
-                                    pcchrgcod
-                                }) => {
-                                    window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
-                                });
+                                        $wire.on('open-charge-slip', ({
+                                            pcchrgcod
+                                        }) => {
+                                            window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
+                                        });
 
-                                $wire.on('open-print-window', ({
-                                    url
-                                }) => {
-                                    window.open(url, '_blank', 'width=800,height=600');
-                                });
-                            </script>
-                        @endscript
-                    </div>
+                                        $wire.on('open-print-window', ({
+                                            url
+                                        }) => {
+                                            window.open(url, '_blank', 'width=800,height=600');
+                                        });
+                                    </script>
+                                @endscript
+                            </div>
