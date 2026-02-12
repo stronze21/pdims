@@ -506,13 +506,39 @@ class DispensingEncounter extends Component
 
             $this->showAddItemModal = false;
             $this->resetExcept(
-                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
-                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
-                'location_id', 'hasEncounter', 'encounter', 'charges',
-                'generic', 'rx_dmdcomb', 'rx_dmdctr', 'rx_id', 'empid',
-                'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
-                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
-                'adm', 'summaries',
+                'code',
+                'enccode',
+                'encdate',
+                'hpercode',
+                'toecode',
+                'mssikey',
+                'patlast',
+                'patfirst',
+                'patmiddle',
+                'diagtext',
+                'wardname',
+                'rmname',
+                'billstat',
+                'location_id',
+                'hasEncounter',
+                'encounter',
+                'charges',
+                'generic',
+                'rx_dmdcomb',
+                'rx_dmdctr',
+                'rx_id',
+                'empid',
+                'stocks',
+                'selected_items',
+                'patient',
+                'charge_code_filter',
+                'stocksDisplayCount',
+                'active_prescription',
+                'active_prescription_all',
+                'extra_prescriptions',
+                'extra_prescriptions_all',
+                'adm',
+                'summaries',
             );
             $this->success('Item added.');
         } else {
@@ -590,12 +616,35 @@ class DispensingEncounter extends Component
 
             $this->showPrescribedItemModal = false;
             $this->resetExcept(
-                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
-                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
-                'location_id', 'hasEncounter', 'encounter', 'charges',
-                'generic', 'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
-                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
-                'adm', 'summaries',
+                'code',
+                'enccode',
+                'encdate',
+                'hpercode',
+                'toecode',
+                'mssikey',
+                'patlast',
+                'patfirst',
+                'patmiddle',
+                'diagtext',
+                'wardname',
+                'rmname',
+                'billstat',
+                'location_id',
+                'hasEncounter',
+                'encounter',
+                'charges',
+                'generic',
+                'stocks',
+                'selected_items',
+                'patient',
+                'charge_code_filter',
+                'stocksDisplayCount',
+                'active_prescription',
+                'active_prescription_all',
+                'extra_prescriptions',
+                'extra_prescriptions_all',
+                'adm',
+                'summaries',
             );
             $this->success('Item added.');
         } else {
@@ -959,6 +1008,44 @@ class DispensingEncounter extends Component
             WHERE hrxo.enccode = ?
             ORDER BY hrxo.dodate DESC
         ", [$enccode]);
+    }
+
+    public function initiateWalkIn()
+    {
+        if (!$this->selector_selected_hpercode) {
+            $this->error('Please select a patient first.');
+            return;
+        }
+
+        // Check for existing walk-in encounter
+        $existingWalkIn = EncounterLog::where('encstat', 'W')
+            ->where('toecode', 'WALKN')
+            ->where('hpercode', $this->selector_selected_hpercode)
+            ->latest('encdate')
+            ->first();
+
+        if ($existingWalkIn) {
+            $this->navigateToEncounter($existingWalkIn->enccode);
+            return;
+        }
+
+        // Create new walk-in encounter
+        $newEnccode = '0000040' . $this->selector_selected_hpercode . date('mdYHis');
+
+        $newEncounter = EncounterLog::create([
+            'enccode' => $newEnccode,
+            'fhud' => '0000040',
+            'hpercode' => $this->selector_selected_hpercode,
+            'encdate' => now(),
+            'enctime' => now(),
+            'toecode' => 'WALKN',
+            'sopcode1' => 'SELPA',
+            'encstat' => 'W',
+            'confdl' => 'N',
+        ]);
+
+        $this->success('Walk-in encounter created successfully.');
+        $this->navigateToEncounter($newEncounter->enccode);
     }
 
     public function navigateToEncounter($enccode)
