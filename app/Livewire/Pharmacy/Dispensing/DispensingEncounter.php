@@ -505,7 +505,15 @@ class DispensingEncounter extends Component
             }
 
             $this->showAddItemModal = false;
-            $this->resetExcept('code', 'generic', 'rx_dmdcomb', 'rx_dmdctr', 'rx_id', 'empid', 'stocks', 'enccode', 'location_id', 'encounter', 'charges', 'hpercode', 'toecode', 'selected_items', 'patient', 'active_prescription', 'adm', 'wardname', 'rmname', 'mss', 'summaries', 'charge_code_filter', 'stocksDisplayCount');
+            $this->resetExcept(
+                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
+                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
+                'location_id', 'hasEncounter', 'encounter', 'charges',
+                'generic', 'rx_dmdcomb', 'rx_dmdctr', 'rx_id', 'empid',
+                'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
+                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
+                'adm', 'summaries',
+            );
             $this->success('Item added.');
         } else {
             $this->error('Insufficient stock!');
@@ -581,7 +589,14 @@ class DispensingEncounter extends Component
                 ->update(['stat' => 'I']);
 
             $this->showPrescribedItemModal = false;
-            $this->resetExcept('generic', 'stocks', 'enccode', 'location_id', 'encounter', 'charges', 'hpercode', 'toecode', 'selected_items', 'patient', 'active_prescription', 'adm', 'wardname', 'rmname', 'summaries', 'charge_code_filter', 'stocksDisplayCount');
+            $this->resetExcept(
+                'code', 'enccode', 'encdate', 'hpercode', 'toecode', 'mssikey',
+                'patlast', 'patfirst', 'patmiddle', 'diagtext', 'wardname', 'rmname', 'billstat',
+                'location_id', 'hasEncounter', 'encounter', 'charges',
+                'generic', 'stocks', 'selected_items', 'patient', 'charge_code_filter', 'stocksDisplayCount',
+                'active_prescription', 'active_prescription_all', 'extra_prescriptions', 'extra_prescriptions_all',
+                'adm', 'summaries',
+            );
             $this->success('Item added.');
         } else {
             $this->error('Insufficient stock!');
