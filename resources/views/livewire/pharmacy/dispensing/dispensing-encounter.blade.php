@@ -357,41 +357,26 @@
 
                         @if ($billstat != '02' && $billstat != '03')
                             <div class="flex gap-2">
-                                <x-mary-button label="Prescriptions" icon="o-clipboard-document-list"
-                                    class="btn-sm btn-outline" wire:click="$set('showPrescriptionListModal', true)"
-                                    tooltip-bottom="View All Prescriptions (F4)" />
-                                <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                                    wire:click="$set('showSummaryModal', true)"
-                                    tooltip-bottom="Summary of Issued Drugs (F5)" />
-                                <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                                    class="btn btn-sm btn-outline tooltip tooltip-bottom"
-                                    data-tip="View Issued with Return (F6)">
-                                    <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
-                                </a>
+                                <x-mary-button label="Select All Pending" icon="o-check-circle"
+                                    class="btn-sm btn-ghost" x-on:click="selectAllPending()"
+                                    tooltip-bottom="Select All Pending (Ctrl+A)" />
+                                <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
+                                    x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
+
+                                <div class="border-l border-base-300 h-6 mx-1"></div>
+
+                                <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
+                                    wire:click="delete_item"
+                                    wire:confirm="Delete selected pending items? This cannot be undone."
+                                    tooltip-bottom="Delete Selected (Del)" />
+                                <x-mary-button label="Charge" icon="o-credit-card"
+                                    class="btn-sm btn-info btn-outline" wire:click="charge_items"
+                                    tooltip-bottom="Charge Selected (Ctrl+C)" />
+                                <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
+                                    wire:click="$wire.$set('showIssueModal', true)"
+                                    tooltip-bottom="Issue Charged Items (Ctrl+I)" />
                             </div>
-
-                            @if ($billstat != '02' && $billstat != '03')
-                                <div class="flex gap-2">
-                                    <x-mary-button label="Select All Pending" icon="o-check-circle"
-                                        class="btn-sm btn-ghost" x-on:click="selectAllPending()"
-                                        tooltip-bottom="Select All Pending (Ctrl+A)" />
-                                    <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                                        x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
-
-                                    <div class="border-l border-base-300 h-6 mx-1"></div>
-
-                                    <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
-                                        wire:click="delete_item"
-                                        wire:confirm="Delete selected pending items? This cannot be undone."
-                                        tooltip-bottom="Delete Selected (Del)" />
-                                    <x-mary-button label="Charge" icon="o-credit-card"
-                                        class="btn-sm btn-info btn-outline" wire:click="charge_items"
-                                        tooltip-bottom="Charge Selected (Ctrl+C)" />
-                                    <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                        wire:click="$wire.$set('showIssueModal', true)"
-                                        tooltip-bottom="Issue Charged Items (Ctrl+I)" />
-                                </div>
-                            @endif
+                        @endif
                     </div>
                 </div>
                 <div class="flex-1 overflow-y-auto">
@@ -706,65 +691,22 @@
                         </div>
                     </div>
                 </div>
-            @endif
 
-            {{-- Add Stock Item Modal --}}
-            <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
-                <div class="space-y-4">
-                    <div class="text-sm font-medium text-base-content/70">
-                        Selected stock item
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
-                            class="input-lg text-4xl text-center font-bold" autofocus />
-                        <div class="space-y-2">
-                            <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01" />
-                            <div class="text-sm text-right">
-                                Total: <strong>{{ number_format(($order_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
-                            </div>
+                {{-- Add Stock Item Modal --}}
+                <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <div class="text-sm font-medium text-base-content/70">
+                            Selected stock item
                         </div>
-                    </div>
-                    <div>
-                        <label class="label"><span class="label-text">Remarks</span></label>
-                        <textarea wire:model="remarks" class="w-full textarea textarea-bordered" rows="2"
-                            placeholder="Optional remarks..."></textarea>
-                    </div>
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showAddItemModal = false" />
-                    <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_item" spinner />
-                </x-slot:actions>
-            </x-mary-modal>
-
-            {{-- Add Prescribed Item Modal (OPD/WALKN) --}}
-            <x-mary-modal wire:model="showPrescribedItemModal" title="Add Prescribed Item" class="backdrop-blur">
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 gap-4">
-                        <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
-                            class="input-lg text-4xl text-center font-bold" autofocus />
-                        <div>
-                            <label class="label"><span class="label-text">Fund Source</span></label>
-                            @if (count($rx_available_charges) > 0)
-                                <div class="space-y-1">
-                                    @foreach ($rx_available_charges as $avail)
-                                        <label
-                                            class="flex items-center justify-between p-2 rounded-lg border cursor-pointer hover:bg-base-200 transition-colors {{ $rx_charge_code === $avail->chrgcode ? 'border-primary bg-primary/5' : 'border-base-300' }}">
-                                            <div class="flex items-center gap-2">
-                                                <input type="radio" name="rx_charge_code"
-                                                    class="radio radio-sm radio-primary" wire:model="rx_charge_code"
-                                                    value="{{ $avail->chrgcode }}" />
-                                                <span class="text-sm">{{ $avail->chrgdesc }}</span>
-                                            </div>
-                                            <span
-                                                class="badge badge-sm badge-ghost font-semibold">{{ number_format($avail->stock_bal, 0) }}</span>
-                                        </label>
-                                    @endforeach
+                        <div class="grid grid-cols-2 gap-4">
+                            <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
+                                class="input-lg text-4xl text-center font-bold" autofocus />
+                            <div class="space-y-2">
+                                <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01" />
+                                <div class="text-sm text-right">
+                                    Total: <strong>{{ number_format(($order_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
                                 </div>
-                            @else
-                                <div class="p-3 rounded-lg bg-warning/10 text-sm text-warning">
-                                    No stock available for this item in any fund source.
-                                </div>
-                            @endif
+                            </div>
                         </div>
                         <div>
                             <label class="label"><span class="label-text">Remarks</span></label>
@@ -772,306 +714,354 @@
                                 placeholder="Optional remarks..."></textarea>
                         </div>
                     </div>
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showPrescribedItemModal = false" />
-                    <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_prescribed_item"
-                        spinner />
-                </x-slot:actions>
-            </x-mary-modal>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showAddItemModal = false" />
+                        <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_item" spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
 
-            {{-- Update Qty Modal --}}
-            <x-mary-modal wire:model="showUpdateQtyModal" title="Update Order Quantity" class="backdrop-blur">
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
-                            class="input-lg text-4xl text-center font-bold" autofocus />
-                        <div class="space-y-2">
-                            <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01"
-                                readonly />
-                            <div class="text-sm text-right">
-                                Total: <strong>{{ number_format(($order_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showUpdateQtyModal = false" />
-                    <x-mary-button label="Update" icon="o-check" class="btn-primary" wire:click="update_qty" spinner />
-                </x-slot:actions>
-            </x-mary-modal>
-
-            {{-- Return Issued Modal --}}
-            <x-mary-modal wire:model="showReturnModal" title="Return Issued Item" class="backdrop-blur">
-                <div class="space-y-4">
-                    <x-mary-input label="Return Quantity" wire:model="return_qty" type="number" min="1"
-                        class="input-lg text-center font-bold" autofocus />
-                    <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01" readonly />
-                    <div class="text-sm text-right">
-                        Total Return: <strong
-                            class="text-error">{{ number_format(($return_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
-                    </div>
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showReturnModal = false" />
-                    <x-mary-button label="Return Item" icon="o-arrow-uturn-left" class="btn-error"
-                        wire:click="return_issued('{{ $docointkey }}')" spinner />
-                </x-slot:actions>
-            </x-mary-modal>
-
-            {{-- Deactivate Prescription Modal --}}
-            <x-mary-modal wire:model="showDeactivateRxModal" title="Deactivate Prescription" class="backdrop-blur">
-                <div class="space-y-4">
-                    <div class="p-3 rounded-lg bg-warning/10">
-                        <p class="text-sm">This will mark the prescription as inactive. Please provide a reason.</p>
-                    </div>
-                    <x-mary-input label="Reason / Remarks" wire:model="adttl_remarks" placeholder="Enter reason..." />
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showDeactivateRxModal = false" />
-                    <x-mary-button label="Deactivate" icon="o-x-mark" class="btn-error" wire:click="deactivate_rx"
-                        spinner />
-                </x-slot:actions>
-            </x-mary-modal>
-
-            {{-- Issue Confirmation Modal --}}
-            <x-mary-modal wire:model="showIssueModal" title="Issue Selected Items" class="backdrop-blur">
-                <div class="space-y-4">
-                    <div class="p-3 rounded-lg bg-info/10">
-                        <p class="text-sm">Issue all charged items to the patient.</p>
-                    </div>
-
-                    @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
-                        {{-- Admitted patient: Basic/Non-Basic toggle --}}
-                        <div class="form-control">
-                            <label class="label font-bold"><span class="label-text">TAG</span></label>
-                            <label class="flex items-center gap-3 cursor-pointer">
-                                <span class="label-text">Basic (Service)</span>
-                                <input type="checkbox" wire:model="bnb" class="toggle toggle-success" />
-                                <span class="label-text">NON-Basic (Pay)</span>
-                            </label>
-                        </div>
-                    @else
-                        {{-- OPD/ER/WALKN: Tag selection --}}
-                        <div class="space-y-3">
-                            <label class="label font-bold"><span class="label-text">TAG</span></label>
-                            <div class="grid grid-cols-3 gap-2">
-                                @foreach (['pay' => 'Pay', 'ems' => 'EMS', 'konsulta' => 'Konsulta', 'wholesale' => 'Wholesale', 'caf' => 'CAF', 'maip' => 'MAIP', 'is_ris' => 'RIS', 'pcso' => 'PCSO', 'phic' => 'PHIC'] as $key => $label)
-                                    <label
-                                        class="flex items-center gap-2 p-2 rounded-lg border border-base-300 cursor-pointer hover:bg-base-200 transition-colors"
-                                        :class="{ 'border-primary bg-primary/5': $wire.{{ $key }} }">
-                                        <input type="radio" name="issue_tag" class="radio radio-sm radio-primary"
-                                            wire:click="selectIssueTag('{{ $key }}')"
-                                            @checked($$key ?? false) />
-                                        <span class="text-sm">{{ $label }}</span>
-                                    </label>
-                                @endforeach
-                            </div>
-
-                            @if ($toecode != 'ER')
-                                <div>
-                                    <label class="label font-bold"><span class="label-text">Department</span></label>
-                                    <select wire:model="deptcode" class="w-full select select-bordered">
-                                        <option value="">Select department...</option>
-                                        @foreach ($departments as $dept)
-                                            <option value="{{ $dept->deptcode }}">{{ $dept->deptname }}</option>
+                {{-- Add Prescribed Item Modal (OPD/WALKN) --}}
+                <x-mary-modal wire:model="showPrescribedItemModal" title="Add Prescribed Item" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 gap-4">
+                            <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
+                                class="input-lg text-4xl text-center font-bold" autofocus />
+                            <div>
+                                <label class="label"><span class="label-text">Fund Source</span></label>
+                                @if (count($rx_available_charges) > 0)
+                                    <div class="space-y-1">
+                                        @foreach ($rx_available_charges as $avail)
+                                            <label
+                                                class="flex items-center justify-between p-2 rounded-lg border cursor-pointer hover:bg-base-200 transition-colors {{ $rx_charge_code === $avail->chrgcode ? 'border-primary bg-primary/5' : 'border-base-300' }}">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="radio" name="rx_charge_code"
+                                                        class="radio radio-sm radio-primary" wire:model="rx_charge_code"
+                                                        value="{{ $avail->chrgcode }}" />
+                                                    <span class="text-sm">{{ $avail->chrgdesc }}</span>
+                                                </div>
+                                                <span
+                                                    class="badge badge-sm badge-ghost font-semibold">{{ number_format($avail->stock_bal, 0) }}</span>
+                                            </label>
                                         @endforeach
-                                    </select>
-                                </div>
-                            @endif
+                                    </div>
+                                @else
+                                    <div class="p-3 rounded-lg bg-warning/10 text-sm text-warning">
+                                        No stock available for this item in any fund source.
+                                    </div>
+                                @endif
+                            </div>
+                            <div>
+                                <label class="label"><span class="label-text">Remarks</span></label>
+                                <textarea wire:model="remarks" class="w-full textarea textarea-bordered" rows="2"
+                                    placeholder="Optional remarks..."></textarea>
+                            </div>
                         </div>
-                    @endif
-                </div>
-                <x-slot:actions>
-                    <x-mary-button label="Cancel" @click="$wire.showIssueModal = false" />
-                    <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success"
-                        wire:click="issue_order" spinner />
-                </x-slot:actions>
-            </x-mary-modal>
+                    </div>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showPrescribedItemModal = false" />
+                        <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_prescribed_item"
+                            spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
 
-            {{-- Summary Modal --}}
-            <x-mary-modal wire:model="showSummaryModal" title="Summary of Issued Drugs and Meds" class="backdrop-blur"
-                box-class="max-w-3xl">
-                <table class="table table-xs">
-                    <thead>
-                        <tr class="bg-base-200">
-                            <th>Item Description</th>
-                            <th class="text-right">Qty Issued</th>
-                            <th>Time of Last Issuance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($summaries as $sum)
-                            <tr class="hover">
-                                <td class="text-xs">{{ $sum->drug_concat }}</td>
-                                <td class="text-xs text-right font-semibold">{{ $sum->qty_issued }}</td>
-                                <td class="text-xs">{{ $sum->last_issue }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="text-center py-4 text-base-content/50">No issued items</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-                <x-slot:actions>
-                    <x-mary-button label="Close" @click="$wire.showSummaryModal = false" />
-                </x-slot:actions>
-            </x-mary-modal>
+                {{-- Update Qty Modal --}}
+                <x-mary-modal wire:model="showUpdateQtyModal" title="Update Order Quantity" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
+                                class="input-lg text-4xl text-center font-bold" autofocus />
+                            <div class="space-y-2">
+                                <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01"
+                                    readonly />
+                                <div class="text-sm text-right">
+                                    Total: <strong>{{ number_format(($order_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showUpdateQtyModal = false" />
+                        <x-mary-button label="Update" icon="o-check" class="btn-primary" wire:click="update_qty" spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
 
-            {{-- Prescription List Modal (All including inactive) --}}
-            <x-mary-modal wire:model="showPrescriptionListModal" title="All Prescriptions" class="backdrop-blur"
-                box-class="max-w-4xl">
-                <table class="table table-xs">
-                    <thead>
-                        <tr class="bg-base-200">
-                            <th>Date</th>
-                            <th>Drug / Medicine</th>
-                            <th class="text-center">Type</th>
-                            <th>Remark</th>
-                            <th>Physician</th>
-                            <th class="text-center">Status</th>
-                            <th class="w-10"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($active_prescription_all as $presc_all)
-                            @forelse ($presc_all->data ?? [] as $presc_all_data)
-                                <tr class="hover" wire:key="rx-all-{{ $presc_all_data->id }}">
-                                    <td class="text-xs">
-                                        {{ date('Y-m-d', strtotime($presc_all_data->updated_at)) }}
-                                        {{ date('h:i A', strtotime($presc_all_data->updated_at)) }}
-                                    </td>
-                                    <td class="text-xs cursor-pointer"
-                                        @if ($presc_all_data->stat == 'A') @if ($toecode == 'OPD' || $toecode == 'WALKN')
+                {{-- Return Issued Modal --}}
+                <x-mary-modal wire:model="showReturnModal" title="Return Issued Item" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <x-mary-input label="Return Quantity" wire:model="return_qty" type="number" min="1"
+                            class="input-lg text-center font-bold" autofocus />
+                        <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01" readonly />
+                        <div class="text-sm text-right">
+                            Total Return: <strong
+                                class="text-error">{{ number_format(($return_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
+                        </div>
+                    </div>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showReturnModal = false" />
+                        <x-mary-button label="Return Item" icon="o-arrow-uturn-left" class="btn-error"
+                            wire:click="return_issued('{{ $docointkey }}')" spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
+
+                {{-- Deactivate Prescription Modal --}}
+                <x-mary-modal wire:model="showDeactivateRxModal" title="Deactivate Prescription" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <div class="p-3 rounded-lg bg-warning/10">
+                            <p class="text-sm">This will mark the prescription as inactive. Please provide a reason.</p>
+                        </div>
+                        <x-mary-input label="Reason / Remarks" wire:model="adttl_remarks" placeholder="Enter reason..." />
+                    </div>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showDeactivateRxModal = false" />
+                        <x-mary-button label="Deactivate" icon="o-x-mark" class="btn-error" wire:click="deactivate_rx"
+                            spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
+
+                {{-- Issue Confirmation Modal --}}
+                <x-mary-modal wire:model="showIssueModal" title="Issue Selected Items" class="backdrop-blur">
+                    <div class="space-y-4">
+                        <div class="p-3 rounded-lg bg-info/10">
+                            <p class="text-sm">Issue all charged items to the patient.</p>
+                        </div>
+
+                        @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
+                            {{-- Admitted patient: Basic/Non-Basic toggle --}}
+                            <div class="form-control">
+                                <label class="label font-bold"><span class="label-text">TAG</span></label>
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <span class="label-text">Basic (Service)</span>
+                                    <input type="checkbox" wire:model="bnb" class="toggle toggle-success" />
+                                    <span class="label-text">NON-Basic (Pay)</span>
+                                </label>
+                            </div>
+                        @else
+                            {{-- OPD/ER/WALKN: Tag selection --}}
+                            <div class="space-y-3">
+                                <label class="label font-bold"><span class="label-text">TAG</span></label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    @foreach (['pay' => 'Pay', 'ems' => 'EMS', 'konsulta' => 'Konsulta', 'wholesale' => 'Wholesale', 'caf' => 'CAF', 'maip' => 'MAIP', 'is_ris' => 'RIS', 'pcso' => 'PCSO', 'phic' => 'PHIC'] as $key => $label)
+                                        <label
+                                            class="flex items-center gap-2 p-2 rounded-lg border border-base-300 cursor-pointer hover:bg-base-200 transition-colors"
+                                            :class="{ 'border-primary bg-primary/5': $wire.{{ $key }} }">
+                                            <input type="radio" name="issue_tag" class="radio radio-sm radio-primary"
+                                                wire:click="selectIssueTag('{{ $key }}')"
+                                                @checked($$key ?? false) />
+                                            <span class="text-sm">{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+
+                                @if ($toecode != 'ER')
+                                    <div>
+                                        <label class="label font-bold"><span class="label-text">Department</span></label>
+                                        <select wire:model="deptcode" class="w-full select select-bordered">
+                                            <option value="">Select department...</option>
+                                            @foreach ($departments as $dept)
+                                                <option value="{{ $dept->deptcode }}">{{ $dept->deptname }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                    <x-slot:actions>
+                        <x-mary-button label="Cancel" @click="$wire.showIssueModal = false" />
+                        <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success"
+                            wire:click="issue_order" spinner />
+                    </x-slot:actions>
+                </x-mary-modal>
+
+                {{-- Summary Modal --}}
+                <x-mary-modal wire:model="showSummaryModal" title="Summary of Issued Drugs and Meds" class="backdrop-blur"
+                    box-class="max-w-3xl">
+                    <table class="table table-xs">
+                        <thead>
+                            <tr class="bg-base-200">
+                                <th>Item Description</th>
+                                <th class="text-right">Qty Issued</th>
+                                <th>Time of Last Issuance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($summaries as $sum)
+                                <tr class="hover">
+                                    <td class="text-xs">{{ $sum->drug_concat }}</td>
+                                    <td class="text-xs text-right font-semibold">{{ $sum->qty_issued }}</td>
+                                    <td class="text-xs">{{ $sum->last_issue }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-base-content/50">No issued items</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                    <x-slot:actions>
+                        <x-mary-button label="Close" @click="$wire.showSummaryModal = false" />
+                    </x-slot:actions>
+                </x-mary-modal>
+
+                {{-- Prescription List Modal (All including inactive) --}}
+                <x-mary-modal wire:model="showPrescriptionListModal" title="All Prescriptions" class="backdrop-blur"
+                    box-class="max-w-4xl">
+                    <table class="table table-xs">
+                        <thead>
+                            <tr class="bg-base-200">
+                                <th>Date</th>
+                                <th>Drug / Medicine</th>
+                                <th class="text-center">Type</th>
+                                <th>Remark</th>
+                                <th>Physician</th>
+                                <th class="text-center">Status</th>
+                                <th class="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($active_prescription_all as $presc_all)
+                                @forelse ($presc_all->data ?? [] as $presc_all_data)
+                                    <tr class="hover" wire:key="rx-all-{{ $presc_all_data->id }}">
+                                        <td class="text-xs">
+                                            {{ date('Y-m-d', strtotime($presc_all_data->updated_at)) }}
+                                            {{ date('h:i A', strtotime($presc_all_data->updated_at)) }}
+                                        </td>
+                                        <td class="text-xs cursor-pointer"
+                                            @if ($presc_all_data->stat == 'A') @if ($toecode == 'OPD' || $toecode == 'WALKN')
                                             wire:click="openPrescribedItemFromAll({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}','{{ $presc_all_data->qty }}')"
                                          @else
                                             wire:click="searchGenericFromAll({{ $presc_all_data->id }},'{{ explode(',', $presc_all_data->dm->drug_concat())[0] }}','{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')" @endif
-                                        @endif>
-                                        {{ $presc_all_data->dm->drug_concat() }}
-                                    </td>
-                                    <td class="text-xs text-center">
-                                        @switch(strtoupper($presc_all_data->order_type ?? ''))
-                                            @case('G24')
-                                                <span class="badge badge-xs badge-error">G24 ({{ $presc_all_data->qty }})</span>
-                                            @break
+                                            @endif>
+                                            {{ $presc_all_data->dm->drug_concat() }}
+                                        </td>
+                                        <td class="text-xs text-center">
+                                            @switch(strtoupper($presc_all_data->order_type ?? ''))
+                                                @case('G24')
+                                                    <span class="badge badge-xs badge-error">G24 ({{ $presc_all_data->qty }})</span>
+                                                @break
 
-                                            @case('OR')
-                                                <span class="badge badge-xs badge-secondary">OR ({{ $presc_all_data->qty }})</span>
-                                            @break
+                                                @case('OR')
+                                                    <span class="badge badge-xs badge-secondary">OR
+                                                        ({{ $presc_all_data->qty }})
+                                                    </span>
+                                                @break
 
-                                            @default
-                                                <span class="badge badge-xs badge-accent">{{ $presc_all_data->qty }}</span>
-                                        @endswitch
-                                    </td>
-                                    <td class="text-xs">{{ $presc_all_data->remark }}</td>
-                                    <td class="text-xs">
-                                        {{ $presc_all_data->employee ? $presc_all_data->employee->fullname : '' }}</td>
-                                    <td class="text-xs text-center">
-                                        @if ($presc_all_data->stat == 'A')
-                                            <span class="badge badge-xs badge-primary">A</span>
-                                        @else
-                                            <span class="badge badge-xs badge-error">{{ $presc_all_data->stat }}</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if ($presc_all_data->stat == 'A')
-                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
-                                                data-tip="Deactivate"
-                                                wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
-                                                <x-heroicon-o-x-mark class="w-3 h-3" />
-                                            </button>
-                                        @else
-                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
-                                                data-tip="Reactivate" wire:click="reactivate_rx({{ $presc_all_data->id }})">
-                                                <x-heroicon-o-check class="w-3 h-3" />
-                                            </button>
-                                        @endif
-                                    </td>
+                                                @default
+                                                    <span class="badge badge-xs badge-accent">{{ $presc_all_data->qty }}</span>
+                                            @endswitch
+                                        </td>
+                                        <td class="text-xs">{{ $presc_all_data->remark }}</td>
+                                        <td class="text-xs">
+                                            {{ $presc_all_data->employee ? $presc_all_data->employee->fullname : '' }}</td>
+                                        <td class="text-xs text-center">
+                                            @if ($presc_all_data->stat == 'A')
+                                                <span class="badge badge-xs badge-primary">A</span>
+                                            @else
+                                                <span class="badge badge-xs badge-error">{{ $presc_all_data->stat }}</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($presc_all_data->stat == 'A')
+                                                <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
+                                                    data-tip="Deactivate"
+                                                    wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
+                                                    <x-heroicon-o-x-mark class="w-3 h-3" />
+                                                </button>
+                                            @else
+                                                <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
+                                                    data-tip="Reactivate"
+                                                    wire:click="reactivate_rx({{ $presc_all_data->id }})">
+                                                    <x-heroicon-o-check class="w-3 h-3" />
+                                                </button>
+                                            @endif
+                                        </td>
 
-                                </tr>
-                                @empty
-                                @endforelse
-                                @empty
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4 text-base-content/50">No prescriptions found</td>
                                     </tr>
-                                @endforelse
+                                    @empty
+                                    @endforelse
+                                    @empty
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4 text-base-content/50">No prescriptions found
+                                            </td>
+                                        </tr>
+                                    @endforelse
 
-                                {{-- Extra prescriptions from previous encounter --}}
-                                @if (count($extra_prescriptions_all) > 0)
-                                    <tr>
-                                        <td colspan="7" class="font-semibold bg-base-200">Previous Encounter</td>
-                                    </tr>
-                                    @foreach ($extra_prescriptions_all as $extra_all)
-                                        @forelse ($extra_all->data ?? [] as $extra_all_data)
-                                            <tr class="hover opacity-75" wire:key="rx-extra-all-{{ $extra_all_data->id }}">
-                                                <td class="text-xs">
-                                                    {{ date('Y-m-d h:i A', strtotime($extra_all_data->updated_at)) }}
-                                                </td>
-                                                <td class="text-xs cursor-pointer"
-                                                    @if ($extra_all_data->stat == 'A') wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
+                                    {{-- Extra prescriptions from previous encounter --}}
+                                    @if (count($extra_prescriptions_all) > 0)
+                                        <tr>
+                                            <td colspan="7" class="font-semibold bg-base-200">Previous Encounter</td>
+                                        </tr>
+                                        @foreach ($extra_prescriptions_all as $extra_all)
+                                            @forelse ($extra_all->data ?? [] as $extra_all_data)
+                                                <tr class="hover opacity-75" wire:key="rx-extra-all-{{ $extra_all_data->id }}">
+                                                    <td class="text-xs">
+                                                        {{ date('Y-m-d h:i A', strtotime($extra_all_data->updated_at)) }}
+                                                    </td>
+                                                    <td class="text-xs cursor-pointer"
+                                                        @if ($extra_all_data->stat == 'A') wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
                                             $wire.$set('generic', '{{ explode(',', $extra_all_data->dm->drug_concat())[0] }}');
                                             $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
                                             $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
                                             $wire.$set('empid', '{{ $extra_all->empid }}')" @endif>
-                                                    {{ $extra_all_data->dm->drug_concat() }}
-                                                </td>
-                                                <td class="text-xs text-center">
-                                                    @switch(strtoupper($extra_all_data->order_type ?? ''))
-                                                        @case('G24')
-                                                            <span class="badge badge-xs badge-error">G24 ({{ $extra_all_data->qty }})</span>
-                                                        @break
+                                                        {{ $extra_all_data->dm->drug_concat() }}
+                                                    </td>
+                                                    <td class="text-xs text-center">
+                                                        @switch(strtoupper($extra_all_data->order_type ?? ''))
+                                                            @case('G24')
+                                                                <span class="badge badge-xs badge-error">G24
+                                                                    ({{ $extra_all_data->qty }})
+                                                                </span>
+                                                            @break
 
-                                                        @case('OR')
-                                                            <span class="badge badge-xs badge-secondary">OR
-                                                                ({{ $extra_all_data->qty }})
-                                                            </span>
-                                                        @break
+                                                            @case('OR')
+                                                                <span class="badge badge-xs badge-secondary">OR
+                                                                    ({{ $extra_all_data->qty }})
+                                                                </span>
+                                                            @break
 
-                                                        @default
-                                                            <span class="badge badge-xs badge-accent">{{ $extra_all_data->qty }}</span>
-                                                    @endswitch
-                                                </td>
-                                                <td class="text-xs">{{ $extra_all_data->remark }}</td>
-                                                <td class="text-xs">
-                                                    {{ $extra_all->employee ? $extra_all->employee->fullname : '' }}</td>
-                                                <td class="text-xs text-center">
-                                                    <span
-                                                        class="badge badge-xs {{ $extra_all_data->stat == 'A' ? 'badge-primary' : 'badge-error' }}">
-                                                        {{ $extra_all_data->stat }}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    @if ($extra_all_data->stat == 'A')
-                                                        <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
-                                                            data-tip="Deactivate"
-                                                            wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
+                                                            @default
+                                                                <span class="badge badge-xs badge-accent">{{ $extra_all_data->qty }}</span>
+                                                        @endswitch
+                                                    </td>
+                                                    <td class="text-xs">{{ $extra_all_data->remark }}</td>
+                                                    <td class="text-xs">
+                                                        {{ $extra_all->employee ? $extra_all->employee->fullname : '' }}</td>
+                                                    <td class="text-xs text-center">
+                                                        <span
+                                                            class="badge badge-xs {{ $extra_all_data->stat == 'A' ? 'badge-primary' : 'badge-error' }}">
+                                                            {{ $extra_all_data->stat }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        @if ($extra_all_data->stat == 'A')
+                                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
+                                                                data-tip="Deactivate"
+                                                                wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
                                                 $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
                                                 $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
                                                 $wire.$set('empid', '{{ $extra_all->empid }}');
                                                 $wire.$set('showDeactivateRxModal', true)">
-                                                            <x-heroicon-o-x-mark class="w-3 h-3" />
-                                                        </button>
-                                                    @else
-                                                        <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
-                                                            data-tip="Reactivate"
-                                                            wire:click="reactivate_rx({{ $extra_all_data->id }})">
-                                                            <x-heroicon-o-check class="w-3 h-3" />
-                                                        </button>
-                                                    @endif
-                                                </td>
-                                            </tr>
-                                            @empty
-                                            @endforelse
-                                        @endforeach
-                                    @endif
-                                </tbody>
-                            </table>
-                            <x-slot:actions>
-                                <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
-                            </x-slot:actions>
-                        </x-mary-modal>
+                                                                <x-heroicon-o-x-mark class="w-3 h-3" />
+                                                            </button>
+                                                        @else
+                                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
+                                                                data-tip="Reactivate"
+                                                                wire:click="reactivate_rx({{ $extra_all_data->id }})">
+                                                                <x-heroicon-o-check class="w-3 h-3" />
+                                                            </button>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                                @empty
+                                                @endforelse
+                                            @endforeach
+                                        @endif
+                                    </tbody>
+                                </table>
+                                <x-slot:actions>
+                                    <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
+                                </x-slot:actions>
+                            </x-mary-modal>
                         @endif {{-- End: @if (!$hasEncounter) --}}
 
                         {{-- Encounter / Prescription Selector Modal --}}
