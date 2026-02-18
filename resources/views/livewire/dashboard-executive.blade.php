@@ -3,9 +3,26 @@
     <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-bold">Executive Dashboard</h1>
-            <p class="text-sm opacity-60">Pharmacy operations overview</p>
+            <p class="text-sm opacity-60">
+                Pharmacy operations overview
+                @if ($location_id !== 'all')
+                    @php $selectedLoc = collect($location_options)->firstWhere('id', $location_id); @endphp
+                    @if ($selectedLoc)
+                        &mdash; <span class="font-medium">{{ $selectedLoc['description'] }}</span>
+                    @endif
+                @endif
+            </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            {{-- Location Filter --}}
+            <select class="select select-sm select-bordered" wire:model.live="location_id">
+                <option value="all">All Locations</option>
+                @foreach ($location_options as $loc)
+                    <option value="{{ $loc['id'] }}">{{ $loc['description'] }}</option>
+                @endforeach
+            </select>
+
+            {{-- Date Range Filter --}}
             <select class="select select-sm select-bordered" wire:model.live="date_range">
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>

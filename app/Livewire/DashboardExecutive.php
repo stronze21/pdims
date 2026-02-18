@@ -17,6 +17,7 @@ class DashboardExecutive extends Component
     public string $date_range = 'today';
     public string $custom_date_from = '';
     public string $custom_date_to = '';
+    public string $location_id = 'all';
 
     // Stats
     public int $near_expiry_count = 0;
@@ -49,6 +50,7 @@ class DashboardExecutive extends Component
     // Data collections
     public array $top_drugs = [];
     public array $locations = [];
+    public array $location_options = [];
     public array $expiring_soon = [];
     public array $dispensing_by_type = [];
     public array $daily_dispensing_chart = [];
@@ -60,6 +62,12 @@ class DashboardExecutive extends Component
         $this->custom_date_from = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->custom_date_to = Carbon::now()->format('Y-m-d');
 
+        $this->loadLocationOptions();
+        $this->loadDashboardData();
+    }
+
+    public function updatedLocationId()
+    {
         $this->loadDashboardData();
     }
 
@@ -104,6 +112,19 @@ class DashboardExecutive extends Component
         $this->buildStockStatusChart();
     }
 
+    private function loadLocationOptions()
+    {
+        $this->location_options = PharmLocation::orderBy('description')
+            ->get()
+            ->map(fn ($loc) => ['id' => (string) $loc->id, 'description' => $loc->description])
+            ->toArray();
+    }
+
+    private function isFiltered(): bool
+    {
+        return $this->location_id !== 'all';
+    }
+
     private function getDateRange(): array
     {
         return match ($this->date_range) {
@@ -146,16 +167,29 @@ class DashboardExecutive extends Component
     {
         $sixMonthsFromNow = Carbon::now()->addMonths(6)->format('Y-m-d');
 
-        $this->near_expiry_count = DrugStock::where('exp_date', '<', $sixMonthsFromNow)
+        $nearExpiryQuery = DrugStock::where('exp_date', '<', $sixMonthsFromNow)
             ->where('exp_date', '>', now())
-            ->where('stock_bal', '>', 0)
-            ->count();
+            ->where('stock_bal', '>', 0);
+        if ($this->isFiltered()) {
+            $nearExpiryQuery->where('loc_code', $this->location_id);
+        }
+        $this->near_expiry_count = $nearExpiryQuery->count();
 
-        $this->expired_count = DrugStock::where('exp_date', '<=', now())
-            ->where('stock_bal', '>', 0)
-            ->count();
+        $expiredQuery = DrugStock::where('exp_date', '<=', now())
+            ->where('stock_bal', '>', 0);
+        if ($this->isFiltered()) {
+            $expiredQuery->where('loc_code', $this->location_id);
+        }
+        $this->expired_count = $expiredQuery->count();
 
-        $this->total_stock_items = DrugStock::where('stock_bal', '>', 0)->count();
+        $totalQuery = DrugStock::where('stock_bal', '>', 0);
+        if ($this->isFiltered()) {
+            $totalQuery->where('loc_code', $this->location_id);
+        }
+        $this->total_stock_items = $totalQuery->count();
+
+        $locFilter = $this->isFiltered() ? "AND pds.loc_code = ?" : "";
+        $locParam = $this->isFiltered() ? [$this->location_id] : [];
 
         // Critical stock - items at or below reorder level
         $this->critical_stock_count = count(DB::connection('hospital')->select("
@@ -171,8 +205,9 @@ class DashboardExecutive extends Component
                     AND level.reorder_point >= pds.stock_bal
             )
             AND pds.stock_bal > 0
+            {$locFilter}
             GROUP BY pds.drug_concat, pds.dmdcomb, pds.dmdctr
-        "));
+        ", $locParam));
 
         // Near reorder level - approaching reorder point
         $this->near_reorder_count = count(DB::connection('hospital')->select("
@@ -189,8 +224,9 @@ class DashboardExecutive extends Component
                     AND level.reorder_point < (pds.stock_bal - (pds.stock_bal * 0.3))
             )
             AND pds.stock_bal > 0
+            {$locFilter}
             GROUP BY pds.drug_concat, pds.dmdcomb, pds.dmdctr
-        "));
+        ", $locParam));
     }
 
     private function loadDispensingStats($dateFrom, $dateTo)
@@ -198,31 +234,26 @@ class DashboardExecutive extends Component
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
-        // Pending orders (estatus = 'U' with no charge code)
-        $this->pending_orders = DrugOrder::whereBetween('dodate', [$from, $to])
-            ->where('estatus', 'U')
-            ->count();
+        $baseQuery = fn () => DrugOrder::whereBetween('dodate', [$from, $to])
+            ->when($this->isFiltered(), fn ($q) => $q->where('loc_code', $this->location_id));
 
-        // Charged orders (estatus = 'P')
-        $this->charged_orders = DrugOrder::whereBetween('dodate', [$from, $to])
-            ->where('estatus', 'P')
-            ->count();
+        $this->pending_orders = $baseQuery()->where('estatus', 'U')->count();
+        $this->charged_orders = $baseQuery()->where('estatus', 'P')->count();
+        $this->issued_orders = $baseQuery()->where('estatus', 'S')->count();
 
-        // Issued orders (estatus = 'S')
-        $this->issued_orders = DrugOrder::whereBetween('dodate', [$from, $to])
-            ->where('estatus', 'S')
-            ->count();
-
-        // Returned orders count
-        $this->returned_orders = DB::connection('hospital')->table('hrxoreturn')
-            ->whereBetween('returndate', [$from, $to])
-            ->count();
+        $returnQuery = DB::connection('hospital')->table('hrxoreturn')
+            ->whereBetween('returndate', [$from, $to]);
+        if ($this->isFiltered()) {
+            $returnQuery->where('loc_code', $this->location_id);
+        }
+        $this->returned_orders = $returnQuery->count();
     }
 
     private function loadQueueStats()
     {
         try {
-            $todayQueues = PrescriptionQueue::whereDate('queued_at', today());
+            $todayQueues = PrescriptionQueue::whereDate('queued_at', today())
+                ->when($this->isFiltered(), fn ($q) => $q->where('location_code', $this->location_id));
 
             $this->queue_total = (clone $todayQueues)->count();
             $this->queue_waiting = (clone $todayQueues)->where('queue_status', 'waiting')->count();
@@ -234,6 +265,7 @@ class DashboardExecutive extends Component
 
             // Average wait time (queued_at to preparing_at for dispensed queues)
             $dispensedQueues = PrescriptionQueue::whereDate('queued_at', today())
+                ->when($this->isFiltered(), fn ($q) => $q->where('location_code', $this->location_id))
                 ->where('queue_status', 'dispensed')
                 ->whereNotNull('preparing_at')
                 ->get();
@@ -242,10 +274,13 @@ class DashboardExecutive extends Component
                 $this->avg_wait_time = round($dispensedQueues->avg(function ($q) {
                     return $q->queued_at->diffInMinutes($q->preparing_at);
                 }), 1);
+            } else {
+                $this->avg_wait_time = null;
             }
 
             // Average processing time (preparing_at to dispensed_at)
             $processedQueues = PrescriptionQueue::whereDate('queued_at', today())
+                ->when($this->isFiltered(), fn ($q) => $q->where('location_code', $this->location_id))
                 ->where('queue_status', 'dispensed')
                 ->whereNotNull('preparing_at')
                 ->whereNotNull('dispensed_at')
@@ -255,6 +290,8 @@ class DashboardExecutive extends Component
                 $this->avg_processing_time = round($processedQueues->avg(function ($q) {
                     return $q->preparing_at->diffInMinutes($q->dispensed_at);
                 }), 1);
+            } else {
+                $this->avg_processing_time = null;
             }
         } catch (\Exception $e) {
             // Queue table may not exist or be accessible
@@ -266,6 +303,9 @@ class DashboardExecutive extends Component
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
+        $locFilter = $this->isFiltered() ? "AND rxo.loc_code = ?" : "";
+        $params = $this->isFiltered() ? [$from, $to, $this->location_id] : [$from, $to];
+
         $this->top_drugs = DB::connection('hospital')->select("
             SELECT TOP 10
                 dm.drug_concat,
@@ -276,9 +316,10 @@ class DashboardExecutive extends Component
             WHERE rxo.estatus = 'S'
                 AND rxo.dodate BETWEEN ? AND ?
                 AND rxo.qtyissued > 0
+                {$locFilter}
             GROUP BY dm.drug_concat
             ORDER BY total_issued DESC
-        ", [$from, $to]);
+        ", $params);
     }
 
     private function loadLocations()
@@ -301,6 +342,9 @@ class DashboardExecutive extends Component
 
     private function loadExpiringSoon()
     {
+        $locFilter = $this->isFiltered() ? "AND pds.loc_code = ?" : "";
+        $locParam = $this->isFiltered() ? [$this->location_id] : [];
+
         $this->expiring_soon = DB::connection('hospital')->select("
             SELECT TOP 10
                 pds.drug_concat,
@@ -311,9 +355,10 @@ class DashboardExecutive extends Component
             WHERE pds.exp_date > GETDATE()
                 AND pds.exp_date < DATEADD(MONTH, 6, GETDATE())
                 AND pds.stock_bal > 0
+                {$locFilter}
             GROUP BY pds.drug_concat, pds.exp_date, pds.loc_code
             ORDER BY pds.exp_date ASC
-        ");
+        ", $locParam);
     }
 
     private function loadEmergencyPurchases($dateFrom, $dateTo)
@@ -321,16 +366,20 @@ class DashboardExecutive extends Component
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
-        $this->emergency_purchase_count = DrugEmergencyPurchase::whereBetween('purchase_date', [$from, $to])->count();
+        $baseQuery = fn () => DrugEmergencyPurchase::whereBetween('purchase_date', [$from, $to])
+            ->when($this->isFiltered(), fn ($q) => $q->where('pharm_location_id', $this->location_id));
 
-        $this->emergency_purchase_total = (float) DrugEmergencyPurchase::whereBetween('purchase_date', [$from, $to])
-            ->sum('total_amount');
+        $this->emergency_purchase_count = $baseQuery()->count();
+        $this->emergency_purchase_total = (float) $baseQuery()->sum('total_amount');
     }
 
     private function loadDispensingByType($dateFrom, $dateTo)
     {
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
+
+        $locFilter = $this->isFiltered() ? "AND rxo.loc_code = ?" : "";
+        $params = $this->isFiltered() ? [$from, $to, $this->location_id] : [$from, $to];
 
         $this->dispensing_by_type = DB::connection('hospital')->select("
             SELECT
@@ -342,13 +391,17 @@ class DashboardExecutive extends Component
             WHERE rxo.estatus = 'S'
                 AND rxo.dodate BETWEEN ? AND ?
                 AND rxo.qtyissued > 0
+                {$locFilter}
             GROUP BY enctr.toecode
             ORDER BY total_qty DESC
-        ", [$from, $to]);
+        ", $params);
     }
 
     private function loadDailyDispensingChart()
     {
+        $locFilter = $this->isFiltered() ? "AND rxo.loc_code = ?" : "";
+        $locParam = $this->isFiltered() ? [$this->location_id] : [];
+
         $results = DB::connection('hospital')->select("
             SELECT
                 CONVERT(VARCHAR(10), rxo.dodate, 120) as dispense_date,
@@ -358,9 +411,10 @@ class DashboardExecutive extends Component
             WHERE rxo.estatus = 'S'
                 AND rxo.dodate >= DATEADD(DAY, -7, GETDATE())
                 AND rxo.qtyissued > 0
+                {$locFilter}
             GROUP BY CONVERT(VARCHAR(10), rxo.dodate, 120)
             ORDER BY dispense_date ASC
-        ");
+        ", $locParam);
 
         $labels = [];
         $orderCounts = [];
