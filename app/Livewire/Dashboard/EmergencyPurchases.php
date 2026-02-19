@@ -95,7 +95,7 @@ class EmergencyPurchases extends Component
             FROM pharm_drug_emergency_purchases ep
             INNER JOIN hdmhdr dm ON ep.dmdcomb = dm.dmdcomb AND ep.dmdctr = dm.dmdctr
             LEFT JOIN pharm_locations loc ON ep.pharm_location_id = loc.id
-            LEFT JOIN hchrgcod cc ON ep.charge_code = cc.chrgcode
+            LEFT JOIN hcharge cc ON ep.charge_code = cc.chrgcode
             WHERE ep.purchase_date BETWEEN ? AND ?
                 {$locFilter}
                 {$searchFilter}

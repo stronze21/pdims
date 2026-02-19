@@ -63,7 +63,7 @@ class NearExpiryItems extends Component
                 DATEDIFF(DAY, GETDATE(), pds.exp_date) as days_until_expiry
             FROM pharm_drug_stocks pds
             LEFT JOIN pharm_locations loc ON pds.loc_code = loc.id
-            LEFT JOIN hchrgcod cc ON pds.chrgcode = cc.chrgcode
+            LEFT JOIN hcharge cc ON pds.chrgcode = cc.chrgcode
             WHERE pds.exp_date > GETDATE()
                 AND pds.exp_date < ?
                 AND pds.stock_bal > 0
