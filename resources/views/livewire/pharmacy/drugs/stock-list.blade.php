@@ -421,8 +421,8 @@
                                 <td class="py-4 px-4">
                                     <div class="flex justify-center space-x-1">
                                         @can('update-stock-item')
-                                            <button
-                                                class="btn btn-xs btn-warning hover:scale-105 shadow-md hover:shadow-lg transition-all"
+                                            <button data-tip="Edit Item"
+                                                class="tooltip tooltip-left btn btn-xs btn-warning hover:scale-105 shadow-md hover:shadow-lg transition-all"
                                                 @click="$wire.openUpdateModal(stock.id, stock.drug_concat, stock.chrgcode, stock.exp_date, stock.stock_bal, stock.dmduprice, stock.has_compounding, stock.compounding_fee || 0, stock.lot_no)">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
                                                     viewBox="0 0 24 24" stroke="currentColor">
@@ -432,8 +432,8 @@
                                             </button>
                                         @endcan
                                         @can('adjust-stock-qty')
-                                            <button
-                                                class="btn btn-xs btn-info hover:scale-105 shadow-md hover:shadow-lg transition-all"
+                                            <button data-tip="Adjust Quantity"
+                                                class="tooltip tooltip-left btn btn-xs btn-info hover:scale-105 shadow-md hover:shadow-lg transition-all"
                                                 @click="$wire.openAdjustModal(stock.id, stock.drug_concat, stock.chrgdesc, stock.exp_date, stock.stock_bal)">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
                                                     viewBox="0 0 24 24" stroke="currentColor">
@@ -443,8 +443,8 @@
                                             </button>
                                         @endcan
                                         @can('pull-out-items')
-                                            <button
-                                                class="btn btn-xs btn-error hover:scale-105 shadow-md hover:shadow-lg transition-all"
+                                            <button data-tip="Pull Out Item"
+                                                class="tooltip tooltip-left btn btn-xs btn-error hover:scale-105 shadow-md hover:shadow-lg transition-all"
                                                 @click="$wire.openPulloutModal(stock.id, stock.drug_concat, stock.chrgdesc, stock.exp_date, stock.stock_bal)">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
                                                     viewBox="0 0 24 24" stroke="currentColor">
