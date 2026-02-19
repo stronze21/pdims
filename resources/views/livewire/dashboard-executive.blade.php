@@ -443,13 +443,23 @@
     Alpine.data('dispensingChart', () => ({
         chart: null,
         init() {
-            const ctx = this.$refs.dispensingCanvas.getContext('2d');
-            const chartData = $wire.daily_dispensing_chart;
+            this.renderChart($wire.daily_dispensing_chart);
+
+            $wire.$watch('daily_dispensing_chart', (newData) => {
+                this.renderChart(newData);
+            });
+        },
+        renderChart(chartData) {
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
+            }
 
             if (!chartData.labels || chartData.labels.length === 0) {
                 return;
             }
 
+            const ctx = this.$refs.dispensingCanvas.getContext('2d');
             this.chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -517,13 +527,23 @@
     Alpine.data('stockStatusChart', () => ({
         chart: null,
         init() {
-            const ctx = this.$refs.stockCanvas.getContext('2d');
-            const chartData = $wire.stock_status_chart;
+            this.renderChart($wire.stock_status_chart);
+
+            $wire.$watch('stock_status_chart', (newData) => {
+                this.renderChart(newData);
+            });
+        },
+        renderChart(chartData) {
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
+            }
 
             if (!chartData.labels || chartData.data.every(v => v === 0)) {
                 return;
             }
 
+            const ctx = this.$refs.stockCanvas.getContext('2d');
             this.chart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
