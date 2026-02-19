@@ -1,8 +1,11 @@
 <div>
     {{-- Header with date range filter --}}
     <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+
+        {{-- Title --}}
         <div>
             <h1 class="text-2xl font-bold">Executive Dashboard</h1>
+
             <p class="text-sm opacity-60">
                 Pharmacy operations overview
                 @if ($location_id !== 'all')
@@ -13,37 +16,49 @@
                 @endif
             </p>
         </div>
+
+        {{-- Filters Row --}}
         <div class="flex flex-wrap items-center gap-2">
+
             {{-- Location Filter --}}
-            <select class="select select-sm select-bordered" wire:model.live="location_id">
-                <option value="all">All Locations</option>
-                @foreach ($location_options as $loc)
-                    <option value="{{ $loc['id'] }}">{{ $loc['description'] }}</option>
-                @endforeach
-            </select>
+            <x-mary-select wire:model.live="location_id" size="sm" :options="collect($location_options)
+                ->map(
+                    fn($loc) => [
+                        'id' => $loc['id'],
+                        'name' => $loc['description'],
+                    ],
+                )
+                ->prepend(['id' => 'all', 'name' => 'All Locations'])
+                ->values()
+                ->toArray()" />
 
             {{-- Date Range Filter --}}
-            <select class="select select-sm select-bordered" wire:model.live="date_range">
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="this_week">This Week</option>
-                <option value="last_week">Last Week</option>
-                <option value="this_month">This Month</option>
-                <option value="last_month">Last Month</option>
-                <option value="custom">Custom Range</option>
-            </select>
+            <x-mary-select wire:model.live="date_range" size="sm" :options="[
+                ['id' => 'today', 'name' => 'Today'],
+                ['id' => 'yesterday', 'name' => 'Yesterday'],
+                ['id' => 'this_week', 'name' => 'This Week'],
+                ['id' => 'last_week', 'name' => 'Last Week'],
+                ['id' => 'this_month', 'name' => 'This Month'],
+                ['id' => 'last_month', 'name' => 'Last Month'],
+                ['id' => 'custom', 'name' => 'Custom Range'],
+            ]" />
 
+            {{-- Custom Date Range --}}
             @if ($date_range === 'custom')
-                <input type="date" class="input input-sm input-bordered" wire:model.live.debounce.500ms="custom_date_from">
-                <span class="text-sm">to</span>
-                <input type="date" class="input input-sm input-bordered" wire:model.live.debounce.500ms="custom_date_to">
+                <x-mary-input type="date" size="sm" wire:model.live.debounce.500ms="custom_date_from" />
+
+                <span class="text-sm opacity-60">to</span>
+
+                <x-mary-input type="date" size="sm" wire:model.live.debounce.500ms="custom_date_to" />
             @endif
 
-            <button class="btn btn-sm btn-ghost" wire:click="refreshDashboard" title="Refresh">
-                <x-mary-icon name="o-arrow-path" class="w-4 h-4" />
-            </button>
+            {{-- Refresh Button --}}
+            <x-mary-button size="sm" icon="o-arrow-path" wire:click="refreshDashboard" tooltip="Refresh"
+                class="btn-ghost" />
+
         </div>
     </div>
+
 
     {{-- Loading overlay --}}
     <div wire:loading.flex class="fixed inset-0 z-50 items-center justify-center bg-base-100/50">
@@ -211,32 +226,38 @@
                         <div class="space-y-2">
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-warning badge-sm">Waiting</div>
-                                <progress class="flex-1 progress progress-warning" value="{{ $queue_waiting }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress progress-warning" value="{{ $queue_waiting }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_waiting }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-info badge-sm">Preparing</div>
-                                <progress class="flex-1 progress progress-info" value="{{ $queue_preparing }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress progress-info" value="{{ $queue_preparing }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_preparing }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-secondary badge-sm">Charging</div>
-                                <progress class="flex-1 progress progress-secondary" value="{{ $queue_charging }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress progress-secondary" value="{{ $queue_charging }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_charging }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-success badge-sm">Ready</div>
-                                <progress class="flex-1 progress progress-success" value="{{ $queue_ready }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress progress-success" value="{{ $queue_ready }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_ready }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-ghost badge-sm">Dispensed</div>
-                                <progress class="flex-1 progress" value="{{ $queue_dispensed }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress" value="{{ $queue_dispensed }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_dispensed }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="badge badge-error badge-sm">Cancelled</div>
-                                <progress class="flex-1 progress progress-error" value="{{ $queue_cancelled }}" max="{{ $queue_total }}"></progress>
+                                <progress class="flex-1 progress progress-error" value="{{ $queue_cancelled }}"
+                                    max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_cancelled }}</span>
                             </div>
                         </div>
@@ -244,11 +265,13 @@
                         <div class="pt-2 border-t border-base-200">
                             <div class="flex justify-between text-sm">
                                 <span class="opacity-60">Avg Wait Time</span>
-                                <span class="font-semibold">{{ $avg_wait_time !== null ? $avg_wait_time . ' min' : 'N/A' }}</span>
+                                <span
+                                    class="font-semibold">{{ $avg_wait_time !== null ? $avg_wait_time . ' min' : 'N/A' }}</span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="opacity-60">Avg Processing Time</span>
-                                <span class="font-semibold">{{ $avg_processing_time !== null ? $avg_processing_time . ' min' : 'N/A' }}</span>
+                                <span
+                                    class="font-semibold">{{ $avg_processing_time !== null ? $avg_processing_time . ' min' : 'N/A' }}</span>
                             </div>
                         </div>
                     </div>
@@ -283,7 +306,8 @@
                                             </div>
                                         </td>
                                         <td class="text-right">{{ number_format($type->encounter_count) }}</td>
-                                        <td class="text-right font-semibold">{{ number_format($type->total_qty) }}</td>
+                                        <td class="text-right font-semibold">{{ number_format($type->total_qty) }}
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -329,7 +353,8 @@
                                     <tr>
                                         <td class="opacity-50">{{ $index + 1 }}</td>
                                         <td>{{ $location['description'] }}</td>
-                                        <td class="text-right font-semibold">{{ number_format($location['stock_items']) }}</td>
+                                        <td class="text-right font-semibold">
+                                            {{ number_format($location['stock_items']) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -367,10 +392,12 @@
                                 @foreach ($top_drugs as $index => $drug)
                                     <tr>
                                         <td class="opacity-50">{{ $index + 1 }}</td>
-                                        <td class="max-w-xs truncate" title="{{ str_replace('_', ' ', $drug->drug_concat) }}">
+                                        <td class="max-w-xs truncate"
+                                            title="{{ str_replace('_', ' ', $drug->drug_concat) }}">
                                             {{ str_replace('_', ' ', $drug->drug_concat) }}
                                         </td>
-                                        <td class="text-right font-semibold">{{ number_format($drug->total_issued) }}</td>
+                                        <td class="text-right font-semibold">{{ number_format($drug->total_issued) }}
+                                        </td>
                                         <td class="text-right">{{ number_format($drug->encounter_count) }}</td>
                                     </tr>
                                 @endforeach
@@ -404,14 +431,21 @@
                                 @foreach ($expiring_soon as $index => $item)
                                     @php
                                         $daysUntil = \Carbon\Carbon::parse($item->exp_date)->diffInDays(now(), false);
-                                        $badgeClass = $daysUntil > -30 ? 'badge-error' : ($daysUntil > -90 ? 'badge-warning' : 'badge-info');
+                                        $badgeClass =
+                                            $daysUntil > -30
+                                                ? 'badge-error'
+                                                : ($daysUntil > -90
+                                                    ? 'badge-warning'
+                                                    : 'badge-info');
                                     @endphp
                                     <tr>
                                         <td class="opacity-50">{{ $index + 1 }}</td>
-                                        <td class="max-w-xs truncate" title="{{ str_replace('_', ' ', $item->drug_concat) }}">
+                                        <td class="max-w-xs truncate"
+                                            title="{{ str_replace('_', ' ', $item->drug_concat) }}">
                                             {{ str_replace('_', ' ', $item->drug_concat) }}
                                         </td>
-                                        <td class="text-right font-semibold">{{ number_format($item->stock_bal) }}</td>
+                                        <td class="text-right font-semibold">{{ number_format($item->stock_bal) }}
+                                        </td>
                                         <td>
                                             <div class="badge {{ $badgeClass }} badge-sm">
                                                 {{ \Carbon\Carbon::parse($item->exp_date)->format('M d, Y') }}
@@ -433,133 +467,156 @@
 </div>
 
 @script
-<script>
-    let dispensingChart = null;
-    let stockChart = null;
+    <script>
+        let dispensingChart = null;
+        let stockChart = null;
 
-    function loadChartJs() {
-        return new Promise((resolve) => {
-            if (typeof Chart !== 'undefined') {
-                resolve();
-                return;
-            }
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
-            script.onload = () => resolve();
-            document.head.appendChild(script);
-        });
-    }
-
-    function renderDispensingChart(chartData) {
-        if (dispensingChart) {
-            dispensingChart.destroy();
-            dispensingChart = null;
+        function loadChartJs() {
+            return new Promise((resolve) => {
+                if (typeof Chart !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+                script.onload = () => resolve();
+                document.head.appendChild(script);
+            });
         }
 
-        const canvas = document.getElementById('dispensingCanvas');
-        if (!canvas || !chartData || !chartData.labels || chartData.labels.length === 0) return;
+        function renderDispensingChart(chartData) {
+            if (dispensingChart) {
+                dispensingChart.destroy();
+                dispensingChart = null;
+            }
 
-        const ctx = canvas.getContext('2d');
-        dispensingChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: chartData.labels,
-                datasets: [
-                    {
-                        label: 'Orders',
-                        data: chartData.orders,
-                        backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                        borderColor: 'rgba(99, 102, 241, 1)',
-                        borderWidth: 1,
-                        borderRadius: 4,
-                        yAxisID: 'y',
-                    },
-                    {
-                        label: 'Qty Dispensed',
-                        data: chartData.quantities,
-                        type: 'line',
-                        borderColor: 'rgba(54, 211, 153, 1)',
-                        backgroundColor: 'rgba(54, 211, 153, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: 'rgba(54, 211, 153, 1)',
-                        yAxisID: 'y1',
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { usePointStyle: true, padding: 16 }
-                    }
+            const canvas = document.getElementById('dispensingCanvas');
+            if (!canvas || !chartData || !chartData.labels || chartData.labels.length === 0) return;
+
+            const ctx = canvas.getContext('2d');
+            dispensingChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                            label: 'Orders',
+                            data: chartData.orders,
+                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Qty Dispensed',
+                            data: chartData.quantities,
+                            type: 'line',
+                            borderColor: 'rgba(54, 211, 153, 1)',
+                            backgroundColor: 'rgba(54, 211, 153, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(54, 211, 153, 1)',
+                            yAxisID: 'y1',
+                        }
+                    ]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        position: 'left',
-                        title: { display: true, text: 'Orders' },
-                        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
                     },
-                    y1: {
-                        beginAtZero: true,
-                        position: 'right',
-                        title: { display: true, text: 'Quantity' },
-                        grid: { display: false },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 16
+                            }
+                        }
                     },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
-    function renderStockChart(chartData) {
-        if (stockChart) {
-            stockChart.destroy();
-            stockChart = null;
-        }
-
-        const canvas = document.getElementById('stockCanvas');
-        if (!canvas || !chartData || !chartData.labels || chartData.data.every(v => v === 0)) return;
-
-        const ctx = canvas.getContext('2d');
-        stockChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    data: chartData.data,
-                    backgroundColor: chartData.colors,
-                    borderWidth: 2,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    hoverOffset: 8,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '60%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { usePointStyle: true, padding: 16 }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Orders'
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Quantity'
+                            },
+                            grid: {
+                                display: false
+                            },
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
                     }
                 }
+            });
+        }
+
+        function renderStockChart(chartData) {
+            if (stockChart) {
+                stockChart.destroy();
+                stockChart = null;
             }
+
+            const canvas = document.getElementById('stockCanvas');
+            if (!canvas || !chartData || !chartData.labels || chartData.data.every(v => v === 0)) return;
+
+            const ctx = canvas.getContext('2d');
+            stockChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.data,
+                        backgroundColor: chartData.colors,
+                        borderWidth: 2,
+                        borderColor: 'rgba(255,255,255,0.8)',
+                        hoverOffset: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 16
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load Chart.js, then render and set up watchers
+        loadChartJs().then(() => {
+            renderDispensingChart($wire.daily_dispensing_chart);
+            renderStockChart($wire.stock_status_chart);
+
+            $wire.$watch('daily_dispensing_chart', (value) => renderDispensingChart(value));
+            $wire.$watch('stock_status_chart', (value) => renderStockChart(value));
         });
-    }
-
-    // Load Chart.js, then render and set up watchers
-    loadChartJs().then(() => {
-        renderDispensingChart($wire.daily_dispensing_chart);
-        renderStockChart($wire.stock_status_chart);
-
-        $wire.$watch('daily_dispensing_chart', (value) => renderDispensingChart(value));
-        $wire.$watch('stock_status_chart', (value) => renderStockChart(value));
-    });
-</script>
+    </script>
 @endscript
