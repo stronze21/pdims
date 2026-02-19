@@ -188,45 +188,63 @@ class DashboardExecutive extends Component
         }
         $this->total_stock_items = $totalQuery->count();
 
-        $locFilter = $this->isFiltered() ? "AND pds.loc_code = ?" : "";
+        // Near reorder / Critical stock using CTE based on avg daily issuance (last 30 days)
+        // Matches the v1 (ihomis_pharmacy) Dashboard computation:
+        //   reorder_level = avg_iss * 1.5
+        //   CRITICAL = stock below reorder level
+        //   NEAR CRITICAL = stock at 30% or less of reorder level
+        $locFilter = $this->isFiltered() ? "WHERE pds.loc_code = ?" : "";
         $locParam = $this->isFiltered() ? [$this->location_id] : [];
 
-        // Critical stock - items at or below reorder level
-        $this->critical_stock_count = count(DB::connection('hospital')->select("
-            SELECT pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
-                pds.dmdcomb, pds.dmdctr
-            FROM pharm_drug_stocks as pds
-            WHERE EXISTS (
-                SELECT id FROM pharm_drug_stock_reorder_levels level
-                WHERE pds.dmdcomb = level.dmdcomb
+        $levels = DB::connection('hospital')->select("
+            ;WITH DrugAgg AS (
+                SELECT
+                    pds.drug_concat,
+                    SUM(pds.stock_bal) AS stock_bal,
+                    ROUND(AVG(card.iss), 0) AS avg_iss
+                FROM pharm_drug_stocks pds
+                LEFT JOIN pharm_drug_stock_reorder_levels level
+                    ON pds.dmdcomb = level.dmdcomb
                     AND pds.dmdctr = level.dmdctr
                     AND pds.loc_code = level.loc_code
-                    AND level.reorder_point > 0
-                    AND level.reorder_point >= pds.stock_bal
+                LEFT JOIN pharm_drug_stock_cards card
+                    ON card.dmdcomb = pds.dmdcomb
+                    AND card.dmdctr = pds.dmdctr
+                    AND card.loc_code = pds.loc_code
+                    AND card.iss > 0
+                    AND card.stock_date BETWEEN DATEADD(DAY, -30, GETDATE()) AND GETDATE()
+                {$locFilter}
+                GROUP BY pds.drug_concat
             )
-            AND pds.stock_bal > 0
-            {$locFilter}
-            GROUP BY pds.drug_concat, pds.dmdcomb, pds.dmdctr
-        ", $locParam));
+            SELECT
+                CASE
+                    WHEN stock_bal <= ROUND(avg_iss * 1.5 * 0.3, 0) THEN 'NEAR CRITICAL'
+                    WHEN (ROUND(avg_iss * 1.5, 0) - stock_bal) > 0 THEN 'CRITICAL'
+                    ELSE 'NORMAL'
+                END AS status,
+                COUNT(*) AS total_drugs,
+                SUM(stock_bal) AS total_stock,
+                ROUND(AVG(avg_iss), 0) AS avg_issuance
+            FROM DrugAgg
+            GROUP BY
+                CASE
+                    WHEN stock_bal <= ROUND(avg_iss * 1.5 * 0.3, 0) THEN 'NEAR CRITICAL'
+                    WHEN (ROUND(avg_iss * 1.5, 0) - stock_bal) > 0 THEN 'CRITICAL'
+                    ELSE 'NORMAL'
+                END
+            ORDER BY status
+        ", $locParam);
 
-        // Near reorder level - approaching reorder point
-        $this->near_reorder_count = count(DB::connection('hospital')->select("
-            SELECT pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
-                pds.dmdcomb, pds.dmdctr
-            FROM pharm_drug_stocks as pds
-            WHERE EXISTS (
-                SELECT id FROM pharm_drug_stock_reorder_levels level
-                WHERE pds.dmdcomb = level.dmdcomb
-                    AND pds.dmdctr = level.dmdctr
-                    AND pds.loc_code = level.loc_code
-                    AND level.reorder_point > 0
-                    AND level.reorder_point < pds.stock_bal
-                    AND level.reorder_point < (pds.stock_bal - (pds.stock_bal * 0.3))
-            )
-            AND pds.stock_bal > 0
-            {$locFilter}
-            GROUP BY pds.drug_concat, pds.dmdcomb, pds.dmdctr
-        ", $locParam));
+        // Results ordered alphabetically: CRITICAL, NEAR CRITICAL, NORMAL
+        $this->critical_stock_count = 0;
+        $this->near_reorder_count = 0;
+        foreach ($levels as $level) {
+            if ($level->status === 'CRITICAL') {
+                $this->critical_stock_count = (int) $level->total_drugs;
+            } elseif ($level->status === 'NEAR CRITICAL') {
+                $this->near_reorder_count = (int) $level->total_drugs;
+            }
+        }
     }
 
     private function loadDispensingStats($dateFrom, $dateTo)
@@ -234,10 +252,25 @@ class DashboardExecutive extends Component
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
+        // Pending/Charged orders - matches v1 computation
+        // Groups by pcchrgcod to count unique charge slips where order is
+        // pending (U), partially charged (P with no pcchrgcod), or issued but uncharged (S with no pcchrgcod)
+        $locFilter = $this->isFiltered() ? "AND rxo.loc_code = ?" : "";
+        $pendingParams = $this->isFiltered() ? [$from, $to, $this->location_id] : [$from, $to];
+
+        $this->pending_orders = count(DB::connection('hospital')->select("
+            SELECT rxo.pcchrgcod
+            FROM hrxo rxo
+            WHERE (dodate BETWEEN ? AND ?)
+                AND ((rxo.estatus = 'U' OR rxo.estatus = 'P')
+                    OR (rxo.estatus = 'S' AND (rxo.pcchrgcod IS NULL OR rxo.pcchrgcod = '')))
+                {$locFilter}
+            GROUP BY rxo.pcchrgcod
+        ", $pendingParams));
+
         $baseQuery = fn () => DrugOrder::whereBetween('dodate', [$from, $to])
             ->when($this->isFiltered(), fn ($q) => $q->where('loc_code', $this->location_id));
 
-        $this->pending_orders = $baseQuery()->where('estatus', 'U')->count();
         $this->charged_orders = $baseQuery()->where('estatus', 'P')->count();
         $this->issued_orders = $baseQuery()->where('estatus', 'S')->count();
 

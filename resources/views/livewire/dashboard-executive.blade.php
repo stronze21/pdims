@@ -51,108 +51,25 @@
     </div>
 
     {{-- ============================================ --}}
-    {{-- SECTION 1: Inventory KPI Cards --}}
+    {{-- SECTION 1: Dispensing & Inventory KPI Cards (matches v1 layout) --}}
     {{-- ============================================ --}}
-    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
-        {{-- Total Stock Items --}}
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-3">
+        {{-- Pending/Charged Orders --}}
         <div class="shadow-sm card bg-base-100">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Total Stock Items</p>
-                        <p class="mt-1 text-3xl font-bold">{{ number_format($total_stock_items) }}</p>
-                    </div>
-                    <div class="p-3 rounded-xl bg-primary/10">
-                        <x-mary-icon name="o-cube" class="w-6 h-6 text-primary" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Near Expiry --}}
-        <div class="shadow-sm card bg-base-100">
-            <div class="p-4 card-body">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Near Expiry</p>
-                        <p class="mt-1 text-3xl font-bold text-warning">{{ number_format($near_expiry_count) }}</p>
-                        <p class="text-xs opacity-50">within 6 months</p>
-                    </div>
-                    <div class="p-3 rounded-xl bg-warning/10">
-                        <x-mary-icon name="o-clock" class="w-6 h-6 text-warning" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Expired --}}
-        <div class="shadow-sm card bg-base-100">
-            <div class="p-4 card-body">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Expired Items</p>
-                        <p class="mt-1 text-3xl font-bold text-error">{{ number_format($expired_count) }}</p>
-                        <p class="text-xs opacity-50">with remaining stock</p>
-                    </div>
-                    <div class="p-3 rounded-xl bg-error/10">
-                        <x-mary-icon name="o-x-circle" class="w-6 h-6 text-error" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Critical Stock --}}
-        <div class="shadow-sm card bg-base-100">
-            <div class="p-4 card-body">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Critical Stock</p>
-                        <p class="mt-1 text-3xl font-bold text-error">{{ number_format($critical_stock_count) }}</p>
-                        <p class="text-xs opacity-50">at/below reorder level</p>
-                    </div>
-                    <div class="p-3 rounded-xl bg-error/10">
-                        <x-mary-icon name="o-exclamation-triangle" class="w-6 h-6 text-error" />
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- ============================================ --}}
-    {{-- SECTION 2: Dispensing Activity KPI Cards --}}
-    {{-- ============================================ --}}
-    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
-        {{-- Pending Orders --}}
-        <div class="shadow-sm card bg-base-100">
-            <div class="p-4 card-body">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Pending Orders</p>
-                        <p class="mt-1 text-3xl font-bold text-warning">{{ number_format($pending_orders) }}</p>
-                    </div>
-                    <div class="p-3 rounded-xl bg-warning/10">
-                        <x-mary-icon name="o-document-text" class="w-6 h-6 text-warning" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Charged Orders --}}
-        <div class="shadow-sm card bg-base-100">
-            <div class="p-4 card-body">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium uppercase opacity-60">Charged Orders</p>
-                        <p class="mt-1 text-3xl font-bold text-info">{{ number_format($charged_orders) }}</p>
+                        <p class="text-xs font-medium uppercase opacity-60">Pending/Charged Orders</p>
+                        <p class="mt-1 text-3xl font-bold text-info">{{ number_format($pending_orders) }}</p>
                     </div>
                     <div class="p-3 rounded-xl bg-info/10">
-                        <x-mary-icon name="o-clipboard-document-check" class="w-6 h-6 text-info" />
+                        <x-mary-icon name="o-document-text" class="w-6 h-6 text-info" />
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Issued Orders --}}
+        {{-- Issued / Dispensed Orders --}}
         <div class="shadow-sm card bg-base-100">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
@@ -177,6 +94,72 @@
                     </div>
                     <div class="p-3 rounded-xl bg-base-200">
                         <x-mary-icon name="o-arrow-uturn-left" class="w-6 h-6 opacity-60" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        {{-- Items Near Expiry --}}
+        <div class="shadow-sm card bg-base-100">
+            <div class="p-4 card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase opacity-60">Items Near Expiry</p>
+                        <p class="mt-1 text-3xl font-bold text-warning">{{ number_format($near_expiry_count) }}</p>
+                        <p class="text-xs opacity-50">within 6 months</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-warning/10">
+                        <x-mary-icon name="o-clock" class="w-6 h-6 text-warning" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Expired Items --}}
+        <div class="shadow-sm card bg-base-100">
+            <div class="p-4 card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase opacity-60">Expired Items</p>
+                        <p class="mt-1 text-3xl font-bold text-error">{{ number_format($expired_count) }}</p>
+                        <p class="text-xs opacity-50">with remaining stock</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-error/10">
+                        <x-mary-icon name="o-x-circle" class="w-6 h-6 text-error" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Near Reorder Level --}}
+        <div class="shadow-sm card bg-base-100">
+            <div class="p-4 card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase opacity-60">Near Reorder Level</p>
+                        <p class="mt-1 text-3xl font-bold text-warning">{{ number_format($near_reorder_count) }}</p>
+                        <p class="text-xs opacity-50">approaching reorder point</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-warning/10">
+                        <x-mary-icon name="o-arrow-trending-down" class="w-6 h-6 text-warning" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Critical Stock --}}
+        <div class="shadow-sm card bg-base-100">
+            <div class="p-4 card-body">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium uppercase opacity-60">Critical Stock</p>
+                        <p class="mt-1 text-3xl font-bold text-error">{{ number_format($critical_stock_count) }}</p>
+                        <p class="text-xs opacity-50">below reorder level</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-error/10">
+                        <x-mary-icon name="o-exclamation-triangle" class="w-6 h-6 text-error" />
                     </div>
                 </div>
             </div>
