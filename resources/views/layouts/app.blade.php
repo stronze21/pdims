@@ -118,6 +118,7 @@
     {{-- 🔔 TOAST NOTIFICATIONS --}}
     <x-mary-toast />
 
+    @stack('scripts')
     @livewireScripts
 </body>
 

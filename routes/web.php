@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\DashboardExecutive;
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Dispensing\ReturnSlip;
@@ -41,9 +42,7 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardExecutive::class)->name('dashboard');
 
     Route::prefix('/inventory')->name('inventory.')->group(function () {
         Route::get('/stocks', StockList::class)->name('stocks.list');
