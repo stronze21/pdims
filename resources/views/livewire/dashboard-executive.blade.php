@@ -174,8 +174,8 @@
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
                 <h2 class="card-title text-base">7-Day Dispensing Trend</h2>
-                <div class="w-full h-64" x-data="dispensingChart()" x-init="init()">
-                    <canvas x-ref="dispensingCanvas"></canvas>
+                <div class="w-full h-64" wire:ignore>
+                    <canvas id="dispensingCanvas"></canvas>
                 </div>
             </div>
         </div>
@@ -184,8 +184,8 @@
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
                 <h2 class="card-title text-base">Stock Status Distribution</h2>
-                <div class="w-full h-64" x-data="stockStatusChart()" x-init="init()">
-                    <canvas x-ref="stockCanvas"></canvas>
+                <div class="w-full h-64" wire:ignore>
+                    <canvas id="stockCanvas"></canvas>
                 </div>
             </div>
         </div>
@@ -432,143 +432,134 @@
     </div>
 </div>
 
-{{-- Chart.js CDN --}}
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-@endpush
-
 @script
 <script>
-    // 7-Day Dispensing Trend Chart
-    Alpine.data('dispensingChart', () => ({
-        chart: null,
-        init() {
-            this.renderChart($wire.daily_dispensing_chart);
+    let dispensingChart = null;
+    let stockChart = null;
 
-            $wire.$watch('daily_dispensing_chart', (newData) => {
-                this.renderChart(newData);
-            });
-        },
-        renderChart(chartData) {
-            if (this.chart) {
-                this.chart.destroy();
-                this.chart = null;
-            }
-
-            if (!chartData.labels || chartData.labels.length === 0) {
+    function loadChartJs() {
+        return new Promise((resolve) => {
+            if (typeof Chart !== 'undefined') {
+                resolve();
                 return;
             }
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+            script.onload = () => resolve();
+            document.head.appendChild(script);
+        });
+    }
 
-            const ctx = this.$refs.dispensingCanvas.getContext('2d');
-            this.chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [
-                        {
-                            label: 'Orders',
-                            data: chartData.orders,
-                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                            borderColor: 'rgba(99, 102, 241, 1)',
-                            borderWidth: 1,
-                            borderRadius: 4,
-                            yAxisID: 'y',
-                        },
-                        {
-                            label: 'Qty Dispensed',
-                            data: chartData.quantities,
-                            type: 'line',
-                            borderColor: 'rgba(54, 211, 153, 1)',
-                            backgroundColor: 'rgba(54, 211, 153, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: 'rgba(54, 211, 153, 1)',
-                            yAxisID: 'y1',
-                        }
-                    ]
+    function renderDispensingChart(chartData) {
+        if (dispensingChart) {
+            dispensingChart.destroy();
+            dispensingChart = null;
+        }
+
+        const canvas = document.getElementById('dispensingCanvas');
+        if (!canvas || !chartData || !chartData.labels || chartData.labels.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        dispensingChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Orders',
+                        data: chartData.orders,
+                        backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'Qty Dispensed',
+                        data: chartData.quantities,
+                        type: 'line',
+                        borderColor: 'rgba(54, 211, 153, 1)',
+                        backgroundColor: 'rgba(54, 211, 153, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(54, 211, 153, 1)',
+                        yAxisID: 'y1',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, padding: 16 }
+                    }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index',
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        title: { display: true, text: 'Orders' },
+                        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
                     },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { usePointStyle: true, padding: 16 }
-                        }
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        title: { display: true, text: 'Quantity' },
+                        grid: { display: false },
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            position: 'left',
-                            title: { display: true, text: 'Orders' },
-                            grid: { display: true, color: 'rgba(0,0,0,0.05)' },
-                        },
-                        y1: {
-                            beginAtZero: true,
-                            position: 'right',
-                            title: { display: true, text: 'Quantity' },
-                            grid: { display: false },
-                        },
-                        x: {
-                            grid: { display: false },
-                        }
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderStockChart(chartData) {
+        if (stockChart) {
+            stockChart.destroy();
+            stockChart = null;
+        }
+
+        const canvas = document.getElementById('stockCanvas');
+        if (!canvas || !chartData || !chartData.labels || chartData.data.every(v => v === 0)) return;
+
+        const ctx = canvas.getContext('2d');
+        stockChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    data: chartData.data,
+                    backgroundColor: chartData.colors,
+                    borderWidth: 2,
+                    borderColor: 'rgba(255,255,255,0.8)',
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, padding: 16 }
                     }
                 }
-            });
-        }
-    }));
-
-    // Stock Status Distribution Chart
-    Alpine.data('stockStatusChart', () => ({
-        chart: null,
-        init() {
-            this.renderChart($wire.stock_status_chart);
-
-            $wire.$watch('stock_status_chart', (newData) => {
-                this.renderChart(newData);
-            });
-        },
-        renderChart(chartData) {
-            if (this.chart) {
-                this.chart.destroy();
-                this.chart = null;
             }
+        });
+    }
 
-            if (!chartData.labels || chartData.data.every(v => v === 0)) {
-                return;
-            }
+    // Load Chart.js, then render and set up watchers
+    loadChartJs().then(() => {
+        renderDispensingChart($wire.daily_dispensing_chart);
+        renderStockChart($wire.stock_status_chart);
 
-            const ctx = this.$refs.stockCanvas.getContext('2d');
-            this.chart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [{
-                        data: chartData.data,
-                        backgroundColor: chartData.colors,
-                        borderWidth: 2,
-                        borderColor: 'rgba(255,255,255,0.8)',
-                        hoverOffset: 8,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { usePointStyle: true, padding: 16 }
-                        }
-                    }
-                }
-            });
-        }
-    }));
+        $wire.$watch('daily_dispensing_chart', (value) => renderDispensingChart(value));
+        $wire.$watch('stock_status_chart', (value) => renderStockChart(value));
+    });
 </script>
 @endscript
