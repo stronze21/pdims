@@ -13,11 +13,17 @@ use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueDisplay;
-// ✨ ADD THESE NEW IMPORTS
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTablet;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
-// ✨ END NEW IMPORTS
+use App\Livewire\Dashboard\PendingOrders;
+use App\Livewire\Dashboard\IssuedOrders;
+use App\Livewire\Dashboard\ReturnedOrders;
+use App\Livewire\Dashboard\NearExpiryItems;
+use App\Livewire\Dashboard\ExpiredItems;
+use App\Livewire\Dashboard\CriticalStockItems;
+use App\Livewire\Dashboard\EmergencyPurchases;
+use App\Livewire\Dashboard\QueueDetails;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Records\DischargedPatients;
 use App\Livewire\Records\PatientsList;
@@ -43,6 +49,18 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', DashboardExecutive::class)->name('dashboard');
+
+    // Dashboard KPI Detail Pages
+    Route::prefix('dashboard')->name('dashboard.')->group(function () {
+        Route::get('/pending-orders', PendingOrders::class)->name('pending-orders');
+        Route::get('/issued-orders', IssuedOrders::class)->name('issued-orders');
+        Route::get('/returned-orders', ReturnedOrders::class)->name('returned-orders');
+        Route::get('/near-expiry', NearExpiryItems::class)->name('near-expiry');
+        Route::get('/expired-items', ExpiredItems::class)->name('expired-items');
+        Route::get('/critical-stock', CriticalStockItems::class)->name('critical-stock');
+        Route::get('/emergency-purchases', EmergencyPurchases::class)->name('emergency-purchases');
+        Route::get('/queue-details', QueueDetails::class)->name('queue-details');
+    });
 
     Route::prefix('/inventory')->name('inventory.')->group(function () {
         Route::get('/stocks', StockList::class)->name('stocks.list');

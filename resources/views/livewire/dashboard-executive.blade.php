@@ -1,4 +1,17 @@
 <div>
+    {{-- Helper to build query string with current filters --}}
+    @php
+        $dateQuery = http_build_query(array_filter([
+            'date_range' => $date_range,
+            'location_id' => $location_id,
+            'custom_date_from' => $date_range === 'custom' ? $custom_date_from : null,
+            'custom_date_to' => $date_range === 'custom' ? $custom_date_to : null,
+        ]));
+        $locQuery = http_build_query(array_filter([
+            'location_id' => $location_id,
+        ]));
+    @endphp
+
     {{-- Header with date range filter --}}
     <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
 
@@ -66,11 +79,12 @@
     </div>
 
     {{-- ============================================ --}}
-    {{-- SECTION 1: Dispensing & Inventory KPI Cards (matches v1 layout) --}}
+    {{-- SECTION 1: Dispensing KPI Cards --}}
     {{-- ============================================ --}}
     <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-3">
         {{-- Pending/Charged Orders --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.pending-orders') }}?{{ $dateQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -81,11 +95,13 @@
                         <x-mary-icon name="o-document-text" class="w-6 h-6 text-info" />
                     </div>
                 </div>
+                <p class="text-xs opacity-40 mt-1">Click to view details</p>
             </div>
-        </div>
+        </a>
 
         {{-- Issued / Dispensed Orders --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.issued-orders') }}?{{ $dateQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -96,11 +112,13 @@
                         <x-mary-icon name="o-check-circle" class="w-6 h-6 text-success" />
                     </div>
                 </div>
+                <p class="text-xs opacity-40 mt-1">Click to view details</p>
             </div>
-        </div>
+        </a>
 
         {{-- Returns --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.returned-orders') }}?{{ $dateQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -111,13 +129,18 @@
                         <x-mary-icon name="o-arrow-uturn-left" class="w-6 h-6 opacity-60" />
                     </div>
                 </div>
+                <p class="text-xs opacity-40 mt-1">Click to view details</p>
             </div>
-        </div>
+        </a>
     </div>
 
+    {{-- ============================================ --}}
+    {{-- SECTION 2: Inventory KPI Cards --}}
+    {{-- ============================================ --}}
     <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
         {{-- Items Near Expiry --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.near-expiry') }}?{{ $locQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -130,10 +153,11 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
         {{-- Expired Items --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.expired-items') }}?{{ $locQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -146,10 +170,11 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
         {{-- Near Reorder Level --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.critical-stock') }}?type=near_reorder&{{ $locQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -162,10 +187,11 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
 
         {{-- Critical Stock --}}
-        <div class="shadow-sm card bg-base-100">
+        <a href="{{ route('dashboard.critical-stock') }}?type=critical&{{ $locQuery }}" wire:navigate
+            class="shadow-sm card bg-base-100 hover:shadow-md transition-shadow cursor-pointer">
             <div class="p-4 card-body">
                 <div class="flex items-center justify-between">
                     <div>
@@ -178,7 +204,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     {{-- ============================================ --}}
@@ -213,7 +239,11 @@
         {{-- Queue Performance (Today) --}}
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
-                <h2 class="card-title text-base">Queue Performance (Today)</h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-base">Queue Performance (Today)</h2>
+                    <a href="{{ route('dashboard.queue-details') }}?{{ $locQuery }}" wire:navigate
+                        class="btn btn-xs btn-ghost">View All</a>
+                </div>
 
                 @if ($queue_total > 0)
                     <div class="mt-2 space-y-3">
@@ -224,42 +254,42 @@
 
                         {{-- Status breakdown --}}
                         <div class="space-y-2">
-                            <div class="flex items-center gap-2">
+                            <a href="{{ route('dashboard.queue-details') }}?status=waiting&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-warning badge-sm">Waiting</div>
                                 <progress class="flex-1 progress progress-warning" value="{{ $queue_waiting }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_waiting }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                            </a>
+                            <a href="{{ route('dashboard.queue-details') }}?status=preparing&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-info badge-sm">Preparing</div>
                                 <progress class="flex-1 progress progress-info" value="{{ $queue_preparing }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_preparing }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                            </a>
+                            <a href="{{ route('dashboard.queue-details') }}?status=charging&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-secondary badge-sm">Charging</div>
                                 <progress class="flex-1 progress progress-secondary" value="{{ $queue_charging }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_charging }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                            </a>
+                            <a href="{{ route('dashboard.queue-details') }}?status=ready&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-success badge-sm">Ready</div>
                                 <progress class="flex-1 progress progress-success" value="{{ $queue_ready }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_ready }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                            </a>
+                            <a href="{{ route('dashboard.queue-details') }}?status=dispensed&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-ghost badge-sm">Dispensed</div>
                                 <progress class="flex-1 progress" value="{{ $queue_dispensed }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_dispensed }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
+                            </a>
+                            <a href="{{ route('dashboard.queue-details') }}?status=cancelled&{{ $locQuery }}" wire:navigate class="flex items-center gap-2 hover:bg-base-200 rounded-lg px-1 -mx-1 transition-colors">
                                 <div class="badge badge-error badge-sm">Cancelled</div>
                                 <progress class="flex-1 progress progress-error" value="{{ $queue_cancelled }}"
                                     max="{{ $queue_total }}"></progress>
                                 <span class="text-sm font-semibold w-8 text-right">{{ $queue_cancelled }}</span>
-                            </div>
+                            </a>
                         </div>
 
                         <div class="pt-2 border-t border-base-200">
@@ -286,7 +316,11 @@
         {{-- Dispensing by Encounter Type --}}
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
-                <h2 class="card-title text-base">Dispensing by Encounter Type</h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-base">Dispensing by Encounter Type</h2>
+                    <a href="{{ route('dashboard.issued-orders') }}?{{ $dateQuery }}" wire:navigate
+                        class="btn btn-xs btn-ghost">View All</a>
+                </div>
                 @if (count($dispensing_by_type) > 0)
                     <div class="overflow-x-auto">
                         <table class="table table-sm">
@@ -320,8 +354,12 @@
                 @endif
 
                 {{-- Emergency Purchases Summary --}}
-                <div class="p-3 mt-4 rounded-lg bg-base-200">
-                    <h3 class="text-sm font-semibold mb-2">Emergency Purchases</h3>
+                <a href="{{ route('dashboard.emergency-purchases') }}?{{ $dateQuery }}" wire:navigate
+                    class="block p-3 mt-4 rounded-lg bg-base-200 hover:bg-base-300 transition-colors cursor-pointer">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-semibold">Emergency Purchases</h3>
+                        <x-mary-icon name="o-arrow-top-right-on-square" class="w-3 h-3 opacity-40" />
+                    </div>
                     <div class="flex justify-between text-sm">
                         <span class="opacity-60">Count</span>
                         <span class="font-semibold">{{ number_format($emergency_purchase_count) }}</span>
@@ -330,7 +368,7 @@
                         <span class="opacity-60">Total Amount</span>
                         <span class="font-semibold">{{ number_format($emergency_purchase_total, 2) }}</span>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
 
@@ -376,7 +414,11 @@
         {{-- Top 10 Drugs Dispensed --}}
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
-                <h2 class="card-title text-base">Top 10 Drugs Dispensed</h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-base">Top 10 Drugs Dispensed</h2>
+                    <a href="{{ route('dashboard.issued-orders') }}?{{ $dateQuery }}" wire:navigate
+                        class="btn btn-xs btn-ghost">View All</a>
+                </div>
                 @if (count($top_drugs) > 0)
                     <div class="overflow-x-auto">
                         <table class="table table-sm">
@@ -415,7 +457,11 @@
         {{-- Items Expiring Soon --}}
         <div class="shadow-sm card bg-base-100">
             <div class="card-body">
-                <h2 class="card-title text-base">Items Expiring Soon</h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-base">Items Expiring Soon</h2>
+                    <a href="{{ route('dashboard.near-expiry') }}?{{ $locQuery }}" wire:navigate
+                        class="btn btn-xs btn-ghost">View All</a>
+                </div>
                 @if (count($expiring_soon) > 0)
                     <div class="overflow-x-auto">
                         <table class="table table-sm">
