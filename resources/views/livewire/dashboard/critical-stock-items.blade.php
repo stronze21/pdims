@@ -1,13 +1,13 @@
 <div>
     {{-- Header --}}
+    <div class="mb-4">
+        <a href="{{ route('dashboard') }}" wire:navigate class="btn btn-sm btn-ghost gap-1">
+            <x-mary-icon name="o-arrow-left" class="w-4 h-4" />
+            Back to Dashboard
+        </a>
+    </div>
     <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <div class="text-sm breadcrumbs">
-                <ul>
-                    <li><a href="{{ route('dashboard') }}" wire:navigate>Dashboard</a></li>
-                    <li>{{ $pageTitle }}</li>
-                </ul>
-            </div>
             <h1 class="text-2xl font-bold">{{ $pageTitle }}</h1>
             <p class="text-sm opacity-60">
                 @if ($stock_type === 'near_reorder')
