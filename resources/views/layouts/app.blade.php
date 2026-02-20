@@ -67,13 +67,16 @@
                             return false;" />
                 <x-mary-menu-sub title="Records" icon="o-document-text">
                     <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+                    <x-mary-menu-item title="For Discharge Patients" icon="o-user-group"
+                        link="{{ route('records.for-discharge-patients') }}" />
                     <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
                         link="{{ route('records.discharged-patients') }}" />
                 </x-mary-menu-sub>
 
                 {{-- ✨ NEW: Rx/Orders Menu Section --}}
                 <x-mary-menu-sub title="Rx/Orders" icon="o-clipboard-document-list">
-                    <x-mary-menu-item title="Out Patient Department" icon="o-user-group" link="{{ route('rx.opd') }}" />
+                    <x-mary-menu-item title="Out Patient Department" icon="o-user-group"
+                        link="{{ route('rx.opd') }}" />
                     <x-mary-menu-item title="Wards" icon="o-building-office-2" link="{{ route('rx.ward') }}" />
                     <x-mary-menu-item title="Emergency Room" icon="o-heart" link="{{ route('rx.er') }}" />
                 </x-mary-menu-sub>
@@ -81,11 +84,9 @@
 
                 <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
                 <x-mary-menu-sub title="Queueing" icon="o-clock">
-                    <x-mary-menu-item title="Desktop View" icon="o-computer-desktop"
-                        link="{{ route('prescriptions.queue.index') }}" />
-                    <x-mary-menu-item title="Tablet View" icon="o-device-tablet"
+                    <x-mary-menu-item title="Queue Controller" icon="o-device-tablet"
                         link="{{ route('prescriptions.queue.controller2') }}" />
-                    <x-mary-menu-item title="Rx Cashier Queue" icon="o-banknotes"
+                    <x-mary-menu-item title="Cashier Queue Controller" icon="o-banknotes"
                         link="{{ route('prescriptions.cashier.queue') }}" />
                     <x-mary-menu-item title="Queue TV Display" icon="o-computer-desktop"
                         link="{{ route('queue.display', ['locationCode' => 2]) }}" />

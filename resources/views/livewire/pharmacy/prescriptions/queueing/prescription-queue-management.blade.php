@@ -18,12 +18,13 @@
                 </div>
 
                 <div class="flex gap-2">
-                    <x-mary-button label="Batch Create Queues" icon="o-plus-circle" class="btn-primary"
-                        wire:click="openBatchCreateModal">
-                        <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
-                            class="loading-spinner loading-sm" />
-                    </x-mary-button>
-
+                    @if (env('APP_ENV') === 'local')
+                        <x-mary-button label="Batch Create Queues" icon="o-plus-circle" class="btn-primary"
+                            wire:click="openBatchCreateModal">
+                            <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
+                                class="loading-spinner loading-sm" />
+                        </x-mary-button>
+                    @endif
                     <x-mary-button icon="o-arrow-path" class="btn-ghost" wire:click="$refresh" tooltip="Refresh">
                         <x-mary-loading wire:loading wire:target="$refresh" class="loading-spinner loading-sm" />
                     </x-mary-button>
@@ -241,57 +242,60 @@
         </div>
     </div>
 
-    {{-- Batch Create Modal --}}
-    <x-mary-modal wire:model="showBatchCreateModal" title="Batch Create Prescription Queues" class="backdrop-blur"
-        box-class="max-w-2xl">
-        <div class="space-y-4">
-            <div class="p-4 rounded-lg alert alert-info">
-                <x-mary-icon name="o-information-circle" class="w-5 h-5" />
-                <span>This will automatically create queues for prescriptions matching your criteria.</span>
-            </div>
+    @if (env('APP_ENV') === 'local')
+        {{-- Batch Create Modal --}}
+        <x-mary-modal wire:model="showBatchCreateModal" title="Batch Create Prescription Queues"
+            class="backdrop-blur" box-class="max-w-2xl">
+            <div class="space-y-4">
+                <div class="p-4 rounded-lg alert alert-info">
+                    <x-mary-icon name="o-information-circle" class="w-5 h-5" />
+                    <span>This will automatically create queues for prescriptions matching your criteria.</span>
+                </div>
 
-            <x-mary-input label="Date" type="date" wire:model.live="batchDate" icon="o-calendar"
-                hint="Prescriptions from this date onwards" />
+                <x-mary-input label="Date" type="date" wire:model.live="batchDate" icon="o-calendar"
+                    hint="Prescriptions from this date onwards" />
 
-            <x-mary-select label="Location" wire:model.live="batchLocation" :options="$locations" option-value="id"
-                option-label="description" icon="o-map-pin" />
+                <x-mary-select label="Location" wire:model.live="batchLocation" :options="$locations" option-value="id"
+                    option-label="description" icon="o-map-pin" />
 
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-bold">Encounter Types</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    @foreach ($availableTypes as $code => $name)
-                        <label class="cursor-pointer label">
-                            <span class="label-text">{{ $name }}</span>
-                            <input type="checkbox" class="checkbox checkbox-primary" wire:model.live="batchTypes"
-                                value="{{ $code }}" />
-                        </label>
-                    @endforeach
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-bold">Encounter Types</span>
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach ($availableTypes as $code => $name)
+                            <label class="cursor-pointer label">
+                                <span class="label-text">{{ $name }}</span>
+                                <input type="checkbox" class="checkbox checkbox-primary" wire:model.live="batchTypes"
+                                    value="{{ $code }}" />
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-lg bg-base-200">
+                    <x-mary-button class="btn btn-sm btn-outline" wire:click="previewBatchCreate">
+                        <x-mary-icon name="o-eye" class="w-4 h-4" />
+                        Preview Prescriptions
+                        <x-mary-loading wire:loading wire:target="previewBatchCreate"
+                            class="loading-spinner loading-xs" />
+                    </x-mary-button>
+                    <div class="mt-2 text-xs opacity-70">
+                        Click to preview how many prescriptions will be queued
+                    </div>
                 </div>
             </div>
 
-            <div class="p-4 rounded-lg bg-base-200">
-                <x-mary-button class="btn btn-sm btn-outline" wire:click="previewBatchCreate">
-                    <x-mary-icon name="o-eye" class="w-4 h-4" />
-                    Preview Prescriptions
-                    <x-mary-loading wire:loading wire:target="previewBatchCreate"
-                        class="loading-spinner loading-xs" />
+            <x-slot:actions>
+                <x-mary-button label="Cancel" wire:click="$set('showBatchCreateModal', false)" />
+                <x-mary-button label="Create Queues" class="btn-primary" wire:click="executeBatchCreate"
+                    wire:confirm="Are you sure you want to create queues for the selected prescriptions?">
+                    <x-mary-loading wire:loading wire:target="executeBatchCreate"
+                        class="loading-spinner loading-sm" />
                 </x-mary-button>
-                <div class="mt-2 text-xs opacity-70">
-                    Click to preview how many prescriptions will be queued
-                </div>
-            </div>
-        </div>
-
-        <x-slot:actions>
-            <x-mary-button label="Cancel" wire:click="$set('showBatchCreateModal', false)" />
-            <x-mary-button label="Create Queues" class="btn-primary" wire:click="executeBatchCreate"
-                wire:confirm="Are you sure you want to create queues for the selected prescriptions?">
-                <x-mary-loading wire:loading wire:target="executeBatchCreate" class="loading-spinner loading-sm" />
-            </x-mary-button>
-        </x-slot:actions>
-    </x-mary-modal>
+            </x-slot:actions>
+        </x-mary-modal>
+    @endif
 
     {{-- Queue Details Modal --}}
     @if ($selectedQueue)

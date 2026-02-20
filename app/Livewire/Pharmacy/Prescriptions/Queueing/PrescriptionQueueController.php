@@ -36,6 +36,19 @@ class PrescriptionQueueController extends Component
     public $nextChargingQueue = null;
     public $otherChargingQueues = [];
 
+    public $showBatchCreateModal = false;
+    public $batchDate;
+    public $batchLocation;
+    public $batchTypes = ['OPD'];
+    public $availableTypes = [
+        'OPD' => 'Out-Patient',
+        'ER' => 'Emergency Room',
+        'ADM' => 'Admission',
+        'ERADM' => 'ER to Admission',
+        'OPDAD' => 'OPD to Admission',
+    ];
+
+
     // Filters
     public $dateFilter;
     public $perPage = 50;
@@ -121,6 +134,194 @@ class PrescriptionQueueController extends Component
         asort($windowLoads);
         $this->selectedWindow = array_key_first($windowLoads);
         session(['queue_window' => $this->selectedWindow]);
+    }
+
+    /**
+     * Open batch create modal
+     */
+    public function openBatchCreateModal()
+    {
+        $this->batchDate = today()->format('Y-m-d');
+        $this->batchLocation = auth()->user()->pharm_location_id;
+        $this->batchTypes = ['OPD'];
+        $this->showBatchCreateModal = true;
+    }
+
+    /**
+     * Preview prescriptions that will be queued
+     */
+    #[Locked]
+    public function previewBatchCreate()
+    {
+        try {
+            $prescriptions = $this->getPrescriptionsForQueue(
+                $this->batchDate,
+                $this->batchLocation,
+                $this->batchTypes
+            );
+
+            $this->dispatch('show-preview', [
+                'count' => $prescriptions->count(),
+                'prescriptions' => $prescriptions->take(10)->toArray()
+            ]);
+        } catch (\Exception $e) {
+            $this->error('Error previewing prescriptions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Execute batch queue creation
+     */
+    #[Locked]
+    public function executeBatchCreate()
+    {
+        try {
+            DB::beginTransaction();
+
+            $prescriptions = $this->getPrescriptionsForQueue(
+                $this->batchDate,
+                $this->batchLocation,
+                $this->batchTypes
+            );
+
+            if ($prescriptions->isEmpty()) {
+                $this->warning('No prescriptions found to queue.');
+                return;
+            }
+
+            $stats = [
+                'created' => 0,
+                'skipped' => 0,
+                'errors' => 0,
+            ];
+
+            foreach ($prescriptions as $prescription) {
+                // Check if queue already exists
+                $existingQueue = PrescriptionQueue::where('prescription_id', $prescription->prescription_id)
+                    ->whereIn('queue_status', ['waiting', 'preparing', 'ready'])
+                    ->first();
+
+                if ($existingQueue) {
+                    $stats['skipped']++;
+                    continue;
+                }
+
+                // Create queue
+                $result = $this->queueService->createQueue([
+                    'prescription_id' => $prescription->prescription_id,
+                    'enccode' => $prescription->enccode,
+                    'hpercode' => $prescription->hpercode,
+                    'location_code' => $prescription->location_code,
+                    'priority' => $prescription->priority,
+                    'queue_prefix' => $prescription->queue_prefix,
+                    'created_by' => $prescription->created_by,
+                    'created_from' => $prescription->created_from,
+                ]);
+
+                if ($result['success']) {
+                    $stats['created']++;
+                } else {
+                    $stats['errors']++;
+                }
+            }
+
+            DB::commit();
+
+            $this->showBatchCreateModal = false;
+
+            $message = "Batch creation completed: {$stats['created']} created, {$stats['skipped']} skipped";
+            if ($stats['errors'] > 0) {
+                $message .= ", {$stats['errors']} errors";
+            }
+
+            $this->success($message);
+            $this->dispatch('refresh-queues');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Batch queue creation failed', [
+                'batch_date'     => $this->batchDate,
+                'batch_location' => $this->batchLocation,
+                'batch_types'    => $this->batchTypes,
+                'exception'      => $e,
+            ]);
+
+            $this->error('Error creating queues: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get prescriptions for queue creation
+     */
+    private function getPrescriptionsForQueue($date, $locationCode, $encounterTypes)
+    {
+        $encounterTypesStr = "'" . implode("','", $encounterTypes) . "'";
+
+        // Use BETWEEN for precise date filtering (single day)
+        $dateStart = $date . ' 00:00:00';
+        $dateEnd = $date . ' 23:59:59';
+
+        $query = "
+            SELECT
+                presc.id AS prescription_id,
+                enc.enccode,
+                enc.hpercode,
+                '{$locationCode}' AS location_code,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM webapp.dbo.prescription_data pd
+                        WHERE pd.presc_id = presc.id
+                          AND pd.priority = 'U'
+                          AND pd.stat = 'A'
+                    )
+                    THEN 'stat'
+                    ELSE 'normal'
+                END AS priority,
+                enc.toecode AS queue_prefix,
+                presc.empid AS created_by,
+                opd.tscode AS created_from,
+                pat.patlast + ', ' + pat.patfirst AS patient_name,
+                enc.encdate,
+                presc.created_at AS prescription_time
+            FROM hospital.dbo.henctr enc
+                INNER JOIN hospital.dbo.hopdlog opd ON enc.enccode = opd.enccode
+                INNER JOIN webapp.dbo.prescription presc ON enc.enccode = presc.enccode
+                INNER JOIN hospital.dbo.hperson pat ON enc.hpercode = pat.hpercode
+            WHERE
+                enc.encdate BETWEEN '{$dateStart}' AND '{$dateEnd}'
+                AND enc.toecode IN ({$encounterTypesStr})
+                AND EXISTS (
+                    SELECT 1
+                    FROM webapp.dbo.prescription_data pd
+                    WHERE pd.presc_id = presc.id
+                      AND pd.stat = 'A'
+                )
+            ORDER BY
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM webapp.dbo.prescription_data pd
+                        WHERE pd.presc_id = presc.id
+                          AND pd.priority = 'U'
+                          AND pd.stat = 'A'
+                    )
+                    THEN 1
+                    ELSE 2
+                END,
+                enc.encdate DESC,
+                presc.created_at DESC
+        ";
+
+        return collect(DB::select($query));
+    }
+
+    /**
+     * Get available locations
+     */
+    public function getLocationsProperty()
+    {
+        return PharmLocation::orderBy('description')->get();
     }
 
     protected function loadCurrentQueue()
@@ -375,7 +576,7 @@ class PrescriptionQueueController extends Component
                     'prepared_by' => auth()->user()->employeeid,
                     'preparing_at' => now(),
                 ]);
-
+            $this->selectedQueueId = $nextQueue->id;
             $this->success("Now serving: {$nextQueue->queue_number}");
             $this->loadCurrentQueue();
         } else {
@@ -690,6 +891,7 @@ class PrescriptionQueueController extends Component
         return view('livewire.pharmacy.prescriptions.queueing.prescription-queue-controller', [
             'queues' => $this->queues,
             'stats' => $this->stats,
+            'locations' => $this->locations,
         ]);
     }
 }

@@ -1,5 +1,13 @@
 <?php
 
+use App\Livewire\Dashboard\CriticalStockItems;
+use App\Livewire\Dashboard\EmergencyPurchases;
+use App\Livewire\Dashboard\ExpiredItems;
+use App\Livewire\Dashboard\IssuedOrders;
+use App\Livewire\Dashboard\NearExpiryItems;
+use App\Livewire\Dashboard\PendingOrders;
+use App\Livewire\Dashboard\QueueDetails;
+use App\Livewire\Dashboard\ReturnedOrders;
 use App\Livewire\DashboardExecutive;
 use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
@@ -16,21 +24,15 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueDisplay;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTablet;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
-use App\Livewire\Dashboard\PendingOrders;
-use App\Livewire\Dashboard\IssuedOrders;
-use App\Livewire\Dashboard\ReturnedOrders;
-use App\Livewire\Dashboard\NearExpiryItems;
-use App\Livewire\Dashboard\ExpiredItems;
-use App\Livewire\Dashboard\CriticalStockItems;
-use App\Livewire\Dashboard\EmergencyPurchases;
-use App\Livewire\Dashboard\QueueDetails;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Records\DischargedPatients;
+use App\Livewire\Records\ForDischargePatients;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -69,6 +71,8 @@ Route::middleware([
     Route::prefix('/records')->name('records.')->group(function () {
         Route::get('/patients', PatientsList::class)
             ->name('patients.index');
+        Route::get('/for-discharge-patients', ForDischargePatients::class)
+            ->name('for-discharge-patients');
         Route::get('/discharged-patients', DischargedPatients::class)
             ->name('discharged-patients');
     });
