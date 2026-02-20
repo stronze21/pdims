@@ -1136,7 +1136,7 @@ class DispensingEncounter extends Component
     public function navigateToEncounter($enccode)
     {
         $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
-        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
+        return $this->redirect(route('dispensing.view.enctr', ['enccode' => $encrypted]), navigate: false);
     }
 
     public function addPrescriptionFromEncounter($rxId, $dmdcomb, $dmdctr, $empid, $qty)
@@ -1312,7 +1312,7 @@ class DispensingEncounter extends Component
     public function rxBrowseSelectEncounter($enccode)
     {
         $encrypted = Crypt::encrypt(str_replace(' ', '--', $enccode));
-        return redirect()->route('dispensing.view.enctr', ['enccode' => $encrypted]);
+        return $this->redirect(route('dispensing.view.enctr', ['enccode' => $encrypted]), navigate: false);
     }
 
     // ──────────────────────────────────────────────
@@ -1717,10 +1717,9 @@ class DispensingEncounter extends Component
         }
 
         $encrypted = Crypt::encrypt(str_replace(' ', '--', $queue->enccode));
+        $url = route('dispensing.view.enctr', ['enccode' => $encrypted]) . '?queue_id=' . $queue->id;
 
-        return redirect()->to(
-            route('dispensing.view.enctr', ['enccode' => $encrypted]) . '?queue_id=' . $queue->id
-        );
+        return $this->redirect($url, navigate: false);
     }
 
     public function queueCallNext(): mixed
@@ -1770,10 +1769,20 @@ class DispensingEncounter extends Component
                         ]);
                 }
             }
+
+            $this->currentQueueStatus = 'dispensed';
         }
 
-        // Then call next
-        return $this->queueCallNext();
+        // Then call next (will redirect if queue found, or update state if not)
+        $result = $this->queueCallNext();
+
+        // If no next queue was found, refresh state so UI shows completed status
+        if ($result === null) {
+            $this->refreshQueueStatus();
+            $this->loadQueueList();
+        }
+
+        return $result;
     }
 
     private function autoUpdateQueueOnIssue(): void
@@ -1835,12 +1844,12 @@ class DispensingEncounter extends Component
             }
         }
 
-        return redirect()->route('prescriptions.queue.controller2');
+        return $this->redirect(route('prescriptions.queue.controller2'), navigate: false);
     }
 
     public function returnToQueueController(): mixed
     {
-        return redirect()->route('prescriptions.queue.controller2');
+        return $this->redirect(route('prescriptions.queue.controller2'), navigate: false);
     }
 
     // ──────────────────────────────────────────────
