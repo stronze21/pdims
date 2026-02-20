@@ -51,8 +51,13 @@
                                 {{-- Preparing → Open Dispensing Window --}}
                                 @if ($currentQueue->enccode)
                                     @php
-                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(str_replace(' ', '--', $currentQueue->enccode));
-                                        $dispensingUrl = route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) . '?queue_id=' . $currentQueue->id;
+                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(
+                                            str_replace(' ', '--', $currentQueue->enccode),
+                                        );
+                                        $dispensingUrl =
+                                            route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) .
+                                            '?queue_id=' .
+                                            $currentQueue->id;
                                     @endphp
                                     <button
                                         onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
@@ -66,7 +71,8 @@
                                     </div>
                                 @endif
                                 <div class="alert alert-info">
-                                    <span class="text-xs">Preparing medications. Open dispensing to charge and issue items.</span>
+                                    <span class="text-xs">Preparing medications. Open dispensing to charge and issue
+                                        items.</span>
                                 </div>
                             @elseif ($currentQueue->isReady())
                                 {{-- Ready → Waiting for patient to claim --}}
@@ -76,8 +82,13 @@
                                 </div>
                                 @if ($currentQueue->enccode)
                                     @php
-                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(str_replace(' ', '--', $currentQueue->enccode));
-                                        $dispensingUrl = route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) . '?queue_id=' . $currentQueue->id;
+                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(
+                                            str_replace(' ', '--', $currentQueue->enccode),
+                                        );
+                                        $dispensingUrl =
+                                            route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) .
+                                            '?queue_id=' .
+                                            $currentQueue->id;
                                     @endphp
                                     <button
                                         onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
@@ -226,11 +237,11 @@
                 <x-slot:menu>
                     <div class="flex items-center gap-4">
                         <x-mary-input type="date" wire:model.live="dateFilter" class="input-sm" />
-                        <x-mary-select wire:model.live="selectedWindow" class="select-sm">
+                        <select wire:model.live="selectedWindow" class="select select-sm">
                             @for ($i = 1; $i <= $maxWindows; $i++)
                                 <option value="{{ $i }}">Window {{ $i }}</option>
                             @endfor
-                        </x-mary-select>
+                        </select>
                     </div>
                 </x-slot:menu>
 
@@ -282,20 +293,14 @@
                                     </td>
                                     <td>
                                         <div class="flex gap-1">
-                                            @if ($queue->isWaiting() && !$queue->assigned_window)
+                                            @if (
+                                                ($queue->isWaiting() && !$queue->assigned_window && !$currentQueue) ||
+                                                    ($queue->isPreparing() && ($queue->assigned_window == $selectedWindow || !$queue->assigned_window)))
                                                 <button wire:click="selectQueue({{ $queue->id }})"
                                                     class="btn btn-xs btn-primary"
                                                     wire:confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
                                                     Select
                                                 </button>
-                                            @elseif ($queue->isPreparing() && $queue->assigned_window != $selectedWindow)
-                                                <button wire:click="selectQueue({{ $queue->id }})"
-                                                    class="btn btn-xs btn-accent"
-                                                    wire:confirm="Move {{ $queue->queue_number }} from Window {{ $queue->assigned_window }} to Window {{ $selectedWindow }}?">
-                                                    Move Here
-                                                </button>
-                                            @elseif ($queue->isPreparing() && $queue->assigned_window == $selectedWindow)
-                                                <span class="badge badge-xs badge-primary">Current</span>
                                             @endif
                                             <button wire:click="viewQueue({{ $queue->id }})"
                                                 class="btn btn-xs btn-ghost">

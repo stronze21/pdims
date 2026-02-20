@@ -89,6 +89,12 @@ class PrescriptionQueueController extends Component
         ];
     }
 
+    public function updatedDateFilter()
+    {
+        $this->loadCurrentQueue();
+        $this->resetPage();
+    }
+
     public function handleQueueStatusChanged($event)
     {
         if ($event['assigned_window'] == $this->selectedWindow) {
@@ -121,7 +127,13 @@ class PrescriptionQueueController extends Component
     {
         // Get active queue (preparing/ready, not charging)
         $this->currentQueue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->where(function ($q) {
+                if ($this->selectedQueueId) {
+                    $q->where('id', $this->selectedQueueId);
+                }
+            })
             ->where('assigned_window', $this->selectedWindow)
+            ->whereDate('queued_at', $this->dateFilter)
             ->whereIn('queue_status', ['preparing', 'ready'])
             ->with(['patient'])
             ->orderByRaw("
@@ -137,6 +149,7 @@ class PrescriptionQueueController extends Component
         $chargingQueues = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
             ->where('assigned_window', $this->selectedWindow)
             ->where('queue_status', 'charging')
+            ->whereDate('queued_at', $this->dateFilter)
             ->with(['patient'])
             ->orderBy('charging_at', 'asc')
             ->get();
@@ -288,8 +301,6 @@ class PrescriptionQueueController extends Component
             }
         }
     }
-
-
 
     #[Locked]
     public function dispenseQueue()
@@ -485,7 +496,7 @@ class PrescriptionQueueController extends Component
     public function selectQueue($queueId)
     {
         $queue = PrescriptionQueue::find($queueId);
-
+        $this->selectedQueueId = $queueId;
         if (!$queue || (!$queue->isWaiting() && !$queue->isPreparing())) {
             $this->error('Queue is not available for selection');
             return;
