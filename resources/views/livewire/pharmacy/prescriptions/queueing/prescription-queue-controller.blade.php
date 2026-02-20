@@ -47,28 +47,45 @@
 
                         {{-- Action Buttons Based on Status --}}
                         <div class="space-y-2 pt-4 border-t">
-                            @if ($currentQueue->isPreparing() && !$currentQueue->called_at)
-                                {{-- Stage 1: Preparing → Call Patient --}}
-                                <button wire:click="callQueue" class="btn btn-primary btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-megaphone" class="w-5 h-5" />
-                                    CALL PATIENT
-                                </button>
-                            @elseif ($currentQueue->isPreparing() && $currentQueue->called_at)
-                                {{-- Stage 2: Patient Called → Issue Charge Slip --}}
-                                <button wire:click="moveToCharging"
-                                    class="btn btn-secondary btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-document-text" class="w-5 h-5" />
-                                    ISSUE CHARGE SLIP
-                                </button>
+                            @if ($currentQueue->isPreparing())
+                                {{-- Preparing → Open Dispensing Window --}}
+                                @if ($currentQueue->enccode)
+                                    @php
+                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(str_replace(' ', '--', $currentQueue->enccode));
+                                        $dispensingUrl = route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) . '?queue_id=' . $currentQueue->id;
+                                    @endphp
+                                    <button
+                                        onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                        class="btn btn-accent btn-block btn-lg touch-target">
+                                        <x-mary-icon name="o-beaker" class="w-5 h-5" />
+                                        OPEN DISPENSING
+                                    </button>
+                                @else
+                                    <div class="alert alert-warning">
+                                        <span class="text-xs">No encounter linked to this queue.</span>
+                                    </div>
+                                @endif
                                 <div class="alert alert-info">
-                                    <span class="text-xs">Patient called. Click when patient arrives.</span>
+                                    <span class="text-xs">Preparing medications. Open dispensing to charge and issue items.</span>
                                 </div>
                             @elseif ($currentQueue->isReady())
-                                {{-- Stage 4: Ready → Open Dispensing or Quick Dispense --}}
-                                <button wire:click="openDispensing" class="btn btn-accent btn-block btn-lg touch-target">
-                                    <x-mary-icon name="o-clipboard-document-check" class="w-5 h-5" />
-                                    OPEN DISPENSING
-                                </button>
+                                {{-- Ready → Waiting for patient to claim --}}
+                                <div class="alert alert-success">
+                                    <x-mary-icon name="o-check-circle" class="w-5 h-5" />
+                                    <span class="text-xs">Items charged. Waiting for patient to claim.</span>
+                                </div>
+                                @if ($currentQueue->enccode)
+                                    @php
+                                        $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(str_replace(' ', '--', $currentQueue->enccode));
+                                        $dispensingUrl = route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) . '?queue_id=' . $currentQueue->id;
+                                    @endphp
+                                    <button
+                                        onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                        class="btn btn-accent btn-block btn-sm touch-target">
+                                        <x-mary-icon name="o-beaker" class="w-4 h-4" />
+                                        Open Dispensing
+                                    </button>
+                                @endif
                                 <div class="grid grid-cols-2 gap-2">
                                     <button wire:click="dispenseQueue" class="btn btn-success btn-sm touch-target">
                                         <x-mary-icon name="o-check" class="w-4 h-4" />
@@ -78,9 +95,6 @@
                                         <x-mary-icon name="o-forward" class="w-4 h-4" />
                                         Dispense & Next
                                     </button>
-                                </div>
-                                <div class="alert alert-success">
-                                    <span class="text-xs">Patient has paid. Open dispensing to issue medications, or mark as dispensed directly.</span>
                                 </div>
                             @endif
 
