@@ -57,6 +57,12 @@
                             <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
                         </div>
                     @endif
+                    @if ($currentQueueStatus === 'ready')
+                        <x-mary-button label="Call for Patient" icon="o-megaphone"
+                            class="btn-sm btn-warning animate-pulse"
+                            wire:click="callForPatient"
+                            wire:confirm="Call patient for queue {{ $currentQueueNumber }}?" />
+                    @endif
                 @else
                     <div class="flex items-center gap-2">
                         <x-heroicon-o-queue-list class="w-4 h-4 text-primary" />

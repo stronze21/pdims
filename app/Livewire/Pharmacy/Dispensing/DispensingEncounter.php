@@ -32,6 +32,29 @@ class DispensingEncounter extends Component
 {
     use Toast;
 
+    public function getListeners()
+    {
+        $locationCode = auth()->user()->pharm_location_id;
+
+        return [
+            "echo:pharmacy.location.{$locationCode},.queue.status.changed" => 'handleQueueStatusChanged',
+            "echo:pharmacy.location.{$locationCode},.queue.called" => 'handleQueueCalled',
+        ];
+    }
+
+    public function handleQueueStatusChanged($event)
+    {
+        if ($this->queueId && $event['queue_id'] == $this->queueId) {
+            $this->refreshQueueStatus();
+        }
+        $this->loadQueueList();
+    }
+
+    public function handleQueueCalled($event)
+    {
+        $this->loadQueueList();
+    }
+
     // Queue Integration
     public $queueId = null;
     public $currentQueueNumber = null;
@@ -158,6 +181,11 @@ class DispensingEncounter extends Component
         $this->hasEncounter = true;
 
         $decrypted = $this->decryptEnccode();
+
+        // Auto-detect queue by enccode if no queue_id was passed
+        if (!$this->queueId) {
+            $this->autoDetectQueueByEnccode($decrypted);
+        }
 
         $encounter = collect(DB::select("SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate, diag.diagtext,
                                                 pat.patlast, pat.patfirst, pat.patmiddle,
@@ -370,16 +398,16 @@ class DispensingEncounter extends Component
         }
 
         if ($cnt && $cnt != 0) {
-            // Auto-link charge slip number and update queue status to charging
+            // Auto-link charge slip number and update queue status to ready
             if ($this->queueId) {
                 $queue = PrescriptionQueue::find($this->queueId);
                 if ($queue && !$queue->isDispensed() && !$queue->isCancelled()) {
                     $queueService = app(PrescriptionQueueService::class);
                     $queueService->updateQueueStatus(
                         $this->queueId,
-                        'charging',
+                        'ready',
                         auth()->user()->employeeid,
-                        'Charge slip issued: ' . $pcchrgcod
+                        'Charge slip issued, ready for claiming: ' . $pcchrgcod
                     );
 
                     DB::connection('webapp')->table('prescription_queues')
@@ -388,9 +416,10 @@ class DispensingEncounter extends Component
                             'charge_slip_no' => $pcchrgcod,
                             'charging_at' => now(),
                             'charged_by' => auth()->user()->employeeid,
+                            'ready_at' => now(),
                         ]);
                     $this->queueChargeSlipNo = $pcchrgcod;
-                    $this->currentQueueStatus = 'charging';
+                    $this->currentQueueStatus = 'ready';
                 }
             }
 
@@ -1514,6 +1543,53 @@ class DispensingEncounter extends Component
             $this->showQueuePanel = true;
             $this->loadQueueList();
         }
+    }
+
+    private function autoDetectQueueByEnccode(string $enccode): void
+    {
+        $queue = PrescriptionQueue::where('enccode', $enccode)
+            ->where('location_code', auth()->user()->pharm_location_id)
+            ->whereIn('queue_status', ['waiting', 'preparing', 'charging', 'ready'])
+            ->whereDate('queued_at', today())
+            ->first();
+
+        if ($queue) {
+            $this->queueId = $queue->id;
+            $this->currentQueueNumber = $queue->queue_number;
+            $this->currentQueueStatus = $queue->queue_status;
+            $this->queueChargeSlipNo = $queue->charge_slip_no;
+            $this->showQueuePanel = true;
+        }
+    }
+
+    public function callForPatient(): void
+    {
+        if (!$this->queueId) {
+            $this->warning('No queue linked to this dispensing session.');
+            return;
+        }
+
+        $queue = PrescriptionQueue::find($this->queueId);
+        if (!$queue || !$queue->isReady()) {
+            $this->warning('Queue must be in ready status to call patient.');
+            return;
+        }
+
+        DB::connection('webapp')->table('prescription_queues')
+            ->where('id', $this->queueId)
+            ->update(['called_at' => now()]);
+
+        $queueService = app(PrescriptionQueueService::class);
+        $queueService->logQueueAction(
+            $this->queueId,
+            auth()->user()->employeeid,
+            'Patient called for claiming from dispensing encounter'
+        );
+
+        $queue = PrescriptionQueue::find($this->queueId);
+        \App\Events\Pharmacy\QueueCalled::dispatch($queue, 'pharmacy');
+
+        $this->success("Queue {$this->currentQueueNumber} called! Patient notified for claiming.");
     }
 
     public function refreshQueueStatus(): void
