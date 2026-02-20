@@ -486,32 +486,51 @@ class PrescriptionQueueController extends Component
     {
         $queue = PrescriptionQueue::find($queueId);
 
-        if (!$queue || !$queue->isWaiting()) {
+        if (!$queue || (!$queue->isWaiting() && !$queue->isPreparing())) {
             $this->error('Queue is not available for selection');
             return;
         }
 
-        $result = $this->queueService->updateQueueStatus(
-            $queue->id,
-            'preparing',
-            auth()->user()->employeeid,
-            "Selected to Window {$this->selectedWindow}"
-        );
+        if ($queue->isWaiting()) {
+            $result = $this->queueService->updateQueueStatus(
+                $queue->id,
+                'preparing',
+                auth()->user()->employeeid,
+                "Selected to Window {$this->selectedWindow}"
+            );
 
-        if ($result['success']) {
+            if ($result['success']) {
+                DB::connection('webapp')->table('prescription_queues')
+                    ->where('id', $queue->id)
+                    ->update([
+                        'assigned_window' => $this->selectedWindow,
+                        'prepared_by' => auth()->user()->employeeid,
+                        'preparing_at' => now(),
+                    ]);
+
+                $this->success("Now serving: {$queue->queue_number}");
+            } else {
+                $this->error($result['message']);
+                return;
+            }
+        } elseif ($queue->isPreparing()) {
+            // Reassign a preparing queue to this window
             DB::connection('webapp')->table('prescription_queues')
                 ->where('id', $queue->id)
                 ->update([
                     'assigned_window' => $this->selectedWindow,
-                    'prepared_by' => auth()->user()->employeeid,
-                    'preparing_at' => now(),
                 ]);
 
-            $this->success("Now serving: {$queue->queue_number}");
-            $this->loadCurrentQueue();
-        } else {
-            $this->error($result['message']);
+            $this->queueService->logQueueAction(
+                $queue->id,
+                auth()->user()->employeeid,
+                "Reassigned to Window {$this->selectedWindow}"
+            );
+
+            $this->success("Queue {$queue->queue_number} moved to Window {$this->selectedWindow}");
         }
+
+        $this->loadCurrentQueue();
     }
 
     public function dispenseAndNext()

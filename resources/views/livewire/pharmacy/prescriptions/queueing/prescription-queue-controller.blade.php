@@ -288,6 +288,14 @@
                                                     wire:confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
                                                     Select
                                                 </button>
+                                            @elseif ($queue->isPreparing() && $queue->assigned_window != $selectedWindow)
+                                                <button wire:click="selectQueue({{ $queue->id }})"
+                                                    class="btn btn-xs btn-accent"
+                                                    wire:confirm="Move {{ $queue->queue_number }} from Window {{ $queue->assigned_window }} to Window {{ $selectedWindow }}?">
+                                                    Move Here
+                                                </button>
+                                            @elseif ($queue->isPreparing() && $queue->assigned_window == $selectedWindow)
+                                                <span class="badge badge-xs badge-primary">Current</span>
                                             @endif
                                             <button wire:click="viewQueue({{ $queue->id }})"
                                                 class="btn btn-xs btn-ghost">

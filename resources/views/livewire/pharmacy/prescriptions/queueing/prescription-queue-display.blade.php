@@ -57,102 +57,65 @@ setInterval(() => {
     {{-- Main Content - Split Screen --}}
     @php
         $hasCashier = $displaySettings->require_cashier;
-        $hasReadyQueues = $showingQueues['ready']->isNotEmpty();
-        // Layout: always show pharmacy windows + claiming column; optionally show cashier
-        $pharmacyWidth = $hasCashier ? 'w-1/3' : 'w-1/2';
-        $claimingWidth = $hasCashier ? 'w-1/3' : 'w-1/2';
-        $cashierWidth = 'w-1/3';
+        // Layout columns: Preparing + Cashier (optional) + Ready for Claiming
+        $columnCount = $hasCashier ? 3 : 2;
+        $colWidth = 'w-1/' . $columnCount;
     @endphp
     <div class="flex-1 flex">
-        {{-- Left Side: PHARMACY WINDOWS --}}
-        <div class="{{ $pharmacyWidth }} bg-gray-50 p-6 border-r-4 border-green-600">
+        {{-- Left Side: NOW PREPARING --}}
+        <div class="{{ $colWidth }} bg-gray-50 p-6 border-r-4 border-green-600">
             <div class="bg-green-700 text-white text-center py-4 rounded-t-xl shadow-lg mb-6">
-                <h2 class="text-4xl font-bold">PHARMACY WINDOWS</h2>
-                <p class="text-sm opacity-90 mt-1">Preparation</p>
+                <h2 class="text-4xl font-bold">NOW PREPARING</h2>
+                <p class="text-sm opacity-90 mt-1">Your prescription is being prepared</p>
             </div>
 
             <div class="space-y-4">
-                @php
-                    $windowsData = [];
-                    // Group preparing queues by window
-                    foreach ($currentlyServing as $queue) {
-                        $windowsData[$queue->assigned_window ?? 0][] = [
-                            'queue' => $queue,
-                            'status' => 'preparing',
-                        ];
-                    }
-                @endphp
+                @forelse ($currentlyServing->sortBy('preparing_at') as $queue)
+                    <div
+                        class="bg-white border-4 {{ $queue->priority === 'stat' ? 'border-red-600' : 'border-green-600' }} rounded-xl shadow-xl overflow-hidden">
+                        <div class="flex items-center">
+                            {{-- Window Badge --}}
+                            <div
+                                class="bg-green-700 text-white px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
+                                <div class="text-sm font-semibold mb-1">WINDOW</div>
+                                <div class="text-6xl font-bold">{{ $queue->assigned_window ?? '-' }}</div>
+                            </div>
 
-                @for ($windowNum = 1; $windowNum <= $displaySettings->pharmacy_windows; $windowNum++)
-                    @php
-                        $windowQueues = collect($windowsData[$windowNum] ?? []);
-                        $activeQueue = $windowQueues->first();
-                        $waitingCount = $windowQueues->count() - 1;
-                    @endphp
-
-                    @if ($activeQueue)
-                        @php
-                            $queue = $activeQueue['queue'];
-                        @endphp
-
-                        <div
-                            class="bg-white border-4 {{ $queue->priority === 'stat' ? 'border-red-600' : 'border-green-600' }} rounded-xl shadow-xl overflow-hidden">
-                            <div class="flex items-center">
-                                {{-- Window Badge --}}
-                                <div
-                                    class="bg-green-700 text-white px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
-                                    <div class="text-sm font-semibold mb-1">WINDOW</div>
-                                    <div class="text-6xl font-bold">{{ $windowNum }}</div>
-                                    @if ($waitingCount > 0)
-                                        <div class="mt-2 text-xs bg-white/20 rounded-full px-3 py-1">
-                                            +{{ $waitingCount }} waiting
-                                        </div>
-                                    @endif
-                                </div>
-
-                                {{-- Queue Info --}}
-                                <div class="flex-1 py-4">
-                                    <div class="text-center">
-                                        <div class="text-7xl font-bold text-green-700">
-                                            {{ $queue->queue_number }}
-                                        </div>
-                                        <div class="mt-2">
-                                            <span class="badge badge-lg badge-info text-lg px-4 py-3">
-                                                PREPARING
-                                            </span>
-                                            @if ($queue->priority === 'stat')
-                                                <span
-                                                    class="badge badge-lg badge-error text-lg px-4 py-3 ml-2">STAT</span>
-                                            @endif
-                                        </div>
+                            {{-- Queue Info --}}
+                            <div class="flex-1 py-4">
+                                <div class="text-center">
+                                    <div class="text-7xl font-bold text-green-700">
+                                        {{ $queue->queue_number }}
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="badge badge-lg badge-info text-lg px-4 py-3">
+                                            PREPARING
+                                        </span>
+                                        @if ($queue->priority === 'stat')
+                                            <span
+                                                class="badge badge-lg badge-error text-lg px-4 py-3 ml-2">STAT</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    @else
-                        {{-- Empty Window --}}
-                        <div
-                            class="bg-gray-100 border-4 border-gray-300 rounded-xl shadow-xl overflow-hidden opacity-40">
-                            <div class="flex items-center">
-                                <div
-                                    class="bg-gray-300 text-gray-600 px-8 py-6 flex flex-col items-center justify-center min-w-[140px]">
-                                    <div class="text-sm font-semibold mb-1">WINDOW</div>
-                                    <div class="text-6xl font-bold">{{ $windowNum }}</div>
-                                </div>
-                                <div class="flex-1 text-center py-4">
-                                    <div class="text-7xl font-bold text-gray-400">- - -</div>
-                                    <div class="mt-2 text-sm text-gray-500">Available</div>
-                                </div>
+                    </div>
+                @empty
+                    <div
+                        class="bg-gray-100 border-4 border-gray-300 rounded-xl shadow-xl overflow-hidden opacity-40">
+                        <div class="flex items-center justify-center py-16">
+                            <div class="text-center">
+                                <div class="text-4xl mb-4 text-gray-400">No Queues Preparing</div>
                             </div>
                         </div>
-                    @endif
-                @endfor
+                    </div>
+                @endforelse
             </div>
         </div>
 
         {{-- Middle: CASHIER QUEUE (Only if cashier is required) --}}
         @if ($hasCashier)
-            <div class="{{ $cashierWidth }} bg-gray-50 p-6 border-r-4 border-yellow-600">
+            <div class="{{ $colWidth }} bg-gray-50 p-6 border-r-4 border-yellow-600">
                 <div class="bg-yellow-600 text-white text-center py-4 rounded-t-xl shadow-lg mb-6">
                     <h2 class="text-4xl font-bold">CASHIER QUEUE</h2>
                     <p class="text-sm opacity-90 mt-1">
@@ -243,7 +206,7 @@ setInterval(() => {
         @endif
 
         {{-- Right Side: READY FOR CLAIMING --}}
-        <div class="{{ $claimingWidth }} bg-gray-50 p-6">
+        <div class="{{ $colWidth }} bg-gray-50 p-6">
             <div class="bg-blue-600 text-white text-center py-4 rounded-t-xl shadow-lg mb-6">
                 <h2 class="text-4xl font-bold">READY FOR CLAIMING</h2>
                 <p class="text-sm opacity-90 mt-1">Please proceed to the pharmacy window</p>
