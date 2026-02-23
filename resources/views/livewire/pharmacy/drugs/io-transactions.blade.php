@@ -70,9 +70,12 @@
                     <tr>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Ref #</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Drug Name</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Requested</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Received</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Requested
+                        </th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
+                        </th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Received
+                        </th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">From</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">To</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Status</th>
@@ -83,7 +86,7 @@
                 <tbody>
                     @forelse ($trans as $tran)
                         @php
-                            $status_class = match($tran->trans_stat) {
+                            $status_class = match ($tran->trans_stat) {
                                 'Requested' => 'badge-neutral',
                                 'Issued' => 'badge-info',
                                 'Received' => 'badge-success',
@@ -94,14 +97,20 @@
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="io-trans-{{ $tran->id }}">
                             <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600">{{ $tran->trans_no }}</td>
-                            <td class="py-3 px-4 text-xs font-bold text-gray-900">{{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
-                            <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->requested_qty ?? 0) }}</td>
+                            <td class="py-3 px-4 text-xs font-bold text-gray-900">
+                                {{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->requested_qty ?? 0) }}
+                            </td>
                             <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->issued_qty ?? 0) }}</td>
-                            <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->received_qty ?? 0) }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->from_location ? $tran->from_location->description : '' }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->location ? $tran->location->description : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->received_qty ?? 0) }}
+                            </td>
+                            <td class="py-3 px-4 text-xs text-gray-600">
+                                {{ $tran->from_location ? $tran->from_location->description : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-gray-600">
+                                {{ $tran->location ? $tran->location->description : '' }}</td>
                             <td class="py-3 px-4">
-                                <span class="badge badge-sm {{ $status_class }}">{{ $tran->trans_stat == 'Denied' ? 'Declined' : $tran->trans_stat }}</span>
+                                <span
+                                    class="badge badge-sm {{ $status_class }}">{{ $tran->trans_stat == 'Denied' ? 'Declined' : $tran->trans_stat }}</span>
                             </td>
                             <td class="py-3 px-4 text-xs text-gray-500 max-w-[150px] truncate"
                                 title="{{ $tran->remarks_request }}">
@@ -112,24 +121,26 @@
                                     @if ($tran->trans_stat == 'Requested')
                                         {{-- Warehouse can issue --}}
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
-                                            <x-mary-button icon="o-check" class="btn-xs btn-success" tooltip="Issue"
-                                                wire:click="selectRequest({{ $tran->id }})" spinner />
-                                            <x-mary-button icon="o-x-mark" class="btn-xs btn-error" tooltip="Decline"
-                                                wire:click="denyRequest('Declined by admin')"
+                                            <x-mary-button icon="o-check" class="btn-xs btn-success"
+                                                tooltip-left="Issue" wire:click="selectRequest({{ $tran->id }})"
+                                                spinner />
+                                            <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
+                                                tooltip-left="Decline" wire:click="denyRequest('Declined by admin')"
                                                 wire:confirm="Are you sure you want to decline this request?" spinner />
                                         @endif
                                     @elseif ($tran->trans_stat == 'Issued')
                                         {{-- Requestor can receive --}}
                                         @if ($tran->loc_code == auth()->user()->pharm_location_id)
-                                            <x-mary-button icon="o-inbox-arrow-down" class="btn-xs btn-success" tooltip="Receive"
-                                                wire:click="receiveIssued({{ $tran->id }})"
+                                            <x-mary-button icon="o-inbox-arrow-down" class="btn-xs btn-success"
+                                                tooltip-left="Receive" wire:click="receiveIssued({{ $tran->id }})"
                                                 wire:confirm="Confirm receipt of all items?" spinner />
                                         @endif
                                         {{-- Issuer can cancel --}}
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
-                                            <x-mary-button icon="o-x-mark" class="btn-xs btn-error" tooltip="Cancel"
-                                                wire:click="cancelTx({{ $tran->id }})"
-                                                wire:confirm="Cancel this transaction? All issued items will be returned." spinner />
+                                            <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
+                                                tooltip-left="Cancel" wire:click="cancelTx({{ $tran->id }})"
+                                                wire:confirm="Cancel this transaction? All issued items will be returned."
+                                                spinner />
                                         @endif
                                     @endif
                                 </div>
@@ -137,7 +148,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-8 text-gray-400 font-semibold">No transactions found!</td>
+                            <td colspan="10" class="text-center py-8 text-gray-400 font-semibold">No transactions
+                                found!</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -189,9 +201,11 @@
         @if ($selected_request)
             <div class="space-y-4">
                 <div class="bg-blue-50 rounded-lg p-3 text-sm">
-                    <p><strong>Drug:</strong> {{ $selected_request->drug ? $selected_request->drug->drug_concat : '' }}</p>
+                    <p><strong>Drug:</strong> {{ $selected_request->drug ? $selected_request->drug->drug_concat : '' }}
+                    </p>
                     <p><strong>Requested QTY:</strong> {{ number_format($selected_request->requested_qty ?? 0) }}</p>
-                    <p><strong>Requested by:</strong> {{ $selected_request->location ? $selected_request->location->description : '' }}</p>
+                    <p><strong>Requested by:</strong>
+                        {{ $selected_request->location ? $selected_request->location->description : '' }}</p>
                 </div>
 
                 <div class="form-control w-full">
@@ -199,7 +213,8 @@
                     <select class="select select-bordered" wire:model="chrgcode">
                         <option value="">Select fund source...</option>
                         @foreach ($available_drugs as $avail)
-                            <option value="{{ $avail->chrgcode }}">{{ $avail->chrgdesc }} ({{ number_format($avail->avail) }} available)</option>
+                            <option value="{{ $avail->chrgcode }}">{{ $avail->chrgdesc }}
+                                ({{ number_format($avail->avail) }} available)</option>
                         @endforeach
                     </select>
                 </div>
