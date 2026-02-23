@@ -31,13 +31,11 @@
             <table class="table table-sm">
                 <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Generic Drug Name</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock Bal</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Avg Consumption (30d)</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Max Level (x1.5)</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Critical Qty</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Generic</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock Balance</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">30-Day Moving Average</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Reorder Level</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Status</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date Range</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -53,18 +51,13 @@
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100 {{ $row_class }}">
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">{{ $stk->drug_concat }}</td>
                             <td class="py-3 px-4 text-xs text-right">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold {{ $stk->stock_bal < 1 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700' }}">
-                                    {{ number_format($stk->stock_bal) }}
-                                </span>
+                                {{ number_format($stk->stock_bal) }}
                             </td>
-                            <td class="py-3 px-4 text-xs text-right text-gray-600">{{ number_format($stk->average ?? 0) }}</td>
-                            <td class="py-3 px-4 text-xs text-right text-gray-600">{{ number_format($stk->max_level ?? 0) }}</td>
                             <td class="py-3 px-4 text-xs text-right">
-                                @if (($stk->critical ?? 0) > 0)
-                                    <span class="badge badge-sm badge-error">{{ number_format($stk->critical) }}</span>
-                                @else
-                                    <span class="text-gray-500">{{ number_format($stk->critical ?? 0) }}</span>
-                                @endif
+                                {{ $stk->max_level && $stk->max_level > 0 ? number_format($stk->max_level, 2) : '' }}
+                            </td>
+                            <td class="py-3 px-4 text-xs text-right">
+                                {{ $stk->critical && $stk->critical > 0 ? number_format($stk->critical, 2) : '' }}
                             </td>
                             <td class="py-3 px-4 text-center">
                                 @if ($stk->status == 'CRITICAL')
@@ -75,15 +68,10 @@
                                     <span class="badge badge-sm badge-success">NORMAL</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-xs text-gray-500">
-                                {{ $stk->from_date ? \Carbon\Carbon::parse($stk->from_date)->format('M d') : '' }}
-                                -
-                                {{ $stk->to_date ? \Carbon\Carbon::parse($stk->to_date)->format('M d, Y') : '' }}
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-400 font-semibold">No record found!</td>
+                            <td colspan="5" class="text-center py-8 text-gray-400 font-semibold">No record found!</td>
                         </tr>
                     @endforelse
                 </tbody>
