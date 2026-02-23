@@ -13,7 +13,13 @@ use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Dispensing\ReturnSlip;
 use App\Livewire\Pharmacy\Dispensing\RxoChargeSlip;
+use App\Livewire\Pharmacy\Drugs\IoTransactions;
+use App\Livewire\Pharmacy\Drugs\ReorderLevel;
+use App\Livewire\Pharmacy\Drugs\ReorderLevelComputed;
+use App\Livewire\Pharmacy\Drugs\StockCard;
 use App\Livewire\Pharmacy\Drugs\StockList;
+use App\Livewire\Pharmacy\Drugs\StockSummary;
+use App\Livewire\Pharmacy\Drugs\WardRisTrans;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
@@ -66,6 +72,12 @@ Route::middleware([
 
     Route::prefix('/inventory')->name('inventory.')->group(function () {
         Route::get('/stocks', StockList::class)->name('stocks.list');
+        Route::get('/stock-summary', StockSummary::class)->name('stocks.summary');
+        Route::get('/stock-card', StockCard::class)->name('stocks.card');
+        Route::get('/reorder-level', ReorderLevel::class)->name('stocks.reorder');
+        Route::get('/reorder-level-computed', ReorderLevelComputed::class)->name('stocks.reorder-computed');
+        Route::get('/io-transactions', IoTransactions::class)->name('io-trans');
+        Route::get('/ward-ris', WardRisTrans::class)->name('ward-ris');
     });
 
     Route::prefix('/records')->name('records.')->group(function () {
