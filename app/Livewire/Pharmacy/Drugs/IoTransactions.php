@@ -70,7 +70,7 @@ class IoTransactions extends Component
 
         $drugs = Drug::where('dmdstat', 'A')
             ->whereNotNull('drug_concat')
-            ->has('stock')
+            ->has('stocks')
             ->has('generic')->orderBy('drug_concat', 'ASC')
             ->get();
 
