@@ -55,7 +55,15 @@
             {{-- MENU ITEMS --}}
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
-                <x-mary-menu-item title="Inventory" icon="o-cube" link="{{ route('inventory.stocks.list') }}" />
+                <x-mary-menu-sub title="Inventory" icon="o-cube">
+                    <x-mary-menu-item title="Stock List" icon="o-list-bullet" link="{{ route('inventory.stocks.list') }}" />
+                    <x-mary-menu-item title="Stock Summary" icon="o-table-cells" link="{{ route('inventory.stocks.summary') }}" />
+                    <x-mary-menu-item title="Stock Card" icon="o-document-chart-bar" link="{{ route('inventory.stocks.card') }}" />
+                    <x-mary-menu-item title="Reorder Levels" icon="o-arrow-path" link="{{ route('inventory.stocks.reorder') }}" />
+                    <x-mary-menu-item title="Reorder Levels (Auto)" icon="o-calculator" link="{{ route('inventory.stocks.reorder-computed') }}" />
+                    <x-mary-menu-item title="IO Transactions" icon="o-arrows-right-left" link="{{ route('inventory.io-trans') }}" />
+                    <x-mary-menu-item title="Ward RIS" icon="o-building-office" link="{{ route('inventory.ward-ris') }}" />
+                </x-mary-menu-sub>
                 <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list"
                     onclick="const width = screen.availWidth;
                             const height = screen.availHeight;
