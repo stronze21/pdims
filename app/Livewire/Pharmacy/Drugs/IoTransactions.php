@@ -34,27 +34,23 @@ class IoTransactions extends Component
     public $available_drugs = [];
     public $issueModal = false;
     public $requestModal = false;
-    public $filter_location_id;
+    public $issuing_location_id = '';
+    public $requesting_location_id = '';
 
     public function mount()
     {
-        $this->filter_location_id = '1';
+        $this->requesting_location_id = auth()->user()->pharm_location_id;
+        $this->issuing_location_id = '';
     }
 
     public function render()
     {
-        $pharm_location_id = auth()->user()->pharm_location_id;
-
-        $trans = InOutTransaction::with(['location', 'drug', 'charge'])
-            ->where(function ($query) use ($pharm_location_id) {
-                $query->where(function ($subQuery) use ($pharm_location_id) {
-                    $subQuery->whereIn('loc_code', [$pharm_location_id, $this->filter_location_id])
-                        ->where('request_from', $pharm_location_id);
-                })
-                    ->orWhere(function ($subQuery) use ($pharm_location_id) {
-                        $subQuery->where('loc_code', $pharm_location_id)
-                            ->whereIn('request_from', [$pharm_location_id, $this->filter_location_id]);
-                    });
+        $trans = InOutTransaction::with(['location', 'from_location', 'drug', 'charge'])
+            ->when($this->issuing_location_id, function ($query) {
+                $query->where('request_from', $this->issuing_location_id);
+            })
+            ->when($this->requesting_location_id, function ($query) {
+                $query->where('loc_code', $this->requesting_location_id);
             })
             ->when($this->search, function ($query, $search) {
                 return $query->where(function ($subQuery) use ($search) {
@@ -66,7 +62,7 @@ class IoTransactions extends Component
             })
             ->latest();
 
-        $locations = PharmLocation::where('id', '<>', $pharm_location_id)->get();
+        $locations = PharmLocation::all();
 
         $drugs = Drug::where('dmdstat', 'A')
             ->whereNotNull('drug_concat')
