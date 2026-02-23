@@ -62,7 +62,7 @@ class ReorderLevelComputed extends Component
 
         $current_io = InOutTransaction::where('remarks_request', 'Reorder level')
             ->where('trans_stat', 'Requested')
-            ->where('loc_code', auth()->user()->pharm_location_id)
+            ->where('loc_code', $this->location_id)
             ->whereBetween('created_at', [$from, $to])
             ->count();
 
