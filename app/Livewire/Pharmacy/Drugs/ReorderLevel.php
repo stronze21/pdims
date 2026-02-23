@@ -29,8 +29,11 @@ class ReorderLevel extends Component
         $ma_from = Carbon::parse(now())->subMonth()->startOfDay()->format('Y-m-d H:i:s');
         $ma_to = Carbon::parse(now())->subDay()->endOfDay()->format('Y-m-d H:i:s');
 
-        $locationId = intval($this->location_id);
         $search = '%' . $this->search . '%';
+
+        $where = $this->location_id
+            ? "pds.loc_code = " . intval($this->location_id)
+            : "1=1";
 
         $stocks = DB::select("SELECT pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
                             (SELECT reorder_point
@@ -63,11 +66,11 @@ class ReorderLevel extends Component
                                 pds.dmdcomb, pds.dmdctr
                             FROM pharm_drug_stocks as pds
                             JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
-                            WHERE pds.loc_code = ?
+                            WHERE {$where}
                                 AND pds.drug_concat LIKE ?
                             GROUP BY pds.drug_concat, pds.loc_code, pds.dmdcomb, pds.dmdctr
                             ORDER BY pds.drug_concat ASC
-                    ", [$ma_from, $ma_to, $this->prev_week_start, now(), $from, $to, $prev_from, $prev_to, $locationId, $search]);
+                    ", [$ma_from, $ma_to, $this->prev_week_start, now(), $from, $to, $prev_from, $prev_to, $search]);
 
         $locations = PharmLocation::all();
 

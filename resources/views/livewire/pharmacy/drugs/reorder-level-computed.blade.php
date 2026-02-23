@@ -8,17 +8,15 @@
         </x-slot:middle>
         <x-slot:actions>
             <div class="flex items-end space-x-2">
-                @can('filter-stocks-location')
-                    <div class="form-control">
-                        <label class="label"><span class="label-text text-xs">Location</span></label>
-                        <select class="select select-bordered select-sm" wire:model.live="location_id">
-                            <option value="">All</option>
-                            @foreach ($locations as $loc)
-                                <option value="{{ $loc->id }}">{{ $loc->description }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endcan
+                <div class="form-control">
+                    <label class="label"><span class="label-text text-xs">Location</span></label>
+                    <select class="select select-bordered select-sm" wire:model.live="location_id">
+                        <option value="">All</option>
+                        @foreach ($locations as $loc)
+                            <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @if ($current_io > 0)
                     <span class="badge badge-info badge-sm">{{ $current_io }} pending IO request(s)</span>
                 @endif
