@@ -8,15 +8,16 @@
         </x-slot:middle>
         <x-slot:actions>
             <div class="flex items-end space-x-2">
-                <div class="form-control">
-                    <label class="label"><span class="label-text text-xs">Location</span></label>
-                    <select class="select select-bordered select-sm" wire:model.live="location_id">
-                        <option value="">All</option>
-                        @foreach ($locations as $loc)
-                            <option value="{{ $loc->id }}">{{ $loc->description }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                @can('filter-stocks-location')
+                    <div class="form-control">
+                        <label class="label"><span class="label-text text-xs">Location</span></label>
+                        <select class="select select-bordered select-sm" wire:model.live="location_id">
+                            @foreach ($locations as $loc)
+                                <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endcan
                 <div class="form-control">
                     <label class="label"><span class="label-text text-xs">Search</span></label>
                     <input type="text" placeholder="Search generic name" class="input input-bordered input-sm"
