@@ -14,21 +14,16 @@ class ReorderLevelComputed extends Component
     use Toast;
 
     public $search = '';
-    public $issuing_location_id;
-    public $requesting_location_id;
+    public $location_id;
 
     public function render()
     {
         $from = Carbon::parse(now())->startOfWeek()->format('Y-m-d H:i:s');
         $to = Carbon::parse(now())->endOfWeek()->format('Y-m-d H:i:s');
 
-        $where = $this->issuing_location_id
-            ? "pds.loc_code = " . intval($this->issuing_location_id)
+        $where = $this->location_id
+            ? "pds.loc_code = " . intval($this->location_id)
             : "1=1";
-
-        $cardWhere = $this->requesting_location_id
-            ? "AND card.loc_code = " . intval($this->requesting_location_id)
-            : "AND card.loc_code <> 1";
 
         $stocks = DB::select("SELECT
                                 pds.drug_concat,
@@ -57,7 +52,7 @@ class ReorderLevelComputed extends Component
                             AND card.loc_code = pds.loc_code
                             AND card.iss > 0
                             AND card.stock_date BETWEEN DATEADD(DAY, -30, GETDATE()) AND GETDATE()
-                            {$cardWhere}
+                            AND card.loc_code <> 1
                             WHERE {$where}
                             GROUP BY pds.drug_concat
                             ORDER BY pds.drug_concat
@@ -67,9 +62,7 @@ class ReorderLevelComputed extends Component
 
         $current_io = InOutTransaction::where('remarks_request', 'Reorder level')
             ->where('trans_stat', 'Requested')
-            ->when($this->requesting_location_id, function ($query) {
-                $query->where('loc_code', $this->requesting_location_id);
-            })
+            ->where('loc_code', $this->location_id)
             ->whereBetween('created_at', [$from, $to])
             ->count();
 
@@ -82,7 +75,6 @@ class ReorderLevelComputed extends Component
 
     public function mount()
     {
-        $this->requesting_location_id = auth()->user()->pharm_location_id;
-        $this->issuing_location_id = '';
+        $this->location_id = auth()->user()->pharm_location_id;
     }
 }
