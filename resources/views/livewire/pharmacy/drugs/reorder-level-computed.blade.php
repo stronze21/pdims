@@ -9,8 +9,17 @@
         <x-slot:actions>
             <div class="flex items-end space-x-2">
                 <div class="form-control">
-                    <label class="label"><span class="label-text text-xs">Location</span></label>
-                    <select class="select select-bordered select-sm" wire:model.live="location_id">
+                    <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
+                    <select class="select select-bordered select-sm" wire:model.live="issuing_location_id">
+                        <option value="">All</option>
+                        @foreach ($locations as $loc)
+                            <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
+                    <select class="select select-bordered select-sm" wire:model.live="requesting_location_id">
                         <option value="">All</option>
                         @foreach ($locations as $loc)
                             <option value="{{ $loc->id }}">{{ $loc->description }}</option>
