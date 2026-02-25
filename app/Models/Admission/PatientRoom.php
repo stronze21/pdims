@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Record\Admission;
+namespace App\Models\Admission;
 
 use App\Models\Hospital\Room;
 use App\Models\Hospital\Ward;
