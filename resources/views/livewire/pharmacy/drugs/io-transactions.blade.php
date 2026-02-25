@@ -69,6 +69,7 @@
                 <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
                     <tr>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Ref #</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Drug Name</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Requested
                         </th>
@@ -99,6 +100,9 @@
                             <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
                                 <a href="{{ route('inventory.io-trans.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
                             </td>
+                            <td class="py-3 px-4 text-xs text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>{{ $tran->created_at() }}</a>
+                            </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
                             <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->requested_qty ?? 0) }}
@@ -120,9 +124,6 @@
                             </td>
                             <td class="py-3 px-4">
                                 <div class="flex space-x-1">
-                                    <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>
-                                        <x-mary-button icon="o-calendar-days" class="btn-xs btn-ghost" tooltip-left="View by Date" />
-                                    </a>
                                     @if ($tran->trans_stat == 'Requested')
                                         {{-- Warehouse can issue --}}
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
@@ -153,7 +154,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-8 text-gray-400 font-semibold">No transactions
+                            <td colspan="11" class="text-center py-8 text-gray-400 font-semibold">No transactions
                                 found!</td>
                         </tr>
                     @endforelse
