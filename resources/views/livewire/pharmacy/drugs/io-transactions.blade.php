@@ -96,7 +96,9 @@
                         @endphp
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="io-trans-{{ $tran->id }}">
-                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600">{{ $tran->trans_no }}</td>
+                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.io-trans.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
+                            </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
                             <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->requested_qty ?? 0) }}
@@ -118,6 +120,9 @@
                             </td>
                             <td class="py-3 px-4">
                                 <div class="flex space-x-1">
+                                    <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>
+                                        <x-mary-button icon="o-calendar-days" class="btn-xs btn-ghost" tooltip-left="View by Date" />
+                                    </a>
                                     @if ($tran->trans_stat == 'Requested')
                                         {{-- Warehouse can issue --}}
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
