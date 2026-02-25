@@ -143,6 +143,23 @@ return [
             'encrypt' => 'no',
             'trust_server_certificate' => 'true',
         ],
+
+        'pims' => [
+            'driver' => 'mysql',
+            'url' => env('PIMS_DATABASE_URL'),
+            'host' => env('PIMS_DB_HOST', '127.0.0.1'),
+            'port' => env('PIMS_DB_PORT', '3306'),
+            'database' => env('PIMS_DB_DATABASE', 'paboraboreal_piaboreal'),
+            'username' => env('PIMS_DB_USERNAME', 'root'),
+            'password' => env('PIMS_DB_PASSWORD', ''),
+            'unix_socket' => env('PIMS_DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
     ],
 
     /*
