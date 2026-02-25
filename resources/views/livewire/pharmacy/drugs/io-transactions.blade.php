@@ -28,7 +28,7 @@
     <div class="flex flex-wrap items-end gap-3 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id">
+            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id" wire:key="issuing-select-{{ $issuing_location_id }}">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
                     @if ($loc->id != $requesting_location_id)
@@ -45,7 +45,7 @@
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id">
+            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id" wire:key="requesting-select-{{ $requesting_location_id }}">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
                     @if ($loc->id != $issuing_location_id)
