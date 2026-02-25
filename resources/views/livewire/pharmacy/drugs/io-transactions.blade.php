@@ -21,7 +21,7 @@
         <span class="text-xs font-semibold text-gray-500">Quick Filter:</span>
         <x-mary-button label="My Requests" icon="o-arrow-up-tray" class="btn-xs {{ $requesting_location_id == auth()->user()->pharm_location_id && !$issuing_location_id ? 'btn-primary' : 'btn-outline' }}"
             wire:click="setMyLocationAs('requesting')" spinner />
-        <x-mary-button label="Issued to Me" icon="o-arrow-down-tray" class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
+        <x-mary-button label="Requests to Me" icon="o-inbox-arrow-down" class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
             wire:click="setMyLocationAs('issuing')" spinner />
     </div>
 
