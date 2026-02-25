@@ -25,6 +25,7 @@ use App\Livewire\Pharmacy\Drugs\ViewWardRisDate;
 use App\Livewire\Pharmacy\Drugs\ViewWardRisRef;
 use App\Livewire\Pharmacy\Drugs\WardRisTrans;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
+use App\Livewire\Pharmacy\Purchases\EmergencyPurchases as PurchaseEmergencyPurchases;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
@@ -104,6 +105,10 @@ Route::middleware([
             ->name('rxo.chargeslip');
         Route::get('/return-slip/{hpercode}', ReturnSlip::class)
             ->name('rxo.return.sum');
+    });
+
+    Route::prefix('/purchases')->name('purchases.')->group(function () {
+        Route::get('/emergency-purchase', PurchaseEmergencyPurchases::class)->name('emergency-purchase');
     });
 
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)

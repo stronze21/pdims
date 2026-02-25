@@ -90,6 +90,9 @@
                 </x-mary-menu-sub>
                 {{-- ✨ END NEW SECTION --}}
 
+                <x-mary-menu-sub title="Purchases" icon="o-shopping-cart">
+                    <x-mary-menu-item title="Emergency Purchase" icon="o-bolt" link="{{ route('purchases.emergency-purchase') }}" />
+                </x-mary-menu-sub>
                 <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
                 <x-mary-menu-sub title="Queueing" icon="o-clock">
                     <x-mary-menu-item title="Queue Controller" icon="o-device-tablet"
