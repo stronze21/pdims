@@ -16,24 +16,62 @@
         </x-slot:actions>
     </x-mary-header>
 
-    <div class="flex items-center space-x-3 mb-4">
+    {{-- Quick filter buttons --}}
+    <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-semibold text-gray-500">Quick Filter:</span>
+        <x-mary-button label="My Requests" icon="o-arrow-up-tray" class="btn-xs {{ $requesting_location_id == auth()->user()->pharm_location_id && !$issuing_location_id ? 'btn-primary' : 'btn-outline' }}"
+            wire:click="setMyLocationAs('requesting')" spinner />
+        <x-mary-button label="Requests to Me" icon="o-inbox-arrow-down" class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
+            wire:click="setMyLocationAs('issuing')" spinner />
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id">
+            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id" wire:key="issuing-select-{{ $issuing_location_id }}">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
-                    <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @if ($loc->id != $requesting_location_id)
+                        <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @endif
+                @endforeach
+            </select>
+        </div>
+        {{-- Swap button --}}
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">&nbsp;</span></label>
+            <x-mary-button icon="o-arrows-right-left" class="btn-sm btn-ghost btn-circle" tooltip="Swap locations"
+                wire:click="swapLocations" spinner />
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
+            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id" wire:key="requesting-select-{{ $requesting_location_id }}">
+                <option value="">All</option>
+                @foreach ($locations as $loc)
+                    @if ($loc->id != $issuing_location_id)
+                        <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @endif
                 @endforeach
             </select>
         </div>
         <div class="form-control">
-            <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id">
+            <label class="label"><span class="label-text text-xs">Status</span></label>
+            <select class="select select-bordered select-sm" wire:model.live="trans_stat">
                 <option value="">All</option>
-                @foreach ($locations as $loc)
-                    <option value="{{ $loc->id }}">{{ $loc->description }}</option>
-                @endforeach
+                <option value="Requested">Requested</option>
+                <option value="Issued">Issued</option>
+                <option value="Received">Received</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Declined">Declined</option>
             </select>
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Date From</span></label>
+            <input type="date" class="input input-bordered input-sm" wire:model.live="date_from" />
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Date To</span></label>
+            <input type="date" class="input input-bordered input-sm" wire:model.live="date_to" />
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Search</span></label>
@@ -69,6 +107,7 @@
                 <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
                     <tr>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Ref #</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Drug Name</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Requested
                         </th>
@@ -96,7 +135,12 @@
                         @endphp
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="io-trans-{{ $tran->id }}">
-                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600">{{ $tran->trans_no }}</td>
+                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.io-trans.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
+                            </td>
+                            <td class="py-3 px-4 text-xs text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>{{ $tran->created_at() }}</a>
+                            </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
                             <td class="py-3 px-4 text-xs text-center">{{ number_format($tran->requested_qty ?? 0) }}
@@ -148,7 +192,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-8 text-gray-400 font-semibold">No transactions
+                            <td colspan="11" class="text-center py-8 text-gray-400 font-semibold">No transactions
                                 found!</td>
                         </tr>
                     @endforelse

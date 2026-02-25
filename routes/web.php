@@ -19,6 +19,10 @@ use App\Livewire\Pharmacy\Drugs\ReorderLevelComputed;
 use App\Livewire\Pharmacy\Drugs\StockCard;
 use App\Livewire\Pharmacy\Drugs\StockList;
 use App\Livewire\Pharmacy\Drugs\StockSummary;
+use App\Livewire\Pharmacy\Drugs\ViewIoTransDate;
+use App\Livewire\Pharmacy\Drugs\ViewIoTransRef;
+use App\Livewire\Pharmacy\Drugs\ViewWardRisDate;
+use App\Livewire\Pharmacy\Drugs\ViewWardRisRef;
 use App\Livewire\Pharmacy\Drugs\WardRisTrans;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
@@ -77,7 +81,11 @@ Route::middleware([
         Route::get('/reorder-level', ReorderLevel::class)->name('stocks.reorder');
         Route::get('/reorder-level-computed', ReorderLevelComputed::class)->name('stocks.reorder-computed');
         Route::get('/io-transactions', IoTransactions::class)->name('io-trans');
+        Route::get('/io-transactions/view/ref/{reference_no}', ViewIoTransRef::class)->name('io-trans.view-ref');
+        Route::get('/io-transactions/view/date/{date}', ViewIoTransDate::class)->name('io-trans.view-date');
         Route::get('/ward-ris', WardRisTrans::class)->name('ward-ris');
+        Route::get('/ward-ris/view/ref/{reference_no}', ViewWardRisRef::class)->name('ward-ris.view-ref');
+        Route::get('/ward-ris/view/date/{date}', ViewWardRisDate::class)->name('ward-ris.view-date');
     });
 
     Route::prefix('/records')->name('records.')->group(function () {

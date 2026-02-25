@@ -12,212 +12,53 @@ use App\Models\Pharmacy\PharmLocation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Mary\Traits\Toast;
 
-class IoTransactions extends Component
+class ViewIoTransDate extends Component
 {
-    use WithPagination;
     use Toast;
 
-    // View mode: 'issuer' (warehouse) or 'requestor' (location)
-    public $view_mode = 'requestor';
-
-    public $stock_id;
-    public $requested_qty;
-    public $remarks = '';
-    public $location_id;
+    public $date;
+    public $search = '';
     public $selected_request;
     public $chrgcode = '';
     public $issue_qty = 0;
-    public $search = '';
+    public $remarks = '';
     public $available_drugs = [];
     public $issueModal = false;
-    public $requestModal = false;
-    public $issuing_location_id = '';
-    public $requesting_location_id = '';
-    public $trans_stat = '';
-    public $date_from = '';
-    public $date_to = '';
 
-    public function mount()
+    public function mount($date)
     {
-        $this->requesting_location_id = auth()->user()->pharm_location_id;
-        $this->issuing_location_id = '';
-    }
-
-    public function updatedIssuingLocationId($value)
-    {
-        if ($value && $value == $this->requesting_location_id) {
-            $this->requesting_location_id = '';
-        }
-        $this->resetPage();
-    }
-
-    public function updatedRequestingLocationId($value)
-    {
-        if ($value && $value == $this->issuing_location_id) {
-            $this->issuing_location_id = '';
-        }
-        $this->resetPage();
-    }
-
-    public function updatedTransStat()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateFrom()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateTo()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedSearch()
-    {
-        $this->resetPage();
+        $this->date = $date;
     }
 
     public function render()
     {
-        $trans = InOutTransaction::with(['location', 'from_location', 'drug', 'charge'])
-            ->when($this->issuing_location_id, function ($query) {
-                $query->where('request_from', $this->issuing_location_id);
-            })
-            ->when($this->requesting_location_id, function ($query) {
-                $query->where('loc_code', $this->requesting_location_id);
-            })
-            ->when($this->search, function ($query, $search) {
-                return $query->where(function ($subQuery) use ($search) {
-                    $subQuery->where('trans_no', 'like', "%{$search}%")
-                        ->orWhereHas('drug', function ($drugQuery) use ($search) {
-                            $drugQuery->where('drug_concat', 'like', "%{$search}%");
-                        });
+        $date_from = Carbon::parse($this->date)->startOfDay();
+        $date_to = Carbon::parse($this->date)->endOfDay();
+
+        $trans = InOutTransaction::whereBetween('created_at', [$date_from, $date_to])
+            ->when($this->search, function ($query) {
+                $query->whereHas('drug', function ($q) {
+                    $q->where('drug_concat', 'like', '%' . $this->search . '%');
                 });
             })
-            ->when($this->trans_stat, function ($query) {
-                $query->where('trans_stat', $this->trans_stat);
+            ->with(['drug', 'charge', 'location', 'from_location', 'items'])
+            ->where(function ($query) {
+                $query->where('loc_code', auth()->user()->pharm_location_id)
+                    ->orWhere('request_from', auth()->user()->pharm_location_id);
             })
-            ->when($this->date_from, function ($query) {
-                $query->whereDate('created_at', '>=', $this->date_from);
-            })
-            ->when($this->date_to, function ($query) {
-                $query->whereDate('created_at', '<=', $this->date_to);
-            })
-            ->latest();
-
-        $locations = PharmLocation::all();
-
-        $drugs = Drug::where('dmdstat', 'A')
-            ->whereNotNull('drug_concat')
-            ->has('stocks')
-            ->has('generic')->orderBy('drug_concat', 'ASC')
+            ->latest()
             ->get();
 
-        return view('livewire.pharmacy.drugs.io-transactions', [
-            'trans' => $trans->paginate(20),
-            'locations' => $locations,
-            'drugs' => $drugs,
+        return view('livewire.pharmacy.drugs.view-io-trans-date', [
+            'trans' => $trans,
         ]);
     }
 
-    public function swapLocations()
+    public function viewByRef($trans_no)
     {
-        $temp = $this->issuing_location_id;
-        $this->issuing_location_id = $this->requesting_location_id;
-        $this->requesting_location_id = $temp;
-        $this->resetPage();
-    }
-
-    public function setMyLocationAs($role)
-    {
-        $myLoc = auth()->user()->pharm_location_id;
-
-        if ($role === 'requesting') {
-            $this->requesting_location_id = $myLoc;
-            if ($this->issuing_location_id == $myLoc) {
-                $this->issuing_location_id = '';
-            }
-        } elseif ($role === 'issuing') {
-            $this->issuing_location_id = $myLoc;
-            if ($this->requesting_location_id == $myLoc) {
-                $this->requesting_location_id = '';
-            }
-        }
-        $this->resetPage();
-    }
-
-    public function switchMode($mode)
-    {
-        $this->view_mode = $mode;
-    }
-
-    public function addRequest()
-    {
-        $dm = explode(',', $this->stock_id);
-        $dmdcomb = $dm[0];
-        $dmdctr = $dm[1];
-
-        $this->validate([
-            'requested_qty' => ['required', 'numeric', 'min:1'],
-            'remarks' => ['nullable', 'string'],
-        ]);
-
-        $reference_no = Carbon::now()->format('y-m-') . (sprintf("%04d", count(InOutTransaction::select(DB::raw('COUNT(trans_no)'))->groupBy('trans_no')->get()) + 1));
-
-        InOutTransaction::create([
-            'trans_no' => $reference_no,
-            'dmdcomb' => $dmdcomb,
-            'dmdctr' => $dmdctr,
-            'requested_qty' => $this->requested_qty,
-            'requested_by' => auth()->id(),
-            'loc_code' => auth()->user()->pharm_location_id,
-            'request_from' => $this->location_id,
-            'remarks_request' => $this->remarks,
-        ]);
-
-        $this->reset('stock_id', 'requested_qty', 'remarks', 'location_id');
-        $this->requestModal = false;
-        $this->success('Request added!');
-    }
-
-    public function addMoreRequest()
-    {
-        $dm = explode(',', $this->stock_id);
-        $dmdcomb = $dm[0];
-        $dmdctr = $dm[1];
-
-        $past = InOutTransaction::where('loc_code', auth()->user()->pharm_location_id)->latest()->first();
-
-        $this->validate([
-            'remarks' => ['nullable', 'string'],
-        ]);
-
-        if (!$past) {
-            $this->error('No previous request found!');
-            return;
-        }
-
-        $reference_no = $past->trans_no;
-
-        InOutTransaction::create([
-            'trans_no' => $reference_no,
-            'dmdcomb' => $dmdcomb,
-            'dmdctr' => $dmdctr,
-            'requested_qty' => $this->requested_qty,
-            'requested_by' => auth()->id(),
-            'loc_code' => auth()->user()->pharm_location_id,
-            'request_from' => $past->request_from,
-            'remarks_request' => $this->remarks,
-        ]);
-
-        $this->reset('stock_id', 'requested_qty', 'remarks');
-        $this->requestModal = false;
-        $this->success('Request added!');
+        return $this->redirect(route('inventory.io-trans.view-ref', ['reference_no' => $trans_no]), navigate: true);
     }
 
     public function selectRequest(InOutTransaction $txn)
@@ -225,15 +66,15 @@ class IoTransactions extends Component
         $this->selected_request = $txn;
         $this->issue_qty = $txn->requested_qty;
         $this->available_drugs = DB::select("
-                SELECT charge.chrgcode, charge.chrgdesc, SUM(pdsl.stock_bal) avail FROM pharm_drug_stocks pdsl
-                INNER JOIN hcharge charge ON pdsl.chrgcode = charge.chrgcode
-                WHERE pdsl.dmdcomb = ?
-                    AND pdsl.dmdctr = ?
-                    AND pdsl.loc_code = ?
-                    AND pdsl.stock_bal > 0
-                    AND pdsl.exp_date > ?
-                GROUP BY charge.chrgcode, charge.chrgdesc
-            ", [$txn->dmdcomb, $txn->dmdctr, $txn->request_from, now()]);
+            SELECT charge.chrgcode, charge.chrgdesc, SUM(pdsl.stock_bal) avail FROM pharm_drug_stocks pdsl
+            INNER JOIN hcharge charge ON pdsl.chrgcode = charge.chrgcode
+            WHERE pdsl.dmdcomb = ?
+                AND pdsl.dmdctr = ?
+                AND pdsl.loc_code = ?
+                AND pdsl.stock_bal > 0
+                AND pdsl.exp_date > ?
+            GROUP BY charge.chrgcode, charge.chrgdesc
+        ", [$txn->dmdcomb, $txn->dmdctr, $txn->request_from, now()]);
         $this->issueModal = true;
     }
 
@@ -243,7 +84,7 @@ class IoTransactions extends Component
             'issue_qty' => ['required', 'numeric', 'min:1'],
             'chrgcode' => ['required'],
             'selected_request' => ['required'],
-            'remarks' => ['nullable', 'string', 'max:255']
+            'remarks' => ['nullable', 'string', 'max:255'],
         ]);
 
         $issue_qty = $this->issue_qty;
@@ -379,21 +220,6 @@ class IoTransactions extends Component
         $txn->save();
 
         $this->success('Transaction cancelled. All issued items have been returned!');
-    }
-
-    public function denyRequest($remarks)
-    {
-        if ($this->selected_request && $this->selected_request->trans_stat == 'Requested') {
-            $this->selected_request->remarks_cancel = $remarks;
-            $this->selected_request->trans_stat = 'Declined';
-            $this->selected_request->issued_by = auth()->id();
-            $this->selected_request->save();
-
-            $this->reset('selected_request', 'available_drugs', 'issueModal');
-            $this->warning('Request declined!');
-        } else {
-            $this->error('Request has already been processed.');
-        }
     }
 
     private function logIssue($location_id, $stock, $qty)

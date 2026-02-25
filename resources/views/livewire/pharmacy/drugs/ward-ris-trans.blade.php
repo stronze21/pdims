@@ -50,11 +50,11 @@
                     @forelse ($trans as $tran)
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="ris-{{ $tran->id }}">
-                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600">
-                                {{ $tran->trans_no }}
+                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.ward-ris.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
                             </td>
-                            <td class="py-3 px-4 text-xs text-gray-600">
-                                {{ $tran->created_at() }}
+                            <td class="py-3 px-4 text-xs text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.ward-ris.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>{{ $tran->created_at() }}</a>
                             </td>
                             <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->location ? $tran->location->description : '' }}</td>
                             <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->ward ? $tran->ward->ward_name : '' }}</td>
