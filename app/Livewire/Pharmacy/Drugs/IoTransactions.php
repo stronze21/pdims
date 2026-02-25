@@ -46,6 +46,42 @@ class IoTransactions extends Component
         $this->issuing_location_id = '';
     }
 
+    public function updatedIssuingLocationId($value)
+    {
+        if ($value && $value == $this->requesting_location_id) {
+            $this->requesting_location_id = '';
+        }
+        $this->resetPage();
+    }
+
+    public function updatedRequestingLocationId($value)
+    {
+        if ($value && $value == $this->issuing_location_id) {
+            $this->issuing_location_id = '';
+        }
+        $this->resetPage();
+    }
+
+    public function updatedTransStat()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateFrom()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
         $trans = InOutTransaction::with(['location', 'from_location', 'drug', 'charge'])

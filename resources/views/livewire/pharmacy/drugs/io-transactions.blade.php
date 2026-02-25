@@ -22,7 +22,9 @@
             <select class="select select-bordered select-sm" wire:model.live="issuing_location_id">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
-                    <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @if ($loc->id != $requesting_location_id)
+                        <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @endif
                 @endforeach
             </select>
         </div>
@@ -31,7 +33,9 @@
             <select class="select select-bordered select-sm" wire:model.live="requesting_location_id">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
-                    <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @if ($loc->id != $issuing_location_id)
+                        <option value="{{ $loc->id }}">{{ $loc->description }}</option>
+                    @endif
                 @endforeach
             </select>
         </div>
