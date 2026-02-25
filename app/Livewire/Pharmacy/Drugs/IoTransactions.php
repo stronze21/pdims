@@ -125,6 +125,32 @@ class IoTransactions extends Component
         ]);
     }
 
+    public function swapLocations()
+    {
+        $temp = $this->issuing_location_id;
+        $this->issuing_location_id = $this->requesting_location_id;
+        $this->requesting_location_id = $temp;
+        $this->resetPage();
+    }
+
+    public function setMyLocationAs($role)
+    {
+        $myLoc = auth()->user()->pharm_location_id;
+
+        if ($role === 'requesting') {
+            $this->requesting_location_id = $myLoc;
+            if ($this->issuing_location_id == $myLoc) {
+                $this->issuing_location_id = '';
+            }
+        } elseif ($role === 'issuing') {
+            $this->issuing_location_id = $myLoc;
+            if ($this->requesting_location_id == $myLoc) {
+                $this->requesting_location_id = '';
+            }
+        }
+        $this->resetPage();
+    }
+
     public function switchMode($mode)
     {
         $this->view_mode = $mode;

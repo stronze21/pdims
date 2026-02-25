@@ -16,6 +16,15 @@
         </x-slot:actions>
     </x-mary-header>
 
+    {{-- Quick filter buttons --}}
+    <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-semibold text-gray-500">Quick Filter:</span>
+        <x-mary-button label="My Requests" icon="o-arrow-up-tray" class="btn-xs {{ $requesting_location_id == auth()->user()->pharm_location_id && !$issuing_location_id ? 'btn-primary' : 'btn-outline' }}"
+            wire:click="setMyLocationAs('requesting')" spinner />
+        <x-mary-button label="Issued to Me" icon="o-arrow-down-tray" class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
+            wire:click="setMyLocationAs('issuing')" spinner />
+    </div>
+
     <div class="flex flex-wrap items-end gap-3 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
@@ -27,6 +36,12 @@
                     @endif
                 @endforeach
             </select>
+        </div>
+        {{-- Swap button --}}
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">&nbsp;</span></label>
+            <x-mary-button icon="o-arrows-right-left" class="btn-sm btn-ghost btn-circle" tooltip="Swap locations"
+                wire:click="swapLocations" spinner />
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
