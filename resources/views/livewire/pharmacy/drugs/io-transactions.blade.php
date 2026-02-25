@@ -16,7 +16,7 @@
         </x-slot:actions>
     </x-mary-header>
 
-    <div class="flex items-center space-x-3 mb-4">
+    <div class="flex flex-wrap items-end gap-3 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
             <select class="select select-bordered select-sm" wire:model.live="issuing_location_id">
@@ -34,6 +34,25 @@
                     <option value="{{ $loc->id }}">{{ $loc->description }}</option>
                 @endforeach
             </select>
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Status</span></label>
+            <select class="select select-bordered select-sm" wire:model.live="trans_stat">
+                <option value="">All</option>
+                <option value="Requested">Requested</option>
+                <option value="Issued">Issued</option>
+                <option value="Received">Received</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Declined">Declined</option>
+            </select>
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Date From</span></label>
+            <input type="date" class="input input-bordered input-sm" wire:model.live="date_from" />
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text text-xs">Date To</span></label>
+            <input type="date" class="input input-bordered input-sm" wire:model.live="date_to" />
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Search</span></label>

@@ -36,6 +36,9 @@ class IoTransactions extends Component
     public $requestModal = false;
     public $issuing_location_id = '';
     public $requesting_location_id = '';
+    public $trans_stat = '';
+    public $date_from = '';
+    public $date_to = '';
 
     public function mount()
     {
@@ -59,6 +62,15 @@ class IoTransactions extends Component
                             $drugQuery->where('drug_concat', 'like', "%{$search}%");
                         });
                 });
+            })
+            ->when($this->trans_stat, function ($query) {
+                $query->where('trans_stat', $this->trans_stat);
+            })
+            ->when($this->date_from, function ($query) {
+                $query->whereDate('created_at', '>=', $this->date_from);
+            })
+            ->when($this->date_to, function ($query) {
+                $query->whereDate('created_at', '<=', $this->date_to);
             })
             ->latest();
 
