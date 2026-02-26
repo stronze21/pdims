@@ -30,6 +30,7 @@ use App\Livewire\Pharmacy\Purchases\DeliveryListDonations;
 use App\Livewire\Pharmacy\Purchases\DeliveryView;
 use App\Livewire\Pharmacy\Purchases\EmergencyPurchases as PurchaseEmergencyPurchases;
 use App\Livewire\Pharmacy\Purchases\PimsRisList;
+use App\Livewire\Pharmacy\Purchases\ShowRis;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
@@ -113,6 +114,8 @@ Route::middleware([
 
     Route::prefix('/purchases')->name('purchases.')->group(function () {
         Route::get('/ris', PimsRisList::class)->name('ris');
+        Route::get('/ris/print/{id}', [App\Http\Controllers\RisPrintController::class, 'print'])->name('ris-print');
+        Route::get('/ris/{id}', ShowRis::class)->name('ris-show');
         Route::get('/deliveries', DeliveryList::class)->name('deliveries');
         Route::get('/donations', DeliveryListDonations::class)->name('donations');
         Route::get('/emergency-purchase', PurchaseEmergencyPurchases::class)->name('emergency-purchase');

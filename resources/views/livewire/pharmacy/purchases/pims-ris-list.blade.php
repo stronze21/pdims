@@ -54,6 +54,7 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Requested By</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Status</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Status</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -92,10 +93,20 @@
                                     </div>
                                 @endif
                             </td>
+                            <td class="py-3 px-4 text-xs text-center">
+                                <div class="flex justify-center gap-1">
+                                    <a href="{{ route('purchases.ris-show', $item->risid) }}"
+                                        class="btn btn-xs btn-primary">View</a>
+                                    @if ($item->transferred_to_pdims)
+                                        <a href="{{ route('purchases.delivery-view', $item->transferred_to_pdims) }}"
+                                            class="btn btn-xs btn-secondary">Delivery</a>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <div class="flex flex-col items-center justify-center py-12 opacity-40">
                                     <x-mary-icon name="o-document-text" class="w-12 h-12 mb-2" />
                                     <p class="text-sm">No RIS records found</p>
