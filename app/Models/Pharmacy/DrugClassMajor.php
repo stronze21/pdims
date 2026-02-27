@@ -10,7 +10,7 @@ class DrugClassMajor extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.dmmajor';
+    protected $table = 'hospital2.dbo.dmmajor';
     protected $primaryKey = 'dmcode';
     protected $keyType = 'string';
 }

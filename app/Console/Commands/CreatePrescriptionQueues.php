@@ -169,8 +169,8 @@ class CreatePrescriptionQueues extends Command
                 presc.empid AS created_by,
                 enc.encdate,
                 presc.created_at AS prescription_time
-            FROM hospital.dbo.henctr enc WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hopdlog opd WITH (NOLOCK) ON enc.enccode = opd.enccode
+            FROM hospital2.dbo.henctr enc WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hopdlog opd WITH (NOLOCK) ON enc.enccode = opd.enccode
             INNER JOIN webapp.dbo.prescription presc WITH (NOLOCK) ON enc.enccode = presc.enccode
             WHERE enc.encdate BETWEEN '{$dateStart}' AND '{$dateEnd}'
               AND enc.toecode IN ({$encounterTypesStr})

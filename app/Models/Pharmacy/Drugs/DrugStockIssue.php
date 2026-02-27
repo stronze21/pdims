@@ -18,7 +18,7 @@ class DrugStockIssue extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_drug_stock_issues';
+    protected $table = 'hospital2.dbo.pharm_drug_stock_issues';
 
     protected $fillable = [
         'stock_id',

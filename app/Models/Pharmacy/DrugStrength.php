@@ -10,7 +10,7 @@ class DrugStrength extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hstre';
+    protected $table = 'hospital2.dbo.hstre';
     protected $primaryKey = 'strecode';
     protected $keyType = 'string';
 

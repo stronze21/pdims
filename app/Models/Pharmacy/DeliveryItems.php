@@ -12,7 +12,7 @@ class DeliveryItems extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_delivery_items';
+    protected $table = 'hospital2.dbo.pharm_delivery_items';
 
     public function drug()
     {

@@ -11,7 +11,7 @@ class PatientMss extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hpatmss';
+    protected $table = 'hospital2.dbo.hpatmss';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

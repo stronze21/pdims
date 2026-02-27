@@ -13,7 +13,7 @@ class PatientAddress extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.haddr';
+    protected $table = 'hospital2.dbo.haddr';
     protected $primaryKey = 'hpercode';
     protected $keyType = 'string';
     public $incrementing = false;

@@ -15,7 +15,7 @@ class DrugStockLog extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_drug_stock_logs';
+    protected $table = 'hospital2.dbo.pharm_drug_stock_logs';
 
     protected $fillable = [
         'consumption_id',

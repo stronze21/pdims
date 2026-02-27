@@ -10,7 +10,7 @@ class DrugForm extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hform';
+    protected $table = 'hospital2.dbo.hform';
     protected $primaryKey = 'formcode';
     protected $keyType = 'string';
 

@@ -11,7 +11,7 @@ class Ward extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hward', $primaryKey = 'wardcode', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hward', $primaryKey = 'wardcode', $keyType = 'string';
 
     public function slug_desc()
     {

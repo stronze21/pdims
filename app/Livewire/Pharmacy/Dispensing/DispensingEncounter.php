@@ -393,7 +393,7 @@ class DispensingEncounter extends Component
 
         foreach ($this->selected_items as $docointkey) {
             $cnt = DB::update(
-                "UPDATE hospital.dbo.hrxo SET pcchrgcod = '" . $pcchrgcod . "', estatus = 'P' WHERE docointkey = " . $docointkey . " AND ((estatus = 'U' OR orderfrom = 'DRUMK' OR pchrgup = 0) AND pcchrgcod IS NULL)"
+                "UPDATE hospital2.dbo.hrxo SET pcchrgcod = '" . $pcchrgcod . "', estatus = 'P' WHERE docointkey = " . $docointkey . " AND ((estatus = 'U' OR orderfrom = 'DRUMK' OR pchrgup = 0) AND pcchrgcod IS NULL)"
             );
         }
 
@@ -471,7 +471,7 @@ class DispensingEncounter extends Component
                                 $total_deduct = 0;
                             }
                             $cnt = DB::update(
-                                "UPDATE hospital.dbo.pharm_drug_stocks SET stock_bal = '" . $stock_bal . "' WHERE id = '" . $stock->id . "'"
+                                "UPDATE hospital2.dbo.pharm_drug_stocks SET stock_bal = '" . $stock_bal . "' WHERE id = '" . $stock->id . "'"
                             );
                         } else {
                             $total_deduct = 0;
@@ -510,7 +510,7 @@ class DispensingEncounter extends Component
 
                 if ($cnt == 1) {
                     $cnt = DB::update(
-                        "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $tag . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
+                        "UPDATE hospital2.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $tag . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
                     );
                     $this->logHrxoIssue(
                         $rxo->docointkey,
@@ -574,7 +574,7 @@ class DispensingEncounter extends Component
             $enccode = $this->decryptEnccode();
             $docointkey = '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $chrgcode . $dmdcomb . $dmdctr;
 
-            DB::insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
+            DB::insert("INSERT INTO hospital2.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
                             rxolock, rxoupsw, rxoconfd, dmdctr, estatus, entryby, ordcon, orderupd, locacode, orderfrom, issuetype,
                             has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by )
                         VALUES ( '" . $docointkey . "', '" . $enccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
@@ -774,7 +774,7 @@ class DispensingEncounter extends Component
 
         $employeeid = auth()->user()->employeeid;
 
-        DB::insert("INSERT INTO hospital.dbo.hrxoreturn(
+        DB::insert("INSERT INTO hospital2.dbo.hrxoreturn(
                 docointkey, enccode, hpercode, dmdcomb, returndate, returntime, qty, returnby,
                 status, rxolock, updsw, confdl, entryby, locacode, dmdctr, dmdprdte, remarks,
                 returnfrom, chrgcode, pcchrgcod, rcode, unitprice, pchrgup, loc_code)
@@ -1052,14 +1052,14 @@ class DispensingEncounter extends Component
                 (SELECT COUNT(*) FROM webapp.dbo.prescription rx WITH (NOLOCK)
                     INNER JOIN webapp.dbo.prescription_data rd WITH (NOLOCK) ON rx.id = rd.presc_id
                     WHERE rx.enccode = enctr.enccode AND rd.stat = 'A') AS active_rx_count,
-                (SELECT COUNT(*) FROM hospital.dbo.hrxo WITH (NOLOCK)
+                (SELECT COUNT(*) FROM hospital2.dbo.hrxo WITH (NOLOCK)
                     WHERE hrxo.enccode = enctr.enccode) AS order_count
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
-                LEFT JOIN hospital.dbo.hactrack track WITH (NOLOCK) ON enctr.enccode = track.enccode
-                LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK) ON enctr.enccode = diag.enccode
-                LEFT JOIN hospital.dbo.hpatroom patroom WITH (NOLOCK) ON enctr.enccode = patroom.enccode
-                LEFT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON patroom.wardcode = ward.wardcode
-                LEFT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON patroom.rmintkey = room.rmintkey
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
+                LEFT JOIN hospital2.dbo.hactrack track WITH (NOLOCK) ON enctr.enccode = track.enccode
+                LEFT JOIN hospital2.dbo.hencdiag diag WITH (NOLOCK) ON enctr.enccode = diag.enccode
+                LEFT JOIN hospital2.dbo.hpatroom patroom WITH (NOLOCK) ON enctr.enccode = patroom.enccode
+                LEFT JOIN hospital2.dbo.hward ward WITH (NOLOCK) ON patroom.wardcode = ward.wardcode
+                LEFT JOIN hospital2.dbo.hroom room WITH (NOLOCK) ON patroom.rmintkey = room.rmintkey
             WHERE enctr.hpercode = ?
                 {$toecodeFilter}
             ORDER BY enctr.encdate DESC
@@ -1087,9 +1087,9 @@ class DispensingEncounter extends Component
                    hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, hdmhdr.drug_concat,
                    hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
                    hrxo.dmdcomb, hrxo.dmdctr
-            FROM hospital.dbo.hrxo WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
-            INNER JOIN hospital.dbo.hcharge ON hrxo.orderfrom = hcharge.chrgcode
+            FROM hospital2.dbo.hrxo WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
+            INNER JOIN hospital2.dbo.hcharge ON hrxo.orderfrom = hcharge.chrgcode
             WHERE hrxo.enccode = ?
             ORDER BY hrxo.dodate DESC
         ", [$enccode]);
@@ -1236,12 +1236,12 @@ class DispensingEncounter extends Component
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
                 (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
-                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
-                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
+                LEFT JOIN hospital2.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
+                RIGHT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
             WHERE opdtime BETWEEN ? AND ?
                 AND toecode = 'OPD' AND rx.stat = 'A'
             ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC, rx.created_at DESC
@@ -1265,14 +1265,14 @@ class DispensingEncounter extends Component
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
                 (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
-                RIGHT JOIN hospital.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
-                RIGHT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
-                RIGHT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
-                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
+                RIGHT JOIN hospital2.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
+                RIGHT JOIN hospital2.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
+                RIGHT JOIN hospital2.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
+                RIGHT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
             WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
                 AND pat_room.patrmstat = 'A' AND rx.stat = 'A'
                 {$wardFilter}
@@ -1297,12 +1297,12 @@ class DispensingEncounter extends Component
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'G24') AS g24,
                 (SELECT COUNT(qty) FROM webapp.dbo.prescription_data data WITH (NOLOCK)
                     WHERE rx.id = data.presc_id AND data.stat = 'A' AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 LEFT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
-                LEFT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
+                LEFT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
             WHERE erdate BETWEEN ? AND ?
                 AND toecode = 'ER' AND erstat = 'A'
             ORDER BY pt.patlast ASC, pt.patfirst ASC, pt.patmiddle ASC
@@ -1328,8 +1328,8 @@ class DispensingEncounter extends Component
                 pharm_drug_stocks.chrgcode,
                 hcharge.chrgdesc,
                 SUM(pharm_drug_stocks.stock_bal) AS stock_bal
-            FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
+            FROM hospital2.dbo.pharm_drug_stocks WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
             WHERE pharm_drug_stocks.dmdcomb = ?
                 AND pharm_drug_stocks.dmdctr = ?
                 AND pharm_drug_stocks.loc_code = ?
@@ -1428,7 +1428,7 @@ class DispensingEncounter extends Component
         if ($this->toecode == 'WALKN') {
             return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
                                 FROM henctr enctr
-                                INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
+                                INNER JOIN hospital2.dbo.hrxo ON enctr.enccode = hrxo.enccode
                                 INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                                 INNER JOIN hcharge ON orderfrom = chrgcode
                                 LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
@@ -1437,7 +1437,7 @@ class DispensingEncounter extends Component
         }
 
         return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
-                            FROM hospital.dbo.hrxo
+                            FROM hospital2.dbo.hrxo
                             INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                             INNER JOIN hcharge ON orderfrom = chrgcode
                             LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
@@ -1463,7 +1463,7 @@ class DispensingEncounter extends Component
                             pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, dmselprice, pharm_drug_stocks.loc_code,
                             pharm_drug_stocks.dmdprdte as dmdprdte, SUM(stock_bal) as stock_bal, MAX(id) as id, MIN(exp_date) as exp_date,
                             hdmhdrprice.acquisition_cost, DATEDIFF(day, GETDATE(), MIN(exp_date)) as days_to_expiry
-                        FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
+                        FROM hospital2.dbo.pharm_drug_stocks WITH (NOLOCK)
                         INNER JOIN hcharge on hcharge.chrgcode = pharm_drug_stocks.chrgcode
                         INNER JOIN hdmhdrprice on hdmhdrprice.dmdprdte = pharm_drug_stocks.dmdprdte
                         WHERE loc_code = '" . $this->location_id . "'
@@ -1516,7 +1516,7 @@ class DispensingEncounter extends Component
                         ]);
 
                         DB::update(
-                            "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
+                            "UPDATE hospital2.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
                             [$rx_data->id, $rx_data->entry_by, $docointkey]
                         );
 
@@ -1673,8 +1673,8 @@ class DispensingEncounter extends Component
                 pt.patmiddle,
                 pt.hpercode,
                 MAX(hrxo.dodate) as last_charge_date
-            FROM hospital.dbo.hrxo WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON hrxo.hpercode = pt.hpercode
+            FROM hospital2.dbo.hrxo WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON hrxo.hpercode = pt.hpercode
             WHERE hrxo.loc_code = ?
                 AND hrxo.estatus = 'P'
                 AND hrxo.pcchrgcod IS NOT NULL
@@ -1872,7 +1872,7 @@ class DispensingEncounter extends Component
                 pd.frequency, pd.duration, dm.drug_concat
             FROM prescription_data pd
             INNER JOIN prescription rx ON pd.presc_id = rx.id
-            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
             WHERE rx.enccode = ? AND pd.stat = 'A'
             ORDER BY pd.created_at ASC
         ", [$enccode]);

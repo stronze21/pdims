@@ -12,5 +12,5 @@ class DrugSub extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hdmhdrsub';
+    protected $table = 'hospital2.dbo.hdmhdrsub';
 }

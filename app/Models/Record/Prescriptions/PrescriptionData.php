@@ -31,7 +31,7 @@ class PrescriptionData extends Model
 
     public function dmd()
     {
-        return $this->join('hospital.dbo.hdmhdr as hdm', 'hdm.dmdcomb', 'LIKE', 'webapp.dbo.prescription_data.dmdcomb');
+        return $this->join('hospital2.dbo.hdmhdr as hdm', 'hdm.dmdcomb', 'LIKE', 'webapp.dbo.prescription_data.dmdcomb');
     }
 
     public function item()

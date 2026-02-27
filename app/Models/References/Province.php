@@ -10,7 +10,7 @@ class Province extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hprov';
+    protected $table = 'hospital2.dbo.hprov';
     protected $primaryKey = 'provcode';
     protected $keyType = 'string';
     public $incrementing = false;

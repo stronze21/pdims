@@ -9,7 +9,7 @@ class OrderChargeCode extends Model
 {
     use HasFactory;
 
-    protected $connection = 'hospital', $table = 'hospital.dbo.charge_code';
+    protected $connection = 'hospital', $table = 'hospital2.dbo.charge_code';
     public $timestamps = ["created_at"]; //only want to used created_at column
     const UPDATED_AT = null; //and updated by default null set
 

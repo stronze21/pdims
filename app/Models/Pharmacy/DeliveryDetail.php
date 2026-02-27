@@ -12,7 +12,7 @@ class DeliveryDetail extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_delivery_details';
+    protected $table = 'hospital2.dbo.pharm_delivery_details';
 
     protected $fillable = [
         'po_no',
@@ -40,5 +40,4 @@ class DeliveryDetail extends Model
     {
         return $this->belongsTo(ChargeCode::class, 'charge_code', 'chrgcode');
     }
-
 }

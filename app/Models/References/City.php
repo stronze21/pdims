@@ -11,7 +11,7 @@ class City extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hcity';
+    protected $table = 'hospital2.dbo.hcity';
     protected $primaryKey = 'ctycode';
     protected $keyType = 'string';
     public $incrementing = false;

@@ -11,7 +11,7 @@ class Religion extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hreligion';
+    protected $table = 'hospital2.dbo.hreligion';
     protected $primaryKey = 'relcode';
     protected $keyType = 'string';
     public $incrementing = false;

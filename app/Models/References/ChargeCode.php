@@ -12,7 +12,7 @@ class ChargeCode extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hcharge';
+    protected $table = 'hospital2.dbo.hcharge';
     public $timestamps = false;
     protected $primaryKey = 'chrgcode';
     protected $keyType   = 'string';

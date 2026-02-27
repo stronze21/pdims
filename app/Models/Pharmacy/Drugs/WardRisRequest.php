@@ -15,7 +15,7 @@ class WardRisRequest extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_ward_ris_requests';
+    protected $table = 'hospital2.dbo.pharm_ward_ris_requests';
 
     protected $fillable = [
         'trans_no',

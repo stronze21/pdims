@@ -73,7 +73,7 @@ class EncounterTransactionView extends Component
         if ($this->toecode == 'WALKN') {
             $rxos = DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
                                     FROM henctr enctr
-                                    INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
+                                    INNER JOIN hospital2.dbo.hrxo ON enctr.enccode = hrxo.enccode
                                     INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                                     INNER JOIN hcharge ON orderfrom = chrgcode
                                     LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
@@ -81,7 +81,7 @@ class EncounterTransactionView extends Component
                                     ORDER BY dodate DESC");
         } else {
             $rxos = DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
-                                    FROM hospital.dbo.hrxo
+                                    FROM hospital2.dbo.hrxo
                                     INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                                     INNER JOIN hcharge ON orderfrom = chrgcode
                                     LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
@@ -90,7 +90,7 @@ class EncounterTransactionView extends Component
         }
 
         $stocks = DB::select("SELECT pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.drug_concat, hcharge.chrgdesc, pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, dmselprice, pharm_drug_stocks.loc_code, pharm_drug_stocks.dmdprdte as dmdprdte, SUM(stock_bal) as stock_bal, MAX(id) as id, MIN(exp_date) as exp_date, hdmhdrprice.acquisition_cost
-                                FROM hospital.dbo.pharm_drug_stocks
+                                FROM hospital2.dbo.pharm_drug_stocks
                                 INNER JOIN hcharge on hcharge.chrgcode = pharm_drug_stocks.chrgcode
                                 INNER JOIN hdmhdrprice on hdmhdrprice.dmdprdte = pharm_drug_stocks.dmdprdte
                                 WHERE loc_code = '" . $this->location_id . "'
@@ -217,7 +217,7 @@ class EncounterTransactionView extends Component
         $pcchrgcod = 'P' . date('y') . '-' . sprintf('%07d', $charge_code->id);
         foreach ($this->selected_items as $docointkey) {
             $cnt = DB::update(
-                "UPDATE hospital.dbo.hrxo SET pcchrgcod = '" . $pcchrgcod . "', estatus = 'P' WHERE docointkey = " . $docointkey . " AND ((estatus = 'U' OR orderfrom = 'DRUMK' OR pchrgup = 0) AND pcchrgcod IS NULL)"
+                "UPDATE hospital2.dbo.hrxo SET pcchrgcod = '" . $pcchrgcod . "', estatus = 'P' WHERE docointkey = " . $docointkey . " AND ((estatus = 'U' OR orderfrom = 'DRUMK' OR pchrgup = 0) AND pcchrgcod IS NULL)"
             );
         }
         if ($cnt and $cnt != 0) {
@@ -343,7 +343,7 @@ class EncounterTransactionView extends Component
                                 $total_deduct = 0;
                             }
                             $cnt = DB::update(
-                                "UPDATE hospital.dbo.pharm_drug_stocks SET stock_bal = '" . $stock_bal . "' WHERE id = '" . $stock->id . "'"
+                                "UPDATE hospital2.dbo.pharm_drug_stocks SET stock_bal = '" . $stock_bal . "' WHERE id = '" . $stock->id . "'"
                             );
                         } else {
                             $total_deduct = 0;
@@ -356,7 +356,7 @@ class EncounterTransactionView extends Component
                 }
                 if ($cnt == 1) {
                     $cnt = DB::update(
-                        "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $this->type . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
+                        "UPDATE hospital2.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $this->type . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
                     );
                     $this->log_hrxoissue($rxo->docointkey, $rxo->enccode, $rxo->hpercode, $rxo->dmdcomb, $rxo->dmdctr, $rxo->pchrgqty, session('employeeid'), $rxo->orderfrom, $rxo->pcchrgcod, $rxo->pchrgup, $rxo->ris, $rxo->prescription_data_id, now(), $rxo->dmdprdte);
                 }
@@ -399,7 +399,7 @@ class EncounterTransactionView extends Component
                         ]);
 
                         DB::update(
-                            "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
+                            "UPDATE hospital2.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
                             [$rx_data->id, $rx_data->entry_by, $docointkey]
                         );
 
@@ -595,7 +595,7 @@ class EncounterTransactionView extends Component
             $enccode = str_replace('--', ' ', Crypt::decrypt($this->enccode));
             $docointkey = '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $chrgcode . $dmdcomb . $dmdctr;
 
-            DB::insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
+            DB::insert("INSERT INTO hospital2.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
                             rxolock, rxoupsw, rxoconfd, dmdctr, estatus, entryby, ordcon, orderupd, locacode, orderfrom, issuetype,
                             has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by )
                         VALUES ( '" . $docointkey . "', '" . $enccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
@@ -645,7 +645,7 @@ class EncounterTransactionView extends Component
 
         //RECORD RETURN ITEM TO hrxoreturn table
         if (!$isReturned) {
-            DB::insert("INSERT INTO hospital.dbo.hrxoreturn(
+            DB::insert("INSERT INTO hospital2.dbo.hrxoreturn(
                 docointkey, enccode, hpercode, dmdcomb, returndate, returntime, qty, returnby,
                 status, rxolock, updsw, confdl, entryby, locacode, dmdctr, dmdprdte, remarks,
                 returnfrom, chrgcode, pcchrgcod, rcode, unitprice, pchrgup, loc_code)

@@ -10,5 +10,5 @@ class Bed extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hbed', $primaryKey = 'bdintkey', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hbed', $primaryKey = 'bdintkey', $keyType = 'string';
 }

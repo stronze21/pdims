@@ -10,7 +10,7 @@ class Generic extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hgen', $primaryKey = 'gencode', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hgen', $primaryKey = 'gencode', $keyType = 'string';
     public $timestamps = false, $incrementing = false;
 
     protected $fillable = [

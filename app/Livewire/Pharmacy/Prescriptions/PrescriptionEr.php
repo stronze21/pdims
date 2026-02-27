@@ -63,14 +63,14 @@ class PrescriptionEr extends Component
                  WHERE rx.id = data.presc_id
                  AND data.stat = 'A'
                  AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 LEFT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
-                LEFT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
-                LEFT JOIN hospital.dbo.hprovider prov WITH (NOLOCK) ON er.licno = prov.licno
-                LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK) ON prov.employeeid = emp.employeeid
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.herlog er WITH (NOLOCK) ON enctr.enccode = er.enccode
+                LEFT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.htypser ser WITH (NOLOCK) ON er.tscode = ser.tscode
+                LEFT JOIN hospital2.dbo.hprovider prov WITH (NOLOCK) ON er.licno = prov.licno
+                LEFT JOIN hospital2.dbo.hpersonal emp WITH (NOLOCK) ON prov.employeeid = emp.employeeid
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
             WHERE erdate BETWEEN ? AND ?
                 AND toecode = 'ER'
                 AND erstat = 'A'

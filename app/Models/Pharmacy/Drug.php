@@ -13,7 +13,7 @@ class Drug extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hdmhdr';
+    protected $table = 'hospital2.dbo.hdmhdr';
     protected $primaryKey = ['dmdcomb', 'dmdctr'];
     protected $keyType = 'string';
     public $incrementing = false;

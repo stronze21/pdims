@@ -257,7 +257,7 @@ class PrescriptionQueueService
     {
         $query = DB::connection('webapp')
             ->table('prescriptions as p')
-            ->join('hospital.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
+            ->join('hospital2.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
             ->whereDate('p.created_at', $date)
             ->where('p.location_code', $locationCode)
             ->whereNotExists(function ($q) {
@@ -283,7 +283,7 @@ class PrescriptionQueueService
         try {
             $prescriptions = DB::connection('webapp')
                 ->table('prescriptions as p')
-                ->join('hospital.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
+                ->join('hospital2.dbo.henctr as e', 'p.enccode', '=', 'e.enccode')
                 ->select('p.id', 'p.enccode', 'e.hpercode')
                 ->whereDate('p.created_at', $date)
                 ->where('p.location_code', $locationCode)

@@ -15,7 +15,7 @@ class Patient extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hperson';
+    protected $table = 'hospital2.dbo.hperson';
     protected $primaryKey = 'hpercode';
     protected $keyType = 'string';
     public $incrementing = false;

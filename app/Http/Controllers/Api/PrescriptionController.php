@@ -24,7 +24,7 @@ class PrescriptionController extends Controller
                 COALESCE(pdi.total_issued, 0) as total_issued,
                 (pd.qty - COALESCE(pdi.total_issued, 0)) as remaining_qty
             FROM webapp.dbo.prescription_data pd WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hdmhdr dm WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hdmhdr dm WITH (NOLOCK)
                 ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
             LEFT JOIN (
                 SELECT presc_data_id, SUM(qtyissued) as total_issued

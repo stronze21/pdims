@@ -10,7 +10,7 @@ class DrugStockLogCounter extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_drug_stock_log_counters';
+    protected $table = 'hospital2.dbo.pharm_drug_stock_log_counters';
 
     protected $fillable = [
         'date_start',

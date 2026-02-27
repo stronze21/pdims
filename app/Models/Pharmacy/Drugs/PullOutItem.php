@@ -11,7 +11,7 @@ class PullOutItem extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_pull_out_items';
+    protected $table = 'hospital2.dbo.pharm_pull_out_items';
 
     protected $fillable = [
         'detail_id',

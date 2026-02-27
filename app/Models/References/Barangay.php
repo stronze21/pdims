@@ -11,7 +11,7 @@ class Barangay extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hbrgy';
+    protected $table = 'hospital2.dbo.hbrgy';
     protected $primaryKey = 'bgycode';
     protected $keyType = 'string';
     public $incrementing = false;

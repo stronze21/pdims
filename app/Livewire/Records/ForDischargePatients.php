@@ -64,7 +64,7 @@ class ForDischargePatients extends Component
                 RIGHT JOIN hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
                 RIGHT JOIN hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
                 LEFT JOIN hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
-                RIGHT JOIN hospital.dbo.hdocord ord ON enctr.enccode = ord.enccode
+                RIGHT JOIN hospital2.dbo.hdocord ord ON enctr.enccode = ord.enccode
                 RIGHT JOIN htypser serv WITH (NOLOCK) ON adm.tscode = serv.tscode
             WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
                 AND pat_room.patrmstat = 'A'
@@ -104,7 +104,7 @@ class ForDischargePatients extends Component
                 RIGHT JOIN hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
                 RIGHT JOIN hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
                 LEFT JOIN hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
-                RIGHT JOIN hospital.dbo.hdocord ord ON enctr.enccode = ord.enccode
+                RIGHT JOIN hospital2.dbo.hdocord ord ON enctr.enccode = ord.enccode
                 RIGHT JOIN htypser serv WITH (NOLOCK) ON adm.tscode = serv.tscode
             WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
                 AND pat_room.patrmstat = 'A'

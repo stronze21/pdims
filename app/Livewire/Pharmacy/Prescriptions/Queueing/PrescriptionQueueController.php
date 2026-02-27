@@ -284,10 +284,10 @@ class PrescriptionQueueController extends Component
                 pat.patlast + ', ' + pat.patfirst AS patient_name,
                 enc.encdate,
                 presc.created_at AS prescription_time
-            FROM hospital.dbo.henctr enc
-                INNER JOIN hospital.dbo.hopdlog opd ON enc.enccode = opd.enccode
+            FROM hospital2.dbo.henctr enc
+                INNER JOIN hospital2.dbo.hopdlog opd ON enc.enccode = opd.enccode
                 INNER JOIN webapp.dbo.prescription presc ON enc.enccode = presc.enccode
-                INNER JOIN hospital.dbo.hperson pat ON enc.hpercode = pat.hpercode
+                INNER JOIN hospital2.dbo.hperson pat ON enc.hpercode = pat.hpercode
             WHERE
                 enc.encdate BETWEEN '{$dateStart}' AND '{$dateEnd}'
                 AND enc.toecode IN ({$encounterTypesStr})
@@ -797,7 +797,7 @@ class PrescriptionQueueController extends Component
                     pd.remark, pd.addtl_remarks, pd.tkehome,
                     pd.frequency, pd.duration, dm.drug_concat
                 FROM prescription_data pd
-                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+                INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
                 WHERE pd.presc_id = ? AND pd.stat = 'A'
                 ORDER BY pd.created_at ASC
             ", [$this->selectedQueue->prescription_id]));
@@ -821,7 +821,7 @@ class PrescriptionQueueController extends Component
                     pd.remark, pd.addtl_remarks, pd.tkehome,
                     pd.frequency, pd.duration, dm.drug_concat
                 FROM prescription_data pd
-                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+                INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
                 WHERE pd.presc_id = ? AND pd.stat = 'A'
                 ORDER BY pd.created_at ASC
             ", [$this->printQueue->prescription_id]);

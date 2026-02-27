@@ -10,7 +10,7 @@ class ZeroBillingCharge extends Model
 {
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_zero_billing_charges';
+    protected $table = 'hospital2.dbo.pharm_zero_billing_charges';
 
     protected $fillable = [
         'chrgcode',

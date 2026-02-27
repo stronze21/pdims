@@ -117,8 +117,8 @@ class ManageUsers extends Component
         $rules = [
             'employeeid' => 'required|string|max:255',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:hospital.dbo.pharm_users,email,' . $this->userId,
-            'pharm_location_id' => 'required|exists:hospital.dbo.pharm_locations,id',
+            'email' => 'required|email|unique:hospital2.dbo.pharm_users,email,' . $this->userId,
+            'pharm_location_id' => 'required|exists:hospital2.dbo.pharm_locations,id',
             'selectedRoles' => 'array',
         ];
 

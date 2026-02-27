@@ -10,7 +10,7 @@ class DrugClass2 extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.dmsub2';
+    protected $table = 'hospital2.dbo.dmsub2';
     protected $primaryKey = 'dms2key';
     protected $keyType = 'string';
 }

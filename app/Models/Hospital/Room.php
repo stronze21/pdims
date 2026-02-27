@@ -10,7 +10,7 @@ class Room extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hroom', $primaryKey = 'rmintkey', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hroom', $primaryKey = 'rmintkey', $keyType = 'string';
 
     public function ward()
     {

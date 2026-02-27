@@ -22,7 +22,7 @@ class DrugOrderIssue extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hrxoissue', $primaryKey = 'docointkey', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hrxoissue', $primaryKey = 'docointkey', $keyType = 'string';
     public $timestamps = false, $incrementing = false;
 
     protected $fillable = [

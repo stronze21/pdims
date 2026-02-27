@@ -12,7 +12,7 @@ class AccountTrack extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hactrack';
+    protected $table = 'hospital2.dbo.hactrack';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

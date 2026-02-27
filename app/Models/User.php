@@ -21,7 +21,7 @@ class User extends Authenticatable
     use HasRoles;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_users';
+    protected $table = 'hospital2.dbo.pharm_users';
 
     /**
      * The attributes that are mass assignable.

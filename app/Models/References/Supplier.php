@@ -10,7 +10,7 @@ class Supplier extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hsupplier', $primaryKey = 'suppcode', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hsupplier', $primaryKey = 'suppcode', $keyType = 'string';
     public $incrementing = false;
-    public $timestamps = false ;
+    public $timestamps = false;
 }

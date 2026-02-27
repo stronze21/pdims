@@ -10,7 +10,7 @@ class Employee extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hpersonal', $primaryKey = 'employeeid', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hpersonal', $primaryKey = 'employeeid', $keyType = 'string';
 
     public function getFullnameAttribute()
     {

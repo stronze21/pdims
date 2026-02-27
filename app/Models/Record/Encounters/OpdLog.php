@@ -10,7 +10,7 @@ class OpdLog extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hopdlog';
+    protected $table = 'hospital2.dbo.hopdlog';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

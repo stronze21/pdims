@@ -18,7 +18,7 @@ class InOutTransaction extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_io_trans';
+    protected $table = 'hospital2.dbo.pharm_io_trans';
 
     protected $fillable = [
         'trans_no',

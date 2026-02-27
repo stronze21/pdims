@@ -59,12 +59,12 @@ class PrescriptionOpd extends Component
                  WHERE rx.id = data.presc_id
                  AND data.stat = 'A'
                  AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
-                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
-                LEFT JOIN hospital.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
+                LEFT JOIN hospital2.dbo.hopdlog opd WITH (NOLOCK) ON enctr.enccode = opd.enccode
+                RIGHT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.htypser ser WITH (NOLOCK) ON opd.tscode = ser.tscode
             WHERE opdtime BETWEEN ? AND ?
                 AND toecode = 'OPD'
                 AND rx.stat = 'A'

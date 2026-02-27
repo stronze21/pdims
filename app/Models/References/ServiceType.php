@@ -10,7 +10,7 @@ class ServiceType extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.htypser', $primaryKey = 'tscode', $keyType = 'string';
+    protected $table = 'hospital2.dbo.htypser', $primaryKey = 'tscode', $keyType = 'string';
     public $incrementing = false;
-    public $timestamps = false ;
+    public $timestamps = false;
 }

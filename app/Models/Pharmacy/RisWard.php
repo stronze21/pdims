@@ -10,7 +10,7 @@ class RisWard extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_ris_wards';
+    protected $table = 'hospital2.dbo.pharm_ris_wards';
 
     protected $fillable = [
         'ward_name',

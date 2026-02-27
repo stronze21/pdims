@@ -14,7 +14,7 @@ class PharmLocation extends Model
     use Notifiable;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_locations';
+    protected $table = 'hospital2.dbo.pharm_locations';
 
     protected $fillable = [
         'description',

@@ -12,7 +12,7 @@ class DrugPrice extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hdmhdrprice';
+    protected $table = 'hospital2.dbo.hdmhdrprice';
     public $incrementing = false;
     public $timestamps = false;
 

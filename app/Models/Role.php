@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 class Role extends SpatieRole
 {
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_roles';
+    protected $table = 'hospital2.dbo.pharm_roles';
 
     public function users(): MorphToMany
     {

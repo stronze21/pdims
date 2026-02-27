@@ -11,7 +11,7 @@ class Provider extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hprovider', $primaryKey = 'licno', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hprovider', $primaryKey = 'licno', $keyType = 'string';
 
     public function emp()
     {

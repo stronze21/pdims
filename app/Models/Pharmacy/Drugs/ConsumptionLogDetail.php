@@ -10,7 +10,7 @@ class ConsumptionLogDetail extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_consumption_log_details';
+    protected $table = 'hospital2.dbo.pharm_consumption_log_details';
 
     protected $fillable = [
         'consumption_from',

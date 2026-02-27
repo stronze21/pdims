@@ -16,7 +16,7 @@ class DrugGroup extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hdruggrp';
+    protected $table = 'hospital2.dbo.hdruggrp';
     protected $primaryKey = 'grpcode';
     protected $keyType = 'string';
     public $timestamps = false, $incrementing = false;

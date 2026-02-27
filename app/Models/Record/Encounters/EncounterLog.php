@@ -13,7 +13,7 @@ class EncounterLog extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.henctr';
+    protected $table = 'hospital2.dbo.henctr';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

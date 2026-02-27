@@ -10,7 +10,7 @@ class TemporaryPatient extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_temporary_patients';
+    protected $table = 'hospital2.dbo.pharm_temporary_patients';
 
     protected $fillable = [
         'patfirst',

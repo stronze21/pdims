@@ -162,7 +162,7 @@ Route::middleware([
             pd.remark, pd.addtl_remarks, pd.tkehome,
             pd.frequency, pd.duration, dm.drug_concat
         FROM prescription_data pd
-        INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+        INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
         WHERE pd.presc_id = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
         ORDER BY pd.created_at ASC
     ", array_merge([$queue->prescription_id], $printItems)));
@@ -183,8 +183,8 @@ Route::middleware([
         $encounter = collect(DB::select("
             SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate,
                    pat.patlast, pat.patfirst, pat.patmiddle
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hperson pat WITH (NOLOCK) ON enctr.hpercode = pat.hpercode
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
+            INNER JOIN hospital2.dbo.hperson pat WITH (NOLOCK) ON enctr.hpercode = pat.hpercode
             WHERE enctr.enccode = ?
         ", [$enccode]))->first();
 
@@ -199,7 +199,7 @@ Route::middleware([
                 pd.frequency, pd.duration, dm.drug_concat
             FROM prescription_data pd
             INNER JOIN prescription rx ON pd.presc_id = rx.id
-            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
             WHERE rx.enccode = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
             ORDER BY pd.created_at ASC
         ", array_merge([$enccode], $printItems)));

@@ -11,7 +11,7 @@ class PullOut extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_pull_outs';
+    protected $table = 'hospital2.dbo.pharm_pull_outs';
 
     protected $fillable = [
         'pullout_date',

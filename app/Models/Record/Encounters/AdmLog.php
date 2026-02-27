@@ -11,7 +11,7 @@ class AdmLog extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hadmlog';
+    protected $table = 'hospital2.dbo.hadmlog';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

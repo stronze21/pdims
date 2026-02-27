@@ -257,7 +257,7 @@ class PrescriptionQueueManagementTablet extends Component
                     pd.duration,
                     dm.drug_concat
                 FROM prescription_data pd
-                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+                INNER JOIN hospital2.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
                 WHERE pd.presc_id = ?
                     AND pd.stat = 'A'
                 ORDER BY pd.created_at ASC

@@ -10,7 +10,7 @@ class DrugStockReorderLevel extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_drug_stock_reorder_levels';
+    protected $table = 'hospital2.dbo.pharm_drug_stock_reorder_levels';
 
     protected $fillable = [
         'dmdcomb',

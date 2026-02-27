@@ -16,7 +16,7 @@ class DrugEmergencyPurchase extends Model
     use Compoships;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_drug_emergency_purchases';
+    protected $table = 'hospital2.dbo.pharm_drug_emergency_purchases';
 
     protected $fillable = [
         'or_no',

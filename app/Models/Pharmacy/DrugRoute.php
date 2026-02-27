@@ -10,7 +10,7 @@ class DrugRoute extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hroute';
+    protected $table = 'hospital2.dbo.hroute';
     protected $primaryKey = 'rtecode';
     protected $keyType = 'string';
 

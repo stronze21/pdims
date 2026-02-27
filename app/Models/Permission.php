@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Permission extends Model
 {
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_permissions';
+    protected $table = 'hospital2.dbo.pharm_permissions';
 
     public function roles()
     {

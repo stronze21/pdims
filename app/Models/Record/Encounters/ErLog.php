@@ -10,7 +10,7 @@ class ErLog extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.herlog';
+    protected $table = 'hospital2.dbo.herlog';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

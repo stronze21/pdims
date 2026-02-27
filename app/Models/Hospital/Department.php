@@ -11,7 +11,7 @@ class Department extends Model
 
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hdept';
+    protected $table = 'hospital2.dbo.hdept';
     protected $primaryKey = 'deptcode';
     protected $keyType = 'string';
     public $incrementing = false;

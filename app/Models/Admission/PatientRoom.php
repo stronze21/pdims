@@ -12,7 +12,7 @@ class PatientRoom extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hpatroom', $primaryKey = 'enccode', $keyType = 'string';
+    protected $table = 'hospital2.dbo.hpatroom', $primaryKey = 'enccode', $keyType = 'string';
 
     public function room()
     {

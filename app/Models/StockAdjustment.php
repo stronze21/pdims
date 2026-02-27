@@ -10,7 +10,7 @@ class StockAdjustment extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.pharm_stock_adjustments';
+    protected $table = 'hospital2.dbo.pharm_stock_adjustments';
 
     protected $fillable = [
         'stock_id',

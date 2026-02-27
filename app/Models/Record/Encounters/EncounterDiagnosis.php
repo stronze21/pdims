@@ -10,7 +10,7 @@ class EncounterDiagnosis extends Model
     use HasFactory;
 
     protected $connection = 'hospital';
-    protected $table = 'hospital.dbo.hencdiag';
+    protected $table = 'hospital2.dbo.hencdiag';
     protected $primaryKey = 'enccode';
     protected $keyType = 'string';
     public $incrementing = false;

@@ -63,14 +63,14 @@ class PrescriptionWard extends Component
                  WHERE rx.id = data.presc_id
                  AND data.stat = 'A'
                  AND data.order_type = 'OR') AS 'or'
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
+            FROM hospital2.dbo.henctr enctr WITH (NOLOCK)
                 RIGHT JOIN webapp.dbo.prescription rx WITH (NOLOCK) ON enctr.enccode = rx.enccode
-                LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
-                RIGHT JOIN hospital.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
-                RIGHT JOIN hospital.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
-                RIGHT JOIN hospital.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
-                RIGHT JOIN hospital.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
-                LEFT JOIN hospital.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
+                LEFT JOIN hospital2.dbo.hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
+                RIGHT JOIN hospital2.dbo.hpatroom pat_room WITH (NOLOCK) ON rx.enccode = pat_room.enccode
+                RIGHT JOIN hospital2.dbo.hroom room WITH (NOLOCK) ON pat_room.rmintkey = room.rmintkey
+                RIGHT JOIN hospital2.dbo.hward ward WITH (NOLOCK) ON pat_room.wardcode = ward.wardcode
+                RIGHT JOIN hospital2.dbo.hperson pt WITH (NOLOCK) ON enctr.hpercode = pt.hpercode
+                LEFT JOIN hospital2.dbo.hpatmss mss WITH (NOLOCK) ON enctr.enccode = mss.enccode
             WHERE (toecode = 'ADM' OR toecode = 'OPDAD' OR toecode = 'ERADM')
                 AND pat_room.patrmstat = 'A'
                 AND rx.stat = 'A'
