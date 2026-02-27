@@ -25,6 +25,12 @@ use App\Livewire\Pharmacy\Drugs\ViewWardRisDate;
 use App\Livewire\Pharmacy\Drugs\ViewWardRisRef;
 use App\Livewire\Pharmacy\Drugs\WardRisTrans;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
+use App\Livewire\Pharmacy\Purchases\DeliveryList;
+use App\Livewire\Pharmacy\Purchases\DeliveryListDonations;
+use App\Livewire\Pharmacy\Purchases\DeliveryView;
+use App\Livewire\Pharmacy\Purchases\EmergencyPurchases as PurchaseEmergencyPurchases;
+use App\Livewire\Pharmacy\Purchases\PimsRisList;
+use App\Livewire\Pharmacy\Purchases\ShowRis;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
@@ -104,6 +110,16 @@ Route::middleware([
             ->name('rxo.chargeslip');
         Route::get('/return-slip/{hpercode}', ReturnSlip::class)
             ->name('rxo.return.sum');
+    });
+
+    Route::prefix('/purchases')->name('purchases.')->group(function () {
+        Route::get('/ris', PimsRisList::class)->name('ris');
+        Route::get('/ris/print/{id}', [App\Http\Controllers\RisPrintController::class, 'print'])->name('ris-print');
+        Route::get('/ris/{id}', ShowRis::class)->name('ris-show');
+        Route::get('/deliveries', DeliveryList::class)->name('deliveries');
+        Route::get('/donations', DeliveryListDonations::class)->name('donations');
+        Route::get('/emergency-purchase', PurchaseEmergencyPurchases::class)->name('emergency-purchase');
+        Route::get('/delivery/{delivery_id}', DeliveryView::class)->name('delivery-view');
     });
 
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
