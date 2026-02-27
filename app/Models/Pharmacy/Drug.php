@@ -2,10 +2,12 @@
 
 namespace App\Models\Pharmacy;
 
+use App\Models\Pharmacy\DrugRoute;
 use App\Models\Pharmacy\Drugs\DrugStock;
+use App\Models\Pharmacy\DrugStrength;
 use Awobaz\Compoships\Compoships;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Drug extends Model
 {
@@ -48,6 +50,21 @@ class Drug extends Model
     public function drug_group()
     {
         return $this->belongsTo(DrugGroup::class, 'grpcode', 'grpcode');
+    }
+
+    public function route()
+    {
+        return $this->belongsTo(DrugRoute::class, 'rtecode', 'rtecode');
+    }
+
+    public function form()
+    {
+        return $this->belongsTo(DrugForm::class, 'formcode', 'formcode');
+    }
+
+    public function strength()
+    {
+        return $this->belongsTo(DrugStrength::class, 'strecode', 'strecode');
     }
 
     public function generic()
