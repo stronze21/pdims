@@ -116,6 +116,10 @@
                         link="{{ route('pharmacy.non-pnf-drugs') }}" />
                     <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
                         link="{{ route('settings.zero-billing') }}" />
+                    <x-mary-menu-sub title="Portal" icon="o-globe-alt">
+                        <x-mary-menu-item title="Portal Users" icon="o-user-group"
+                            link="{{ route('settings.portal.users') }}" />
+                    </x-mary-menu-sub>
                 </x-mary-menu-sub>
             </x-mary-menu>
         </x-slot:sidebar>

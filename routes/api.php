@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
+use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\StockApiController;
@@ -102,3 +103,14 @@ Route::prefix('prescription-queue')->middleware(['api', 'throttle:60,1'])->group
 | GET /api/prescription-queue/check/12345
 |
 */
+
+// Portal (Salun-at) API routes
+Route::prefix('portal')->group(function () {
+    Route::post('/login', [PortalAuthController::class, 'login']);
+    Route::post('/register', [PortalAuthController::class, 'register']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user', [PortalAuthController::class, 'user']);
+        Route::post('/logout', [PortalAuthController::class, 'logout']);
+    });
+});
