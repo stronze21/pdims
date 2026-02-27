@@ -129,6 +129,21 @@ return [
             'trust_server_certificate' => 'true',
         ],
 
+        'portal' => [
+            'driver' => 'sqlsrv',
+            'url' => env('DATABASE_URL'),
+            'host' => env('DB_HOST', 'localhost'),
+            'port' => env('DB_PORT', '1433'),
+            'database' => env('DB_DATABASE_PORTAL', 'portal'),
+            'username' => env('DB_USERNAME', 'sa'),
+            'password' => env('DB_PASSWORD', 'pacs'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'encrypt' => 'no',
+            'trust_server_certificate' => 'true',
+        ],
+
         'webapp' => [
             'driver' => 'sqlsrv',
             'url' => env('DATABASE_URL'),
