@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Emergency Purchases" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -35,12 +40,15 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">OR #</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Bought From</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Description</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Unit Price</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Unit Price
+                        </th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">QTY</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total Amount</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            Amount</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Source of Fund</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Encoded by</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">Status</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">Status
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,7 +65,8 @@
                                     {{ $purchase->drug ? str_replace('_', ' ', $purchase->drug->drug_concat) : 'N/A' }}
                                 </div>
                                 <div class="text-xs opacity-60">
-                                    Exp: {{ $purchase->expiry_date ? \Carbon\Carbon::parse($purchase->expiry_date)->format('M d, Y') : '-' }}
+                                    Exp:
+                                    {{ $purchase->expiry_date ? \Carbon\Carbon::parse($purchase->expiry_date)->format('M d, Y') : '-' }}
                                     @if ($purchase->lot_no)
                                         | Lot: {{ $purchase->lot_no }}
                                     @endif
@@ -70,7 +79,8 @@
                                 <span class="font-bold">{{ number_format($purchase->qty) }}</span>
                             </td>
                             <td class="py-3 px-4 text-right text-xs">
-                                <span class="font-bold text-green-700">{{ number_format($purchase->total_amount, 2) }}</span>
+                                <span
+                                    class="font-bold text-green-700">{{ number_format($purchase->total_amount, 2) }}</span>
                             </td>
                             <td class="py-3 px-4 text-xs">
                                 {{ $purchase->charge->chrgdesc ?? '-' }}
@@ -80,8 +90,7 @@
                             </td>
                             <td class="py-3 px-4 text-center">
                                 @if ($purchase->status === 'pending')
-                                    <button
-                                        wire:click="openPushModal({{ $purchase->id }})"
+                                    <button wire:click="openPushModal({{ $purchase->id }})"
                                         class="btn btn-xs btn-warning shadow-sm hover:shadow-md transition-shadow">
                                         <x-mary-icon name="o-arrow-up-tray" class="w-3 h-3" />
                                         Pending
@@ -130,21 +139,22 @@
             <x-mary-input label="Bought From (Pharmacy Name)" wire:model="pharmacy_name" icon="o-building-storefront"
                 required />
 
-            <x-mary-select label="Source of Fund" wire:model="charge_code" :options="$charges"
-                option-value="chrgcode" option-label="chrgdesc" icon="o-banknotes" required />
+            <x-mary-select label="Source of Fund" wire:model="charge_code" :options="$charges" option-value="chrgcode"
+                option-label="chrgdesc" icon="o-banknotes" required />
 
-            <x-mary-choices-offline label="Drug/Medicine" wire:model="dmdcomb"
-                placeholder="Select drug/medicine" placeholder-value="0"
-                :options="$drugs->map(fn($d) => ['id' => $d->dmdcomb . ',' . $d->dmdctr, 'name' => str_replace('_', ' ', $d->drug_name)])"
-                option-value="id" option-label="name" icon="o-beaker" single clearable searchable required />
+            <x-mary-choices-offline label="Drug/Medicine" wire:model="dmdcomb" placeholder="Select drug/medicine"
+                placeholder-value="0" :options="$drugs->map(
+                    fn($d) => ['id' => $d->dmdcomb . ',' . $d->dmdctr, 'name' => str_replace('_', ' ', $d->drug_name)],
+                )" option-value="id" option-label="name" icon="o-beaker" single
+                clearable searchable required />
 
             <x-mary-input label="Expiry Date" wire:model="expiry_date" type="date" icon="o-calendar" required />
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <x-mary-input label="QTY" wire:model="qty" type="number" step="1" min="1"
                     icon="o-calculator" required />
-                <x-mary-input label="Unit Cost" wire:model="unit_price" type="number" step="0.01" min="1"
-                    icon="o-currency-dollar" required />
+                <x-mary-input label="Unit Cost" wire:model="unit_price" type="number" step="0.01"
+                    min="1" icon="o-currency-dollar" required />
             </div>
 
             <x-mary-input label="Lot No" wire:model="lot_no" icon="o-hashtag" />
@@ -172,7 +182,8 @@
         </p>
         <div class="flex justify-end gap-2">
             <x-mary-button label="Close" wire:click="$set('pushModal', false)" />
-            <x-mary-button label="Cancel Purchase" wire:click="cancel_purchase" class="btn-error" spinner="cancel_purchase" />
+            <x-mary-button label="Cancel Purchase" wire:click="cancel_purchase" class="btn-error"
+                spinner="cancel_purchase" />
             <x-mary-button label="Push to Stocks" wire:click="push" class="btn-success" spinner="push" />
         </div>
     </x-mary-modal>

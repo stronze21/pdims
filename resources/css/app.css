@@ -83,3 +83,9 @@
 .input-icon svg {
     @apply w-5 h-5 text-gray-400;
 }
+
+@layer components {
+    .badge {
+        @apply whitespace-nowrap;
+    }
+}

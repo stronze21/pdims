@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Deliveries" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -16,8 +21,8 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <x-mary-input icon="o-magnifying-glass" wire:model.live.debounce.300ms="search"
             placeholder="Search by PO# or SI#..." size="sm" clearable />
-        <x-mary-select wire:model.live="supplier_id" :options="$suppliers->map(fn($s) => ['id' => $s->suppcode, 'name' => $s->suppname])"
-            option-value="id" option-label="name" placeholder="-- Filter Supplier --" size="sm" clearable />
+        <x-mary-select wire:model.live="supplier_id" :options="$suppliers->map(fn($s) => ['id' => $s->suppcode, 'name' => $s->suppname])" option-value="id" option-label="name"
+            placeholder="-- Filter Supplier --" size="sm" clearable />
     </div>
 
     {{-- Table --}}
@@ -31,8 +36,10 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">PO #</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">SI #</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Supplier</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total Items</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total Amount</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            Items</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            Amount</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Source of Fund</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Type</th>
                     </tr>
@@ -45,9 +52,11 @@
                             <td class="py-3 px-4 whitespace-nowrap text-xs">{{ $delivery->delivery_date }}</td>
                             <td class="py-3 px-4 font-medium text-xs">{{ $delivery->po_no }}</td>
                             <td class="py-3 px-4 font-medium text-xs">{{ $delivery->si_no }}</td>
-                            <td class="py-3 px-4 text-xs">{{ $delivery->supplier ? $delivery->supplier->suppname : '' }}</td>
+                            <td class="py-3 px-4 text-xs">{{ $delivery->supplier ? $delivery->supplier->suppname : '' }}
+                            </td>
                             <td class="py-3 px-4 text-right text-xs font-bold">{{ $delivery->items->sum('qty') }}</td>
-                            <td class="py-3 px-4 text-right text-xs font-bold text-green-700">{{ number_format($delivery->items->sum('total_amount'), 2) }}</td>
+                            <td class="py-3 px-4 text-right text-xs font-bold text-green-700">
+                                {{ number_format($delivery->items->sum('total_amount'), 2) }}</td>
                             <td class="py-3 px-4 text-xs">{{ $delivery->charge->chrgdesc ?? '-' }}</td>
                             <td class="py-3 px-4 text-xs capitalize">{{ $delivery->delivery_type }}</td>
                         </tr>
@@ -75,14 +84,12 @@
             <x-mary-input label="Delivery Date" wire:model="delivery_date" type="date" icon="o-calendar" required />
             <x-mary-input label="Purchase Order No" wire:model="po_no" icon="o-document-text" />
             <x-mary-input label="Sales Invoice No" wire:model="si_no" icon="o-document-text" />
-            <x-mary-select label="Supplier" wire:model="suppcode"
-                :options="$suppliers->map(fn($s) => ['id' => $s->suppcode, 'name' => $s->suppname])"
-                option-value="id" option-label="name" placeholder="Choose supplier" icon="o-building-storefront" required />
-            <x-mary-select label="Source of Fund" wire:model="charge_code" :options="$charges"
-                option-value="chrgcode" option-label="chrgdesc" icon="o-banknotes" required />
-            <x-mary-select label="Type of Delivery" wire:model="delivery_type"
-                :options="[['id' => 'procured', 'name' => 'Procured'], ['id' => 'received', 'name' => 'Received']]"
-                option-value="id" option-label="name" icon="o-truck" />
+            <x-mary-select label="Supplier" wire:model="suppcode" :options="$suppliers->map(fn($s) => ['id' => $s->suppcode, 'name' => $s->suppname])" option-value="id"
+                option-label="name" placeholder="Choose supplier" icon="o-building-storefront" required />
+            <x-mary-select label="Source of Fund" wire:model="charge_code" :options="$charges" option-value="chrgcode"
+                option-label="chrgdesc" icon="o-banknotes" required />
+            <x-mary-select label="Type of Delivery" wire:model="delivery_type" :options="[['id' => 'procured', 'name' => 'Procured'], ['id' => 'received', 'name' => 'Received']]" option-value="id"
+                option-label="name" icon="o-truck" />
 
             <x-slot:actions>
                 <x-mary-button label="Cancel" wire:click="$set('addModal', false)" />

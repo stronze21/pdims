@@ -1,9 +1,19 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Stock Inventory Summary" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-14">
+
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+
+                </div>
+
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -49,7 +59,8 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Generic</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Lot No</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Expiration Date</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-end">Remaining</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-end">Remaining
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -60,14 +71,16 @@
                             <td class="py-3 px-4 text-xs text-gray-600">{{ $stk->lot_no }}</td>
                             <td class="py-3 px-4 text-xs text-gray-600">{{ $stk->exp_date }}</td>
                             <td class="py-3 px-4 text-end">
-                                <span class="inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded-lg text-xs font-bold">
+                                <span
+                                    class="inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded-lg text-xs font-bold">
                                     {{ number_format($stk->stock_bal, 0) }}
                                 </span>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-8 text-gray-400 font-semibold">No record found!</td>
+                            <td colspan="5" class="text-center py-8 text-gray-400 font-semibold">No record found!
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -81,9 +94,15 @@
     <script>
         function ExportToExcel(type, fn, dl) {
             var elt = document.getElementById('table');
-            var wb = XLSX.utils.table_to_book(elt, { sheet: "sheet1" });
+            var wb = XLSX.utils.table_to_book(elt, {
+                sheet: "sheet1"
+            });
             return dl ?
-                XLSX.write(wb, { bookType: type, bookSST: true, type: 'base64' }) :
+                XLSX.write(wb, {
+                    bookType: type,
+                    bookSST: true,
+                    type: 'base64'
+                }) :
                 XLSX.writeFile(wb, fn || ('Stocks_summary.' + (type || 'xlsx')));
         }
     </script>

@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="IO Transactions" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -19,16 +24,19 @@
     {{-- Quick filter buttons --}}
     <div class="flex items-center gap-2 mb-3">
         <span class="text-xs font-semibold text-gray-500">Quick Filter:</span>
-        <x-mary-button label="My Requests" icon="o-arrow-up-tray" class="btn-xs {{ $requesting_location_id == auth()->user()->pharm_location_id && !$issuing_location_id ? 'btn-primary' : 'btn-outline' }}"
+        <x-mary-button label="My Requests" icon="o-arrow-up-tray"
+            class="btn-xs {{ $requesting_location_id == auth()->user()->pharm_location_id && !$issuing_location_id ? 'btn-primary' : 'btn-outline' }}"
             wire:click="setMyLocationAs('requesting')" spinner />
-        <x-mary-button label="Requests to Me" icon="o-inbox-arrow-down" class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
+        <x-mary-button label="Requests to Me" icon="o-inbox-arrow-down"
+            class="btn-xs {{ $issuing_location_id == auth()->user()->pharm_location_id && !$requesting_location_id ? 'btn-primary' : 'btn-outline' }}"
             wire:click="setMyLocationAs('issuing')" spinner />
     </div>
 
     <div class="flex flex-wrap items-end gap-3 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Issuing Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id" wire:key="issuing-select-{{ $issuing_location_id }}">
+            <select class="select select-bordered select-sm" wire:model.live="issuing_location_id"
+                wire:key="issuing-select-{{ $issuing_location_id }}">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
                     @if ($loc->id != $requesting_location_id)
@@ -45,7 +53,8 @@
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text text-xs">Requesting Location</span></label>
-            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id" wire:key="requesting-select-{{ $requesting_location_id }}">
+            <select class="select select-bordered select-sm" wire:model.live="requesting_location_id"
+                wire:key="requesting-select-{{ $requesting_location_id }}">
                 <option value="">All</option>
                 @foreach ($locations as $loc)
                     @if ($loc->id != $issuing_location_id)
@@ -109,7 +118,8 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Ref #</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Drug Name</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Requested
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">
+                            Requested
                         </th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
                         </th>
@@ -135,11 +145,14 @@
                         @endphp
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="io-trans-{{ $tran->id }}">
-                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
-                                <a href="{{ route('inventory.io-trans.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
+                            <td
+                                class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.io-trans.view-ref', ['reference_no' => $tran->trans_no]) }}"
+                                    wire:navigate>{{ $tran->trans_no }}</a>
                             </td>
                             <td class="py-3 px-4 text-xs text-blue-600 cursor-pointer hover:underline">
-                                <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>{{ $tran->created_at() }}</a>
+                                <a href="{{ route('inventory.io-trans.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}"
+                                    wire:navigate>{{ $tran->created_at() }}</a>
                             </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat : '' }}</td>
@@ -170,13 +183,15 @@
                                                 spinner />
                                             <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
                                                 tooltip-left="Decline" wire:click="denyRequest('Declined by admin')"
-                                                wire:confirm="Are you sure you want to decline this request?" spinner />
+                                                wire:confirm="Are you sure you want to decline this request?"
+                                                spinner />
                                         @endif
                                     @elseif ($tran->trans_stat == 'Issued')
                                         {{-- Requestor can receive --}}
                                         @if ($tran->loc_code == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-inbox-arrow-down" class="btn-xs btn-success"
-                                                tooltip-left="Receive" wire:click="receiveIssued({{ $tran->id }})"
+                                                tooltip-left="Receive"
+                                                wire:click="receiveIssued({{ $tran->id }})"
                                                 wire:confirm="Confirm receipt of all items?" spinner />
                                         @endif
                                         {{-- Issuer can cancel --}}
@@ -258,7 +273,8 @@
                         <option value="">Select fund source...</option>
                         @foreach ($available_drugs as $avail)
                             <option value="{{ $avail->chrgcode }}">{{ $avail->chrgdesc }}
-                                ({{ number_format($avail->avail) }} available)</option>
+                                ({{ number_format($avail->avail) }} available)
+                            </option>
                         @endforeach
                     </select>
                 </div>

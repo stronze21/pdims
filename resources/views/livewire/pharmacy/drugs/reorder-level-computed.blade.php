@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Reorder Levels (Computed)" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-14">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -30,10 +35,14 @@
                 <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
                     <tr>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Generic</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock Balance</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">30-Day Moving Average</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Reorder Level</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Status</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock
+                            Balance</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">30-Day
+                            Moving Average</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Reorder
+                            Level</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Status
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,7 +78,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-8 text-gray-400 font-semibold">No record found!</td>
+                            <td colspan="5" class="text-center py-8 text-gray-400 font-semibold">No record found!
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

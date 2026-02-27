@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Donations" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -14,8 +19,8 @@
 
     {{-- Search --}}
     <div class="mb-4">
-        <x-mary-input icon="o-magnifying-glass" wire:model.live.debounce.300ms="search"
-            placeholder="Search..." size="sm" clearable />
+        <x-mary-input icon="o-magnifying-glass" wire:model.live.debounce.300ms="search" placeholder="Search..."
+            size="sm" clearable />
     </div>
 
     {{-- Table --}}
@@ -27,8 +32,10 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">#</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Date</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Supplier</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total Items</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total Amount</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            Items</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            Amount</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Source of Fund</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Type</th>
                     </tr>
@@ -39,9 +46,11 @@
                             wire:click="$navigate('{{ route('purchases.delivery-view', $delivery->id) }}')">
                             <td class="py-3 px-4 opacity-50 text-xs">{{ $delivery->id }}</td>
                             <td class="py-3 px-4 whitespace-nowrap text-xs">{{ $delivery->delivery_date }}</td>
-                            <td class="py-3 px-4 text-xs">{{ $delivery->supplier ? $delivery->supplier->suppname : '' }}</td>
+                            <td class="py-3 px-4 text-xs">{{ $delivery->supplier ? $delivery->supplier->suppname : '' }}
+                            </td>
                             <td class="py-3 px-4 text-right text-xs font-bold">{{ $delivery->items->sum('qty') }}</td>
-                            <td class="py-3 px-4 text-right text-xs font-bold text-green-700">{{ number_format($delivery->items->sum('total_amount'), 2) }}</td>
+                            <td class="py-3 px-4 text-right text-xs font-bold text-green-700">
+                                {{ number_format($delivery->items->sum('total_amount'), 2) }}</td>
                             <td class="py-3 px-4 text-xs">{{ $delivery->charge->chrgdesc ?? '-' }}</td>
                             <td class="py-3 px-4 text-xs capitalize">{{ $delivery->delivery_type }}</td>
                         </tr>

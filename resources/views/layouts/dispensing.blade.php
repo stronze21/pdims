@@ -137,7 +137,7 @@
         // Keyboard shortcuts for POS
         document.addEventListener('keydown', function(e) {
             // F11 for fullscreen
-            if (e.key === 'F11') {
+            if (e.key === 'F11' || (e.key === 'Enter' && e.altKey)) {
                 e.preventDefault();
                 toggleFullscreen();
             }

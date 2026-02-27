@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
-    <x-mary-header title="Ward RIS" separator progress-indicator>
+    <x-mary-header title="Ward RIS" separator progress-indicator class="!mb-2">
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -41,7 +46,8 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">From</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">To Ward</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Item</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued QTY</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
+                            QTY</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Fund Source</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Actions</th>
                     </tr>
@@ -50,22 +56,31 @@
                     @forelse ($trans as $tran)
                         <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100"
                             wire:key="ris-{{ $tran->id }}">
-                            <td class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
-                                <a href="{{ route('inventory.ward-ris.view-ref', ['reference_no' => $tran->trans_no]) }}" wire:navigate>{{ $tran->trans_no }}</a>
+                            <td
+                                class="py-3 px-4 text-xs font-mono font-bold text-blue-600 cursor-pointer hover:underline">
+                                <a href="{{ route('inventory.ward-ris.view-ref', ['reference_no' => $tran->trans_no]) }}"
+                                    wire:navigate>{{ $tran->trans_no }}</a>
                             </td>
                             <td class="py-3 px-4 text-xs text-blue-600 cursor-pointer hover:underline">
-                                <a href="{{ route('inventory.ward-ris.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}" wire:navigate>{{ $tran->created_at() }}</a>
+                                <a class="whitespace-nowrap"
+                                    href="{{ route('inventory.ward-ris.view-date', ['date' => date('Y-m-d', strtotime($tran->created_at))]) }}"
+                                    wire:navigate>{{ $tran->created_at() }}</a>
                             </td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->location ? $tran->location->description : '' }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->ward ? $tran->ward->ward_name : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-gray-600">
+                                {{ $tran->location ? $tran->location->description : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->ward ? $tran->ward->ward_name : '' }}
+                            </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat() : '' }}
                             </td>
                             <td class="py-3 px-4 text-center">
                                 @if ($tran->return_qty > 0)
-                                    <span class="badge badge-sm badge-error">{{ number_format($tran->return_qty) }} (returned)</span>
+                                    <span class="badge badge-sm badge-error">{{ number_format($tran->return_qty) }}
+                                        (returned)
+                                    </span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 bg-blue-500 text-white rounded-lg text-xs font-bold">
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 bg-blue-500 text-white rounded-lg text-xs font-bold">
                                         {{ number_format($tran->issued_qty < 1 ? 0 : $tran->issued_qty) }}
                                     </span>
                                 @endif
@@ -77,13 +92,15 @@
                                 @if ($tran->issued_qty > 0 && $tran->return_qty == 0)
                                     <x-mary-button icon="o-x-mark" class="btn-xs btn-error" tooltip="Cancel/Return"
                                         wire:click="cancelIssue({{ $tran->id }})"
-                                        wire:confirm="Are you sure you want to cancel this issuance? Items will be returned to stock." spinner />
+                                        wire:confirm="Are you sure you want to cancel this issuance? Items will be returned to stock."
+                                        spinner />
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-400 font-semibold">No record found!</td>
+                            <td colspan="8" class="text-center py-8 text-gray-400 font-semibold">No record found!
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -141,12 +158,14 @@
         <x-slot:actions>
             <x-mary-button label="Cancel" wire:click="$set('issueModal', false)" />
             <x-mary-button label="Issue" class="btn-primary" wire:click="issueRis" spinner="issueRis" />
-            <x-mary-button label="Issue & Append" class="btn-warning" wire:click="issueRis(true)" spinner="issueRis" />
+            <x-mary-button label="Issue & Append" class="btn-warning" wire:click="issueRis(true)"
+                spinner="issueRis" />
         </x-slot:actions>
     </x-mary-modal>
 
     {{-- Issue More (Append) Modal --}}
-    <x-mary-modal wire:model="issueMoreModal" title="Append to Reference #: {{ $reference_no }}" class="backdrop-blur">
+    <x-mary-modal wire:model="issueMoreModal" title="Append to Reference #: {{ $reference_no }}"
+        class="backdrop-blur">
         <div class="space-y-4">
             <div class="form-control w-full">
                 <label class="label"><span class="label-text">RIS To Ward</span></label>
@@ -186,7 +205,8 @@
         <x-slot:actions>
             <x-mary-button label="Cancel" wire:click="$set('issueMoreModal', false)" />
             <x-mary-button label="Issue" class="btn-primary" wire:click="issueRis" spinner="issueRis" />
-            <x-mary-button label="Issue & Append" class="btn-warning" wire:click="issueRis(true)" spinner="issueRis" />
+            <x-mary-button label="Issue & Append" class="btn-warning" wire:click="issueRis(true)"
+                spinner="issueRis" />
         </x-slot:actions>
     </x-mary-modal>
 </div>

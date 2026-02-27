@@ -1,9 +1,14 @@
 <div class="flex flex-col px-5 mx-auto max-w-screen">
     <x-mary-header title="Ward RIS - By Date" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <div class="flex items-center space-x-2 px-3 py-1 bg-white rounded-lg shadow-sm border border-gray-200">
-                <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
-                <span class="text-sm font-semibold text-gray-700">{{ auth()->user()->location->description }}</span>
+            <div class="flex items-end h-full">
+                <div class="flex items-center gap-2 px-3 py-1
+                    bg-white rounded-lg shadow-sm border">
+                    <x-mary-icon name="o-map-pin" class="w-4 h-4 text-blue-600" />
+                    <span class="text-sm font-semibold">
+                        {{ auth()->user()->location->description }}
+                    </span>
+                </div>
             </div>
         </x-slot:middle>
         <x-slot:actions>
@@ -32,7 +37,8 @@
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">From</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">To Ward</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Item</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued QTY</th>
+                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
+                            QTY</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Fund Source</th>
                         <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Actions</th>
                     </tr>
@@ -46,16 +52,21 @@
                                 {{ $tran->trans_no }}
                             </td>
                             <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->created_at() }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->location ? $tran->location->description : '' }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->ward ? $tran->ward->ward_name : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-gray-600">
+                                {{ $tran->location ? $tran->location->description : '' }}</td>
+                            <td class="py-3 px-4 text-xs text-gray-600">{{ $tran->ward ? $tran->ward->ward_name : '' }}
+                            </td>
                             <td class="py-3 px-4 text-xs font-bold text-gray-900">
                                 {{ $tran->drug ? $tran->drug->drug_concat() : '' }}
                             </td>
                             <td class="py-3 px-4 text-center">
                                 @if ($tran->return_qty > 0)
-                                    <span class="badge badge-sm badge-error">{{ number_format($tran->return_qty) }} (returned)</span>
+                                    <span class="badge badge-sm badge-error">{{ number_format($tran->return_qty) }}
+                                        (returned)
+                                    </span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-0.5 bg-blue-500 text-white rounded-lg text-xs font-bold">
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 bg-blue-500 text-white rounded-lg text-xs font-bold">
                                         {{ number_format($tran->issued_qty < 1 ? 0 : $tran->issued_qty) }}
                                     </span>
                                 @endif
@@ -67,13 +78,15 @@
                                 @if ($tran->issued_qty > 0 && $tran->return_qty == 0)
                                     <x-mary-button icon="o-x-mark" class="btn-xs btn-error" tooltip="Cancel/Return"
                                         wire:click="cancelIssue({{ $tran->id }})"
-                                        wire:confirm="Are you sure you want to cancel this issuance? Items will be returned to stock." spinner />
+                                        wire:confirm="Are you sure you want to cancel this issuance? Items will be returned to stock."
+                                        spinner />
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-400 font-semibold">No records found for this date!</td>
+                            <td colspan="8" class="text-center py-8 text-gray-400 font-semibold">No records found for
+                                this date!</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -83,14 +96,14 @@
 </div>
 
 @script
-<script>
-    window.printMe = function() {
-        var printContents = document.getElementById('print').innerHTML;
-        var originalContents = document.body.innerHTML;
-        document.body.innerHTML = printContents;
-        window.print();
-        document.body.innerHTML = originalContents;
-        window.location.reload();
-    }
-</script>
+    <script>
+        window.printMe = function() {
+            var printContents = document.getElementById('print').innerHTML;
+            var originalContents = document.body.innerHTML;
+            document.body.innerHTML = printContents;
+            window.print();
+            document.body.innerHTML = originalContents;
+            window.location.reload();
+        }
+    </script>
 @endscript
