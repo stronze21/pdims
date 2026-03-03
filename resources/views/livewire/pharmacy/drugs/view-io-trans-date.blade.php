@@ -128,6 +128,12 @@
                             <td class="py-3 px-4">
                                 <div class="flex space-x-1">
                                     @if ($tran->trans_stat == 'Requested')
+                                        {{-- Requestor can update item --}}
+                                        @if ($tran->loc_code == auth()->user()->pharm_location_id)
+                                            <x-mary-button icon="o-pencil-square" class="btn-xs btn-warning"
+                                                tooltip-left="Change Item"
+                                                wire:click="openUpdateItem({{ $tran->id }})" spinner />
+                                        @endif
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-check" class="btn-xs btn-success"
                                                 tooltip-left="Issue" wire:click="selectRequest({{ $tran->id }})"
@@ -159,6 +165,41 @@
             </table>
         </div>
     </div>
+
+    {{-- Update Requested Item Modal --}}
+    <x-mary-modal wire:model="updateItemModal" title="Change Requested Item" class="backdrop-blur">
+        @if ($updating_transaction)
+            <div class="space-y-4">
+                <div class="bg-amber-50 rounded-lg p-3 text-sm">
+                    <p><strong>Current Item:</strong>
+                        {{ $updating_transaction->drug ? $updating_transaction->drug->drug_concat : '' }}</p>
+                    <p><strong>Requested QTY:</strong> {{ number_format($updating_transaction->requested_qty ?? 0) }}
+                    </p>
+                    <p><strong>Generic:</strong>
+                        {{ $updating_transaction->drug && $updating_transaction->drug->generic ? $updating_transaction->drug->generic->gendesc : 'N/A' }}
+                    </p>
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text">Select Item (Same Generic with Available
+                            Stock)</span></label>
+                    <select class="select select-bordered" wire:model="new_stock_id">
+                        <option value="">Select item...</option>
+                        @foreach ($same_generic_drugs as $sgd)
+                            <option value="{{ $sgd->dmdcomb }},{{ $sgd->dmdctr }}">
+                                {{ $sgd->drug_concat }} ({{ number_format($sgd->total_stock) }} in stock)
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+        @endif
+        <x-slot:actions>
+            <x-mary-button label="Cancel" wire:click="$set('updateItemModal', false)" />
+            <x-mary-button label="Update Item" class="btn-warning" wire:click="updateRequestedItem"
+                spinner="updateRequestedItem" />
+        </x-slot:actions>
+    </x-mary-modal>
 
     {{-- Issue Modal --}}
     <x-mary-modal wire:model="issueModal" title="Issue Request" class="backdrop-blur">

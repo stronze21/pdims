@@ -3,6 +3,7 @@
 namespace App\Livewire\Pharmacy\Drugs;
 
 use App\Models\Pharmacy\Drug;
+use App\Models\Pharmacy\DrugGroup;
 use App\Models\Pharmacy\Drugs\DrugStock;
 use App\Models\Pharmacy\Drugs\DrugStockCard;
 use App\Models\Pharmacy\Drugs\DrugStockLog;
@@ -24,6 +25,10 @@ class ViewIoTransRef extends Component
     public $remarks = '';
     public $available_drugs = [];
     public $issueModal = false;
+    public $updateItemModal = false;
+    public $updating_transaction = null;
+    public $same_generic_drugs = [];
+    public $new_stock_id = '';
 
     public function mount($reference_no)
     {
@@ -45,6 +50,66 @@ class ViewIoTransRef extends Component
     public function viewByDate($date)
     {
         return $this->redirect(route('inventory.io-trans.view-date', ['date' => $date]), navigate: true);
+    }
+
+    public function openUpdateItem(InOutTransaction $txn)
+    {
+        if ($txn->trans_stat !== 'Requested') {
+            $this->error('Only items with "Requested" status can be updated.');
+            return;
+        }
+
+        $this->updating_transaction = $txn;
+        $drug = $txn->drug;
+
+        if ($drug && $drug->generic) {
+            $gencode = $drug->generic->gencode;
+            $grpcodes = DrugGroup::where('gencode', $gencode)->pluck('grpcode');
+
+            $this->same_generic_drugs = DB::select("
+                SELECT d.dmdcomb, d.dmdctr, d.drug_concat, COALESCE(s.total_stock, 0) as total_stock
+                FROM hdmhdr d
+                LEFT JOIN (
+                    SELECT dmdcomb, dmdctr, SUM(stock_bal) as total_stock
+                    FROM pharm_drug_stocks
+                    WHERE loc_code = ?
+                        AND stock_bal > 0
+                        AND exp_date > GETDATE()
+                    GROUP BY dmdcomb, dmdctr
+                ) s ON d.dmdcomb = s.dmdcomb AND d.dmdctr = s.dmdctr
+                WHERE d.dmdstat = 'A'
+                    AND d.drug_concat IS NOT NULL
+                    AND d.grpcode IN (" . implode(',', array_fill(0, count($grpcodes), '?')) . ")
+                    AND COALESCE(s.total_stock, 0) > 0
+                ORDER BY d.drug_concat
+            ", array_merge([$txn->request_from], $grpcodes->toArray()));
+        } else {
+            $this->same_generic_drugs = [];
+        }
+
+        $this->new_stock_id = $txn->dmdcomb . ',' . $txn->dmdctr;
+        $this->updateItemModal = true;
+    }
+
+    public function updateRequestedItem()
+    {
+        if (!$this->updating_transaction || $this->updating_transaction->trans_stat !== 'Requested') {
+            $this->error('Only items with "Requested" status can be updated.');
+            return;
+        }
+
+        if (!$this->new_stock_id) {
+            $this->error('Please select an item.');
+            return;
+        }
+
+        $dm = explode(',', $this->new_stock_id);
+        $this->updating_transaction->dmdcomb = $dm[0];
+        $this->updating_transaction->dmdctr = $dm[1];
+        $this->updating_transaction->save();
+
+        $this->reset('updating_transaction', 'same_generic_drugs', 'new_stock_id', 'updateItemModal');
+        $this->success('Requested item updated successfully!');
     }
 
     public function selectRequest(InOutTransaction $txn)
