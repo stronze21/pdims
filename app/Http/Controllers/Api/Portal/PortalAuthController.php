@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Portal\PortalUser;
+use App\Models\Portal\PortalPatient;
+use App\Models\Portal\PortalUserAccount;
 use App\Models\Record\Patients\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,36 +15,29 @@ class PortalAuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'username' => 'required|string',
+            'pin' => 'required|string',
             'device_name' => 'sometimes|string',
         ]);
 
-        $user = PortalUser::where('email', $request->email)->first();
+        $account = PortalUserAccount::where('username', $request->username)
+            ->orWhere('email', $request->username)
+            ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$account || !Hash::check($request->pin, $account->pin)) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'username' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        if ($user->isPending()) {
-            return response()->json([
-                'message' => 'Your account is still pending verification. Please wait for hospital staff to verify your registration.',
-            ], 403);
-        }
-
-        if ($user->isRejected()) {
-            return response()->json([
-                'message' => 'Your registration has been rejected. Reason: ' . ($user->reject_reason ?? 'N/A'),
-            ], 403);
-        }
+        $account->load('patient');
 
         $deviceName = $request->device_name ?? 'Salun-at App';
-        $token = $user->createToken($deviceName)->plainTextToken;
+        $token = $account->createToken($deviceName)->plainTextToken;
 
         return response()->json([
-            'user' => $user,
+            'user' => $account,
+            'patient' => $account->patient,
             'token' => $token,
             'message' => 'Login successful',
         ]);
@@ -52,48 +46,68 @@ class PortalAuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'patlast' => 'required|string|max:50',
-            'patfirst' => 'required|string|max:50',
-            'patmiddle' => 'nullable|string|max:50',
-            'patsuffix' => 'nullable|string|max:10',
-            'email' => 'required|email|max:100|unique:portal.portal_users,email',
-            'contact_no' => 'nullable|string|max:20',
-            'password' => 'required|string|min:8|confirmed',
+            'hospital_no' => 'required|string|max:50',
             'patbdate' => 'required|date',
-            'patsex' => 'required|in:M,F',
+            'patcontactno' => 'nullable|string|max:100',
+            'email' => 'required|email|max:150|unique:portal.app_user_accounts,email',
+            'username' => 'required|string|max:100|unique:portal.app_user_accounts,username',
+            'pin' => 'required|string|min:4|confirmed',
         ]);
 
-        // Try to find existing patient record in hospital database
-        $patient = Patient::where('patlast', 'LIKE', $request->patlast)
-            ->where('patfirst', 'LIKE', $request->patfirst)
+        // Verify against the hospital database using Hospital Number + Birthdate
+        $hospitalPatient = Patient::where('hpatcode', $request->hospital_no)
             ->where('patbdate', $request->patbdate)
             ->first();
 
-        $portalUser = PortalUser::create([
-            'hpercode' => $patient?->hpercode,
-            'patlast' => $request->patlast,
-            'patfirst' => $request->patfirst,
-            'patmiddle' => $request->patmiddle,
-            'patsuffix' => $request->patsuffix,
+        if (!$hospitalPatient) {
+            throw ValidationException::withMessages([
+                'hospital_no' => ['No matching hospital record found. Please verify your hospital number and birth date.'],
+            ]);
+        }
+
+        // Check if this patient already has a portal account
+        $existingPortalPatient = PortalPatient::where('hpercode', $hospitalPatient->hpercode)->first();
+
+        if ($existingPortalPatient && $existingPortalPatient->userAccount) {
+            throw ValidationException::withMessages([
+                'hospital_no' => ['An account already exists for this hospital record.'],
+            ]);
+        }
+
+        // Sync patient data from hospital to portal database
+        $portalPatient = $existingPortalPatient ?? PortalPatient::create([
+            'hpercode' => $hospitalPatient->hpercode,
+            'patlast' => $hospitalPatient->patlast,
+            'patfirst' => $hospitalPatient->patfirst,
+            'patmiddle' => $hospitalPatient->patmiddle,
+            'patbdate' => $hospitalPatient->patbdate,
+            'patgender' => $hospitalPatient->patsex === 'M' ? 'Male' : 'Female',
+            'patcontactno' => $request->patcontactno ?? $hospitalPatient->pattelno,
+            'patemail' => $request->email,
+        ]);
+
+        // Create user account
+        PortalUserAccount::create([
+            'patient_id' => $portalPatient->id,
+            'username' => $request->username,
             'email' => $request->email,
-            'contact_no' => $request->contact_no,
-            'password' => $request->password,
-            'patbdate' => $request->patbdate,
-            'patsex' => $request->patsex,
-            'status' => 'pending',
+            'pin' => Hash::make($request->pin),
         ]);
 
         return response()->json([
-            'message' => $patient
-                ? 'Registration successful. Your hospital record was found. Please wait for verification.'
-                : 'Registration successful. No existing hospital record found. Hospital staff will assign your hospital number upon verification.',
-            'has_existing_record' => (bool) $patient,
+            'message' => 'Registration successful. Your hospital record has been verified and linked.',
         ], 201);
     }
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        $account = $request->user();
+        $account->load('patient');
+
+        return response()->json([
+            'user' => $account,
+            'patient' => $account->patient,
+        ]);
     }
 
     public function logout(Request $request)

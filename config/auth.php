@@ -72,7 +72,7 @@ return [
 
         'portal_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Portal\PortalUser::class,
+            'model' => App\Models\Portal\PortalUserAccount::class,
         ],
     ],
 
