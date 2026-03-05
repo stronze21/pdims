@@ -11,7 +11,7 @@ class PortalPrescriptionController extends Controller
 {
     /**
      * Get patient's prescriptions from the webapp database.
-     * Only returns prescriptions that still have remaining (undispensed) items.
+     * Returns all prescriptions (active and inactive) with status indicators.
      */
     public function prescriptions(Request $request)
     {
@@ -31,9 +31,14 @@ class PortalPrescriptionController extends Controller
                 rx.created_at,
                 rx.updated_at,
                 emp.lastname + ', ' + emp.firstname AS doctor_name,
+                CASE WHEN enctr.encstat = 'A' THEN 1 ELSE 0 END AS is_active,
+                enctr.toecode AS encounter_type,
                 (SELECT COUNT(*)
                  FROM webapp.dbo.prescription_data pd WITH (NOLOCK)
-                 WHERE pd.presc_id = rx.id AND pd.stat = 'A') AS item_count,
+                 WHERE pd.presc_id = rx.id) AS item_count,
+                (SELECT COUNT(*)
+                 FROM webapp.dbo.prescription_data pd_active WITH (NOLOCK)
+                 WHERE pd_active.presc_id = rx.id AND pd_active.stat = 'A') AS active_item_count,
                 (SELECT COUNT(*)
                  FROM webapp.dbo.prescription_data pd2 WITH (NOLOCK)
                  LEFT JOIN (
@@ -104,8 +109,7 @@ class PortalPrescriptionController extends Controller
                 GROUP BY presc_data_id
             ) pdi ON pd.id = pdi.presc_data_id
             WHERE pd.presc_id = ?
-                AND pd.stat = 'A'
-            ORDER BY pd.created_at ASC
+            ORDER BY pd.stat ASC, pd.created_at ASC
         ", [$prescriptionId]);
 
         // Check which items already have a pending refill
@@ -118,6 +122,7 @@ class PortalPrescriptionController extends Controller
         $processedItems = collect($items)->map(function ($item) use ($pendingRefillIds) {
             $parts = explode('_,', $item->drug_concat ?? '');
             $remaining = (float) ($item->remaining_qty ?? 0);
+            $isActive = ($item->stat ?? '') === 'A';
 
             return [
                 'id' => (int) $item->id,
@@ -130,11 +135,13 @@ class PortalPrescriptionController extends Controller
                 'qty_issued' => (float) ($item->total_issued ?? 0),
                 'qty_remaining' => $remaining,
                 'order_type' => (string) ($item->order_type ?? ''),
+                'stat' => (string) ($item->stat ?? ''),
+                'is_active' => $isActive,
                 'remark' => (string) ($item->remark ?? ''),
                 'addtl_remarks' => (string) ($item->addtl_remarks ?? ''),
                 'frequency' => (string) ($item->frequency ?? ''),
                 'duration' => (string) ($item->duration ?? ''),
-                'has_remaining' => $remaining > 0,
+                'has_remaining' => $isActive && $remaining > 0,
                 'has_pending_refill' => in_array($item->id, $pendingRefillIds),
             ];
         });
