@@ -23,7 +23,7 @@ class PortalPrescriptionController extends Controller
             return response()->json(['message' => 'No linked hospital record found.'], 404);
         }
 
-        $prescriptions = DB::connection('webapp')->select("
+        $prescriptions = DB::connection('hospital')->select("
             SELECT
                 rx.id,
                 rx.enccode,
@@ -68,7 +68,7 @@ class PortalPrescriptionController extends Controller
             return response()->json(['message' => 'No linked hospital record found.'], 404);
         }
 
-        $prescription = DB::connection('webapp')->selectOne("
+        $prescription = DB::connection('hospital')->selectOne("
             SELECT rx.id, enctr.hpercode
             FROM webapp.dbo.prescription rx WITH (NOLOCK)
             INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
@@ -80,7 +80,7 @@ class PortalPrescriptionController extends Controller
             return response()->json(['message' => 'Prescription not found.'], 404);
         }
 
-        $items = DB::connection('webapp')->select("
+        $items = DB::connection('hospital')->select("
             SELECT
                 pd.id,
                 pd.dmdcomb,
@@ -167,7 +167,7 @@ class PortalPrescriptionController extends Controller
         }
 
         // Verify prescription belongs to this patient
-        $prescription = DB::connection('webapp')->selectOne("
+        $prescription = DB::connection('hospital')->selectOne("
             SELECT rx.id, rx.enccode, enctr.hpercode
             FROM webapp.dbo.prescription rx WITH (NOLOCK)
             INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
@@ -180,7 +180,7 @@ class PortalPrescriptionController extends Controller
         }
 
         // Check remaining qty from webapp
-        $prescData = DB::connection('webapp')->selectOne("
+        $prescData = DB::connection('hospital')->selectOne("
             SELECT
                 pd.qty,
                 COALESCE(pdi.total_issued, 0) as total_issued,
