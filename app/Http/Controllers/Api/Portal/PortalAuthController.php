@@ -24,13 +24,13 @@ class PortalAuthController extends Controller
             ->orWhere('email', $request->username)
             ->first();
 
-        try {
-            $pinValid = $account && Hash::check($request->pin, $account->pin);
-        } catch (\RuntimeException $e) {
-            $pinValid = false;
+        // Normalize $2a$ bcrypt hashes to $2y$ (PHP-compatible variant)
+        $pin = $account?->pin;
+        if ($pin && str_starts_with($pin, '$2a$')) {
+            $pin = '$2y$' . substr($pin, 4);
         }
 
-        if (!$pinValid) {
+        if (!$account || !Hash::check($request->pin, $pin)) {
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
             ]);
