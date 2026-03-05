@@ -439,8 +439,10 @@ class DispensingEncounter extends Component
             return;
         }
 
-        $selected_items = implode(',', $this->selected_items);
-        $rxos = collect(DB::select("SELECT * FROM hrxo WHERE docointkey IN (" . $selected_items . ") AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"))->all();
+        $selected_items = array_map(fn($item) => "'$item'", $this->selected_items);
+        $selected_items_string = implode(',', $selected_items);
+
+        $rxos = collect(DB::select("SELECT * FROM hrxo WHERE docointkey IN (" . $selected_items_string . ") AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"))->all();
 
         $this->type = $this->resolveTransactionType();
 
