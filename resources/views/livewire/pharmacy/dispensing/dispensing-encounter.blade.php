@@ -379,7 +379,7 @@
                                     class="btn-sm btn-info btn-outline" wire:click="charge_items"
                                     tooltip-bottom="Charge Selected (Ctrl+C)" />
                                 <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                    wire:click="$wire.$set('showIssueModal', true)"
+                                    wire:click="$set('showIssueModal', true)"
                                     tooltip-bottom="Issue Charged Items (Ctrl+I)" />
                             </div>
                         @endif
@@ -836,9 +836,9 @@
                             <div class="form-control">
                                 <label class="label font-bold"><span class="label-text">TAG</span></label>
                                 <label class="flex items-center gap-3 cursor-pointer">
-                                    <span class="label-text">Basic (Service)</span>
+                                    <span class="label-text flex-1 text-end">Basic (Service)</span>
                                     <input type="checkbox" wire:model="bnb" class="toggle toggle-success" />
-                                    <span class="label-text">NON-Basic (Pay)</span>
+                                    <span class="label-text flex-1">NON-Basic (Pay)</span>
                                 </label>
                             </div>
                         @else
