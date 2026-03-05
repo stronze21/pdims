@@ -141,6 +141,55 @@
                     </div>
                 </div>
 
+                {{-- Original Prescription Context from webapp --}}
+                @if($prescriptionContext)
+                    <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <h4 class="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                            <x-mary-icon name="o-clipboard-document-list" class="w-4 h-4" />
+                            Original Prescription (CDOE)
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-500">Prescribing Doctor:</span>
+                                <p class="font-semibold text-gray-900">Dr. {{ $prescriptionContext->doctor_name ?? 'N/A' }}</p>
+                            </div>
+                            <div>
+                                <span class="text-gray-500">Prescribed Date:</span>
+                                <p class="text-gray-700">{{ $prescriptionContext->prescribed_at ? \Carbon\Carbon::parse($prescriptionContext->prescribed_at)->format('M d, Y') : 'N/A' }}</p>
+                            </div>
+                            @if($prescriptionContext->frequency)
+                                <div>
+                                    <span class="text-gray-500">Frequency:</span>
+                                    <p class="font-semibold text-gray-900">{{ $prescriptionContext->frequency }}</p>
+                                </div>
+                            @endif
+                            @if($prescriptionContext->duration)
+                                <div>
+                                    <span class="text-gray-500">Duration:</span>
+                                    <p class="font-semibold text-gray-900">{{ $prescriptionContext->duration }}</p>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 mt-3">
+                            <div class="p-2 bg-white rounded text-center">
+                                <span class="text-xs text-gray-500 block">Total Ordered</span>
+                                <span class="text-lg font-bold text-gray-900">{{ number_format($prescriptionContext->qty_ordered) }}</span>
+                            </div>
+                            <div class="p-2 bg-white rounded text-center">
+                                <span class="text-xs text-green-600 block">Already Dispensed</span>
+                                <span class="text-lg font-bold text-green-700">{{ number_format($prescriptionContext->total_issued) }}</span>
+                            </div>
+                            <div class="p-2 bg-white rounded text-center">
+                                <span class="text-xs text-orange-600 block">Remaining</span>
+                                <span class="text-lg font-bold text-orange-700">{{ number_format($prescriptionContext->remaining_qty) }}</span>
+                            </div>
+                        </div>
+                        @if($prescriptionContext->remark)
+                            <p class="text-xs text-gray-600 mt-2"><strong>Doctor's Remark:</strong> {{ $prescriptionContext->remark }}</p>
+                        @endif
+                    </div>
+                @endif
+
                 @if($viewRefill->remarks)
                     <div class="p-3 bg-gray-50 rounded-lg">
                         <span class="text-xs text-gray-500 uppercase font-semibold">Patient Remarks</span>
