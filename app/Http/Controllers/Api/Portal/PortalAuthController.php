@@ -24,7 +24,13 @@ class PortalAuthController extends Controller
             ->orWhere('email', $request->username)
             ->first();
 
-        if (!$account || !Hash::check($request->pin, $account->pin)) {
+        try {
+            $pinValid = $account && Hash::check($request->pin, $account->pin);
+        } catch (\RuntimeException $e) {
+            $pinValid = false;
+        }
+
+        if (!$pinValid) {
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
             ]);
