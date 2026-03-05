@@ -27,7 +27,7 @@ class PortalPrescriptionController extends Controller
             SELECT
                 rx.id,
                 rx.enccode,
-                rx.hpercode,
+                enctr.hpercode,
                 rx.created_at,
                 rx.updated_at,
                 emp.lastname + ', ' + emp.firstname AS doctor_name,
@@ -44,9 +44,11 @@ class PortalPrescriptionController extends Controller
                  WHERE pd2.presc_id = rx.id AND pd2.stat = 'A'
                  AND (pd2.qty - COALESCE(pdi.total_issued, 0)) > 0) AS refillable_count
             FROM webapp.dbo.prescription rx WITH (NOLOCK)
+            INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON rx.enccode = enctr.enccode
             LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
                 ON rx.empid = emp.employeeid
-            WHERE rx.hpercode = ?
+            WHERE enctr.hpercode = ?
             ORDER BY rx.created_at DESC
         ", [$hpercode]);
 
@@ -67,8 +69,11 @@ class PortalPrescriptionController extends Controller
         }
 
         $prescription = DB::connection('webapp')->selectOne("
-            SELECT id, hpercode FROM webapp.dbo.prescription WITH (NOLOCK)
-            WHERE id = ? AND hpercode = ?
+            SELECT rx.id, enctr.hpercode
+            FROM webapp.dbo.prescription rx WITH (NOLOCK)
+            INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON rx.enccode = enctr.enccode
+            WHERE rx.id = ? AND enctr.hpercode = ?
         ", [$prescriptionId, $hpercode]);
 
         if (!$prescription) {
@@ -163,8 +168,11 @@ class PortalPrescriptionController extends Controller
 
         // Verify prescription belongs to this patient
         $prescription = DB::connection('webapp')->selectOne("
-            SELECT id, enccode, hpercode FROM webapp.dbo.prescription WITH (NOLOCK)
-            WHERE id = ? AND hpercode = ?
+            SELECT rx.id, rx.enccode, enctr.hpercode
+            FROM webapp.dbo.prescription rx WITH (NOLOCK)
+            INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON rx.enccode = enctr.enccode
+            WHERE rx.id = ? AND enctr.hpercode = ?
         ", [$request->prescription_id, $patient->hpercode]);
 
         if (!$prescription) {
