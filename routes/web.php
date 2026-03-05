@@ -42,6 +42,7 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTabl
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Portal\ManagePortalUsers;
+use App\Livewire\Portal\ManageRefillRequests;
 use App\Livewire\Records\DischargedPatients;
 use App\Livewire\Records\ForDischargePatients;
 use App\Livewire\Records\PatientsList;
@@ -226,6 +227,7 @@ Route::middleware([
     Route::get('/settings/zero-billing-charges', ManageZeroBillingCharges::class)->name('settings.zero-billing');
 
     Route::get('/settings/portal/users', ManagePortalUsers::class)->name('settings.portal.users');
+    Route::get('/settings/portal/refills', ManageRefillRequests::class)->name('settings.portal.refills');
 });
 
 // Public Queue Display (can be accessed without auth for TV displays)

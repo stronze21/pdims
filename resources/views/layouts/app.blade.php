@@ -119,6 +119,8 @@
                     <x-mary-menu-sub title="Portal" icon="o-globe-alt">
                         <x-mary-menu-item title="Portal Users" icon="o-user-group"
                             link="{{ route('settings.portal.users') }}" />
+                        <x-mary-menu-item title="Refill Requests" icon="o-arrow-path"
+                            link="{{ route('settings.portal.refills') }}" />
                     </x-mary-menu-sub>
                 </x-mary-menu-sub>
             </x-mary-menu>
