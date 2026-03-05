@@ -106,10 +106,10 @@ Route::middleware([
     });
 
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
-        Route::get('/encounter/{enccode?}', DispensingEncounter::class)
-            ->where('enccode', '.*')->name('view.enctr');
         Route::get('/encounter/charge/{pcchrgcod}', RxoChargeSlip::class)
             ->name('rxo.chargeslip');
+        Route::get('/encounter/{enccode?}', DispensingEncounter::class)
+            ->where('enccode', '.*')->name('view.enctr');
         Route::get('/return-slip/{hpercode}', ReturnSlip::class)
             ->name('rxo.return.sum');
     });
