@@ -176,8 +176,8 @@
                             <td class="py-3 px-4">
                                 <div class="flex space-x-1">
                                     @if ($tran->trans_stat == 'Requested')
-                                        {{-- Requestor can update item --}}
-                                        @if ($tran->loc_code == auth()->user()->pharm_location_id)
+                                        {{-- Issuing location can update item --}}
+                                        @if ($tran->request_from == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-pencil-square" class="btn-xs btn-warning"
                                                 tooltip-left="Change Item"
                                                 wire:click="openUpdateItem({{ $tran->id }})" spinner />

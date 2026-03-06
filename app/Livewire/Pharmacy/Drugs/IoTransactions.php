@@ -232,6 +232,11 @@ class IoTransactions extends Component
             return;
         }
 
+        if ($txn->request_from != auth()->user()->pharm_location_id) {
+            $this->error('Only the issuing location can change the item.');
+            return;
+        }
+
         $this->updating_transaction = $txn;
         $drug = $txn->drug;
 
@@ -268,6 +273,11 @@ class IoTransactions extends Component
     {
         if (!$this->updating_transaction || $this->updating_transaction->trans_stat !== 'Requested') {
             $this->error('Only items with "Requested" status can be updated.');
+            return;
+        }
+
+        if ($this->updating_transaction->request_from != auth()->user()->pharm_location_id) {
+            $this->error('Only the issuing location can change the item.');
             return;
         }
 
