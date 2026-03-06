@@ -88,7 +88,7 @@ class PortalEncounterController extends Controller
     /**
      * Get details of a specific encounter including all diagnoses.
      */
-    public function encounterDetails(Request $request, $enccode)
+    public function encounterDetails(Request $request)
     {
         $account = $request->user();
         $account->load('patient');
@@ -96,6 +96,12 @@ class PortalEncounterController extends Controller
 
         if (!$hpercode) {
             return response()->json(['message' => 'No linked hospital record found.'], 404);
+        }
+
+        $enccode = $request->query('enccode');
+
+        if (!$enccode) {
+            return response()->json(['message' => 'Encounter code is required.'], 400);
         }
 
         // Get the encounter with details

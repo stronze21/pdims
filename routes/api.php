@@ -123,7 +123,6 @@ Route::prefix('portal')->group(function () {
 
         // Patient encounters (records) routes
         Route::get('/encounters', [PortalEncounterController::class, 'encounters']);
-        Route::get('/encounters/{enccode}', [PortalEncounterController::class, 'encounterDetails'])
-            ->where('enccode', '.*');
+        Route::get('/encounters/details', [PortalEncounterController::class, 'encounterDetails']);
     });
 });
