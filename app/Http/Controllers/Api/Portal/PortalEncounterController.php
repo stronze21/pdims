@@ -69,6 +69,8 @@ class PortalEncounterController extends Controller
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
             LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK)
                 ON enctr.enccode = diag.enccode
+                AND diag.tdcode = 'FINDX'
+                AND diag.primediag = 'Y'
             LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK)
                 ON enctr.enccode = opd.enccode
             LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK)
