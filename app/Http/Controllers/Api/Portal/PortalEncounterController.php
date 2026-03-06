@@ -61,11 +61,8 @@ class PortalEncounterController extends Controller
                  FROM webapp.dbo.prescription rx WITH (NOLOCK)
                  WHERE rx.enccode = enctr.enccode) AS prescription_count
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
-            LEFT JOIN (
-                SELECT enccode, diagtext, diagcode
-                FROM hospital.dbo.hencdiag WITH (NOLOCK)
-                WHERE diagtype = 'P'
-            ) diag ON enctr.enccode = diag.enccode
+            LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK)
+                ON enctr.enccode = diag.enccode
             LEFT JOIN hospital.dbo.hopdlog opd WITH (NOLOCK)
                 ON enctr.enccode = opd.enccode
             LEFT JOIN hospital.dbo.herlog er WITH (NOLOCK)
@@ -149,18 +146,16 @@ class PortalEncounterController extends Controller
             SELECT
                 diagcode,
                 diagtext,
-                diagtype,
                 diagdate
             FROM hospital.dbo.hencdiag WITH (NOLOCK)
             WHERE enccode = ?
-            ORDER BY diagtype ASC, diagdate ASC
+            ORDER BY diagdate ASC
         ", [$enccode]);
 
         $processedDiagnoses = collect($diagnoses)->map(function ($diag) {
             return [
                 'diagnosis_code' => (string) ($diag->diagcode ?? ''),
                 'diagnosis_text' => (string) ($diag->diagtext ?? 'N/A'),
-                'diagnosis_type' => $diag->diagtype === 'P' ? 'Primary' : 'Secondary',
                 'diagnosis_date' => $diag->diagdate,
             ];
         });
