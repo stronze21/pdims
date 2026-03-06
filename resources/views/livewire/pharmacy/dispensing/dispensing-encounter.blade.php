@@ -70,7 +70,7 @@
                         <x-mary-button label="Call for Patient" icon="o-megaphone"
                             class="btn-sm btn-warning animate-pulse"
                             wire:click="callForPatient"
-                            wire:confirm="Call patient for queue {{ $currentQueueNumber }}?" />
+                            wire:mary-confirm="Call patient for queue {{ $currentQueueNumber }}?" />
                     @endif
                 @else
                     <div class="flex items-center gap-2">
@@ -88,7 +88,7 @@
                     @if ($currentQueueStatus !== 'dispensed')
                         <x-mary-button label="Complete & Next" icon="o-forward" class="btn-sm btn-success"
                             wire:click="queueCompleteAndNext"
-                            wire:confirm="Mark this queue as dispensed and open the next queue?" />
+                            wire:mary-confirm="Mark this queue as dispensed and open the next queue?" />
                     @else
                         <x-mary-button label="Next Queue" icon="o-arrow-right" class="btn-sm btn-primary"
                             wire:click="queueCallNext" />
@@ -150,7 +150,7 @@
                                             <td>
                                                 <button wire:click="queueSelectAndOpen({{ $q['id'] }})"
                                                     class="btn btn-xs btn-primary"
-                                                    wire:confirm="Open queue {{ $q['queue_number'] }}?">
+                                                    wire:mary-confirm="Open queue {{ $q['queue_number'] }}?">
                                                     Select
                                                 </button>
                                             </td>
@@ -216,7 +216,7 @@
                                                 @else
                                                     <button wire:click="queueSelectAndOpen({{ $cq['id'] }})"
                                                         class="btn btn-xs btn-accent"
-                                                        wire:confirm="Open {{ $cq['queue_number'] }} for dispensing?">
+                                                        wire:mary-confirm="Open {{ $cq['queue_number'] }} for dispensing?">
                                                         Dispense
                                                     </button>
                                                 @endif
@@ -382,7 +382,7 @@
 
                                 <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
                                     wire:click="delete_item"
-                                    wire:confirm="Delete selected pending items? This cannot be undone."
+                                    wire:mary-confirm="Delete selected pending items? This cannot be undone."
                                     tooltip-bottom="Delete Selected (Del)" />
                                 <x-mary-button label="Charge" icon="o-credit-card"
                                     class="btn-sm btn-info btn-outline" wire:click="charge_items"
