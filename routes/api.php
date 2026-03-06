@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
 use App\Http\Controllers\Api\Portal\PortalAuthController;
+use App\Http\Controllers\Api\Portal\PortalEncounterController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -119,5 +120,9 @@ Route::prefix('portal')->group(function () {
         Route::get('/prescriptions/{id}/items', [PortalPrescriptionController::class, 'prescriptionItems']);
         Route::post('/prescriptions/refill', [PortalPrescriptionController::class, 'requestRefill']);
         Route::get('/prescriptions/refills', [PortalPrescriptionController::class, 'refillHistory']);
+
+        // Patient encounters (records) routes
+        Route::get('/encounters', [PortalEncounterController::class, 'encounters']);
+        Route::get('/encounters/details', [PortalEncounterController::class, 'encounterDetails']);
     });
 });

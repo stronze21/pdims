@@ -21,26 +21,15 @@ class EncounterDiagnosis extends Model
         'hpercode',
         'diagcode',
         'diagtext',
-        'diagtype',
-        'diagdate',
+        'encdate',
     ];
 
     protected $casts = [
-        'diagdate' => 'datetime',
+        'encdate' => 'datetime',
     ];
 
     public function encounter()
     {
         return $this->belongsTo(EncounterLog::class, 'enccode', 'enccode');
-    }
-
-    public function isPrimaryDiagnosis()
-    {
-        return $this->diagtype === 'P';
-    }
-
-    public function isSecondaryDiagnosis()
-    {
-        return $this->diagtype === 'S';
     }
 }
