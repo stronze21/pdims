@@ -4,12 +4,21 @@
 
 <div class="flex flex-col h-full" x-data="{
     selectedItems: @entangle('selected_items'),
-    toggleItem(id) {
-        if (this.selectedItems.includes(id)) {
-            this.selectedItems = this.selectedItems.filter(i => i !== id);
-        } else {
-            this.selectedItems.push(id);
-        }
+    toggleItem(event, pcchrgcod) {
+        const checked = event.target.checked;
+        const groupCheckboxes = document.querySelectorAll(
+            `[data-pcchrgcod='${pcchrgcod}']`
+        );
+        groupCheckboxes.forEach(cb => {
+            const val = cb.value;
+            if (checked) {
+                if (!this.selectedItems.includes(val)) {
+                    this.selectedItems.push(val);
+                }
+            } else {
+                this.selectedItems = this.selectedItems.filter(i => i !== val);
+            }
+        });
         $wire.call('updateSelectedItems', this.selectedItems);
     },
     selectAllPending() {
@@ -405,15 +414,18 @@
                                 <tr class="hover" wire:key="order-{{ $rxo->docointkey }}">
                                     <td>
                                         @if ($rxo->estatus == 'U' && !$rxo->pcchrgcod)
-                                            <input type="checkbox" class="checkbox checkbox-xs pending-checkbox"
+                                            <input type="checkbox"
+                                                class="checkbox checkbox-xs pending-checkbox"
                                                 value="{{ $rxo->docointkey }}"
+                                                data-pcchrgcod="{{ $rxo->pcchrgcod }}"
                                                 :checked="selectedItems.includes('{{ $rxo->docointkey }}')"
-                                                x-on:change="toggleItem('{{ $rxo->docointkey }}')" />
-                                        @elseif ($rxo->estatus == 'P' && $rxo->pcchrgcod)
+                                                x-on:change="toggleItem($event, '{{ $rxo->pcchrgcod }}')" />
+                                        @elseif ($rxo->pcchrgcod)
                                             <input type="checkbox" class="checkbox checkbox-xs"
                                                 value="{{ $rxo->docointkey }}"
+                                                data-pcchrgcod="{{ $rxo->pcchrgcod }}"
                                                 :checked="selectedItems.includes('{{ $rxo->docointkey }}')"
-                                                x-on:change="toggleItem('{{ $rxo->docointkey }}')" />
+                                                x-on:change="toggleItem($event, '{{ $rxo->pcchrgcod }}')" />
                                         @endif
                                     </td>
                                     <td class="text-center">
