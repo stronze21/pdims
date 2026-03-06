@@ -66,7 +66,7 @@
                         <td>
                             <div class="flex gap-1 justify-center">
                                 @if ($drug->deleted_at)
-                                    <button wire:click="restore({{ $drug->id }})" wire:confirm="Restore this drug?"
+                                    <button wire:click="restore({{ $drug->id }})" wire:mary-confirm="Restore this drug?"
                                         class="btn btn-xs btn-success" title="Restore">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
                                             fill="currentColor">
@@ -76,7 +76,7 @@
                                         </svg>
                                     </button>
                                     <button wire:click="forceDelete({{ $drug->id }})"
-                                        wire:confirm="Permanently delete this drug? This cannot be undone!"
+                                        wire:mary-confirm="Permanently delete this drug? This cannot be undone!"
                                         class="btn btn-xs btn-error" title="Permanently Delete">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
                                             fill="currentColor">
@@ -94,7 +94,7 @@
                                                 d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                                         </svg>
                                     </button>
-                                    <button wire:click="delete({{ $drug->id }})" wire:confirm="Delete this drug?"
+                                    <button wire:click="delete({{ $drug->id }})" wire:mary-confirm="Delete this drug?"
                                         class="btn btn-xs btn-ghost" title="Delete">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20"
                                             fill="currentColor">

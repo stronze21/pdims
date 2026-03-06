@@ -193,6 +193,7 @@
             }
         }
     </style>
+
     <!-- Global Confirmation Modal -->
     <div
         x-data
@@ -225,8 +226,6 @@
             </div>
         </div>
     </div>
-
-
 </body>
 
 </html>

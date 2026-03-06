@@ -206,7 +206,7 @@
 
                                         @if ($queue->isActive())
                                             <x-mary-button class="btn btn-xs btn-error"
-                                                wire:confirm="Cancel this queue?"
+                                                wire:mary-confirm="Cancel this queue?"
                                                 wire:click="$dispatch('cancel-queue', { queueId: {{ $queue->id }} })"
                                                 tooltip="Cancel">
                                                 <x-mary-icon name="o-x-mark" class="w-4 h-4" />
@@ -289,7 +289,7 @@
             <x-slot:actions>
                 <x-mary-button label="Cancel" wire:click="$set('showBatchCreateModal', false)" />
                 <x-mary-button label="Create Queues" class="btn-primary" wire:click="executeBatchCreate"
-                    wire:confirm="Are you sure you want to create queues for the selected prescriptions?">
+                    wire:mary-confirm="Are you sure you want to create queues for the selected prescriptions?">
                     <x-mary-loading wire:loading wire:target="executeBatchCreate"
                         class="loading-spinner loading-sm" />
                 </x-mary-button>
