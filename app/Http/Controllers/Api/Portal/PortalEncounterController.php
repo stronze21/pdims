@@ -163,15 +163,18 @@ class PortalEncounterController extends Controller
         $diagnoses = DB::connection('hospital')->select("
             SELECT
                 diagcode,
-                diagtext
+                diagtext,
+                encdate
             FROM hospital.dbo.hencdiag WITH (NOLOCK)
             WHERE enccode = ?
+            ORDER BY encdate ASC
         ", [$enccode]);
 
         $processedDiagnoses = collect($diagnoses)->map(function ($diag) {
             return [
                 'diagnosis_code' => (string) ($diag->diagcode ?? ''),
                 'diagnosis_text' => (string) ($diag->diagtext ?? 'N/A'),
+                'diagnosis_date' => $diag->encdate,
             ];
         });
 

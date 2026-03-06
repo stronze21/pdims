@@ -21,6 +21,11 @@ class EncounterDiagnosis extends Model
         'hpercode',
         'diagcode',
         'diagtext',
+        'encdate',
+    ];
+
+    protected $casts = [
+        'encdate' => 'datetime',
     ];
 
     public function encounter()
