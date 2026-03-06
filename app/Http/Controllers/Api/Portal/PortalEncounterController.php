@@ -40,7 +40,13 @@ class PortalEncounterController extends Controller
                     WHEN enctr.toecode = 'WALKN' THEN 'Walk-In'
                     ELSE enctr.toecode
                 END AS encounter_type_label,
-                CASE WHEN enctr.encstat = 'A' THEN 1 ELSE 0 END AS is_active,
+                CASE
+                    WHEN enctr.toecode IN ('OPD', 'OPDAD') AND opd.opddtedis IS NOT NULL THEN 0
+                    WHEN enctr.toecode IN ('ER', 'ERADM') AND er.erdtedis IS NOT NULL THEN 0
+                    WHEN enctr.toecode = 'ADM' AND adm.disdate IS NOT NULL THEN 0
+                    WHEN enctr.encstat = 'A' THEN 1
+                    ELSE 0
+                END AS is_active,
                 diag.diagtext AS primary_diagnosis,
                 diag.diagcode AS diagnosis_code,
                 emp.lastname + ', ' + emp.firstname AS attending_doctor,
@@ -110,7 +116,13 @@ class PortalEncounterController extends Controller
                     WHEN enctr.toecode = 'WALKN' THEN 'Walk-In'
                     ELSE enctr.toecode
                 END AS encounter_type_label,
-                CASE WHEN enctr.encstat = 'A' THEN 1 ELSE 0 END AS is_active,
+                CASE
+                    WHEN enctr.toecode IN ('OPD', 'OPDAD') AND opd.opddtedis IS NOT NULL THEN 0
+                    WHEN enctr.toecode IN ('ER', 'ERADM') AND er.erdtedis IS NOT NULL THEN 0
+                    WHEN enctr.toecode = 'ADM' AND adm.disdate IS NOT NULL THEN 0
+                    WHEN enctr.encstat = 'A' THEN 1
+                    ELSE 0
+                END AS is_active,
                 emp.lastname + ', ' + emp.firstname AS attending_doctor,
                 opd.opddate AS opd_date,
                 opd.opddtedis AS opd_discharge_date,
