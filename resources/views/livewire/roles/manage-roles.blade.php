@@ -56,7 +56,7 @@
                         class="btn-sm btn-ghost" />
 
                     @can('delete-roles')
-                        <x-mary-button icon="o-trash" wire:confirm="Are you sure you want to delete this role?"
+                        <x-mary-button icon="o-trash" wire:mary-confirm="Are you sure you want to delete this role?"
                             wire:click="$dispatch('delete-role', { id: {{ $role->id }} })" tooltip="Delete"
                             class="btn-sm btn-ghost text-error" />
                     @endcan

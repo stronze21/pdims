@@ -305,7 +305,7 @@
                                                     ($queue->isPreparing() && ($queue->assigned_window == $selectedWindow || !$queue->assigned_window)))
                                                 <button wire:click="selectQueue({{ $queue->id }})"
                                                     class="btn btn-xs btn-primary"
-                                                    wire:confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
+                                                    wire:mary-confirm="Assign {{ $queue->queue_number }} to Window {{ $selectedWindow }}?">
                                                     Select
                                                 </button>
                                             @endif
@@ -547,7 +547,7 @@
             <x-slot:actions>
                 <x-mary-button label="Cancel" wire:click="$set('showBatchCreateModal', false)" />
                 <x-mary-button label="Create Queues" class="btn-primary" wire:click="executeBatchCreate"
-                    wire:confirm="Are you sure you want to create queues for the selected prescriptions?">
+                    wire:mary-confirm="Are you sure you want to create queues for the selected prescriptions?">
                     <x-mary-loading wire:loading wire:target="executeBatchCreate"
                         class="loading-spinner loading-sm" />
                 </x-mary-button>

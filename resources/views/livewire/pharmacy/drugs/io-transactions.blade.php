@@ -189,7 +189,7 @@
                                                 spinner />
                                             <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
                                                 tooltip-left="Decline" wire:click="denyRequest('Declined by admin')"
-                                                wire:confirm="Are you sure you want to decline this request?"
+                                                wire:mary-confirm="Are you sure you want to decline this request?"
                                                 spinner />
                                         @endif
                                     @elseif ($tran->trans_stat == 'Issued')
@@ -198,13 +198,13 @@
                                             <x-mary-button icon="o-inbox-arrow-down" class="btn-xs btn-success"
                                                 tooltip-left="Receive"
                                                 wire:click="receiveIssued({{ $tran->id }})"
-                                                wire:confirm="Confirm receipt of all items?" spinner />
+                                                wire:mary-confirm="Confirm receipt of all items?" spinner />
                                         @endif
                                         {{-- Issuer can cancel --}}
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
                                                 tooltip-left="Cancel" wire:click="cancelTx({{ $tran->id }})"
-                                                wire:confirm="Cancel this transaction? All issued items will be returned."
+                                                wire:mary-confirm="Cancel this transaction? All issued items will be returned."
                                                 spinner />
                                         @endif
                                     @endif

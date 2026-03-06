@@ -193,6 +193,39 @@
             }
         }
     </style>
+
+    <!-- Global Confirmation Modal -->
+    <div
+        x-data
+        :class="{ 'modal-open': $store.maryConfirm.open }"
+        class="modal backdrop-blur-sm"
+        >
+        <div class="modal-box bg-base-100">
+            <h3 class="font-bold text-lg" x-text="$store.maryConfirm.title"></h3>
+
+            <p class="py-4" x-text="$store.maryConfirm.description"></p>
+
+            <div class="modal-action">
+                <!-- Cancel -->
+                <button
+                    type="button"
+                    class="btn btn-ghost"
+                    @click="$store.maryConfirm.close()"
+                >
+                    Cancel
+                </button>
+
+                <!-- Confirm -->
+                <button
+                    type="button"
+                    class="btn btn-error"
+                    @click="$store.maryConfirm.confirm()"
+                >
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

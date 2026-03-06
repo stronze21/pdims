@@ -34,7 +34,7 @@
                 @if (!$current_io)
                     <x-mary-button label="Bulk Request" icon="o-paper-airplane" class="btn-sm btn-primary"
                         wire:click="bulkRequest" spinner="bulkRequest"
-                        wire:confirm="Bulk request items below reorder-level. Continue?" />
+                        wire:mary-confirm="Bulk request items below reorder-level. Continue?" />
                 @endif
             </div>
         </x-slot:actions>

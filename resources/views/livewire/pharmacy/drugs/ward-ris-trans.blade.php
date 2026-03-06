@@ -92,7 +92,7 @@
                                 @if ($tran->issued_qty > 0 && $tran->return_qty == 0)
                                     <x-mary-button icon="o-x-mark" class="btn-xs btn-error" tooltip="Cancel/Return"
                                         wire:click="cancelIssue({{ $tran->id }})"
-                                        wire:confirm="Are you sure you want to cancel this issuance? Items will be returned to stock."
+                                        wire:mary-confirm="Are you sure you want to cancel this issuance? Items will be returned to stock."
                                         spinner />
                                 @endif
                             </td>

@@ -50,7 +50,7 @@
                         class="btn-sm btn-ghost" />
 
                     @can('delete-permissions')
-                        <x-mary-button icon="o-trash" wire:confirm="Are you sure you want to delete this permission?"
+                        <x-mary-button icon="o-trash" wire:mary-confirm="Are you sure you want to delete this permission?"
                             wire:click="$dispatch('delete-permission', { id: {{ $permission->id }} })" tooltip="Delete"
                             class="btn-sm btn-ghost text-error" />
                     @endcan

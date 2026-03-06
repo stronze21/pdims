@@ -76,7 +76,7 @@
 
                     @can('delete-users')
                         @if ($user->id !== auth()->id())
-                            <x-mary-button icon="o-trash" wire:confirm="Are you sure you want to delete this user?"
+                            <x-mary-button icon="o-trash" wire:mary-confirm="Are you sure you want to delete this user?"
                                 wire:click="$dispatch('delete-user', { id: {{ $user->id }} })" tooltip="Delete"
                                 class="btn-sm btn-ghost text-error" />
                         @endif

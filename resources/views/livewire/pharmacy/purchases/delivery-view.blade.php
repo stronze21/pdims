@@ -138,7 +138,7 @@
                                             </button>
                                             <button class="btn btn-xs btn-error"
                                                 wire:click="delete_item({{ $item->id }})"
-                                                wire:confirm="Delete this item?">
+                                                wire:mary-confirm="Delete this item?">
                                                 <x-mary-icon name="o-trash" class="w-3 h-3" />
                                             </button>
                                         </div>

@@ -143,12 +143,12 @@
                                         @if ($tran->loc_code == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-inbox-arrow-down" class="btn-xs btn-success"
                                                 tooltip-left="Receive" wire:click="receiveIssued({{ $tran->id }})"
-                                                wire:confirm="Confirm receipt of all items?" spinner />
+                                                wire:mary-confirm="Confirm receipt of all items?" spinner />
                                         @endif
                                         @if ($tran->request_from == auth()->user()->pharm_location_id)
                                             <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
                                                 tooltip-left="Cancel" wire:click="cancelTx({{ $tran->id }})"
-                                                wire:confirm="Cancel this transaction? All issued items will be returned."
+                                                wire:mary-confirm="Cancel this transaction? All issued items will be returned."
                                                 spinner />
                                         @endif
                                     @endif
