@@ -55,17 +55,34 @@
             {{-- MENU ITEMS --}}
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
+
+                {{-- Inventory --}}
                 <x-mary-menu-sub title="Inventory" icon="o-cube">
-                    <x-mary-menu-item title="Stock List" icon="o-list-bullet" link="{{ route('inventory.stocks.list') }}" />
-                    <x-mary-menu-item title="Stock Summary" icon="o-table-cells" link="{{ route('inventory.stocks.summary') }}" />
-                    <x-mary-menu-item title="Stock Card" icon="o-document-chart-bar" link="{{ route('inventory.stocks.card') }}" />
-                    <x-mary-menu-item title="Reorder Levels" icon="o-arrow-path" link="{{ route('inventory.stocks.reorder') }}" />
-                    <x-mary-menu-item title="Reorder Levels (Auto)" icon="o-calculator" link="{{ route('inventory.stocks.reorder-computed') }}" />
-                    <x-mary-menu-item title="IO Transactions" icon="o-arrows-right-left" link="{{ route('inventory.io-trans') }}" />
-                    <x-mary-menu-item title="Ward RIS" icon="o-building-office" link="{{ route('inventory.ward-ris') }}" />
+                    @can('inventory-viewer')
+                        <x-mary-menu-item title="Stock List" icon="o-list-bullet" link="{{ route('inventory.stocks.list') }}" />
+                        <x-mary-menu-item title="Stock Summary" icon="o-table-cells" link="{{ route('inventory.stocks.summary') }}" />
+                        <x-mary-menu-item title="Stock Card" icon="o-document-chart-bar" link="{{ route('inventory.stocks.card') }}" />
+                    @endcan
+
+                    @can('manage-reorder-levels')
+                        <x-mary-menu-item title="Reorder Levels" icon="o-arrow-path" link="{{ route('inventory.stocks.reorder') }}" />
+                        <x-mary-menu-item title="Reorder Levels (Auto)" icon="o-calculator" link="{{ route('inventory.stocks.reorder-computed') }}" />
+                    @endcan
+
+                    @can('view-iotrans')
+                        <x-mary-menu-item title="IO Transactions" icon="o-arrows-right-left" link="{{ route('inventory.io-trans') }}" />
+                    @endcan
+
+                    @can('view-ris')
+                        <x-mary-menu-item title="Ward RIS" icon="o-building-office" link="{{ route('inventory.ward-ris') }}" />
+                    @endcan
                 </x-mary-menu-sub>
-                <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list"
-                    onclick="const width = screen.availWidth;
+
+
+                {{-- Dispensing --}}
+                @can('view-prescriptions')
+                    <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list"
+                        onclick="const width = screen.availWidth;
                             const height = screen.availHeight;
                             window.open(
                                 '{{ route('dispensing.view.enctr') }}',
@@ -73,56 +90,101 @@
                                 `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`
                             );
                             return false;" />
-                <x-mary-menu-sub title="Records" icon="o-document-text">
-                    <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
-                    <x-mary-menu-item title="For Discharge Patients" icon="o-user-group"
-                        link="{{ route('records.for-discharge-patients') }}" />
-                    <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
-                        link="{{ route('records.discharged-patients') }}" />
-                </x-mary-menu-sub>
+                @endcan
 
-                {{-- ✨ NEW: Rx/Orders Menu Section --}}
-                <x-mary-menu-sub title="Rx/Orders" icon="o-clipboard-document-list">
-                    <x-mary-menu-item title="Out Patient Department" icon="o-user-group"
-                        link="{{ route('rx.opd') }}" />
-                    <x-mary-menu-item title="Wards" icon="o-building-office-2" link="{{ route('rx.ward') }}" />
-                    <x-mary-menu-item title="Emergency Room" icon="o-heart" link="{{ route('rx.er') }}" />
-                </x-mary-menu-sub>
-                {{-- ✨ END NEW SECTION --}}
 
-                <x-mary-menu-sub title="Purchases" icon="o-shopping-cart">
-                    <x-mary-menu-item title="PIMS RIS" icon="o-document-text" link="{{ route('purchases.ris') }}" />
-                    <x-mary-menu-item title="Deliveries" icon="o-truck" link="{{ route('purchases.deliveries') }}" />
-                    <x-mary-menu-item title="Donations" icon="o-gift" link="{{ route('purchases.donations') }}" />
-                    <x-mary-menu-item title="Emergency Purchase" icon="o-bolt" link="{{ route('purchases.emergency-purchase') }}" />
-                </x-mary-menu-sub>
-                <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
+                {{-- Records --}}
+                @can('view-patients')
+                    <x-mary-menu-sub title="Records" icon="o-document-text">
+                        <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
+                        <x-mary-menu-item title="For Discharge Patients" icon="o-user-group"
+                            link="{{ route('records.for-discharge-patients') }}" />
+                        <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
+                            link="{{ route('records.discharged-patients') }}" />
+                    </x-mary-menu-sub>
+                @endcan
+
+
+                {{-- Rx / Orders --}}
+                @can('view-prescriptions')
+                    <x-mary-menu-sub title="Rx/Orders" icon="o-clipboard-document-list">
+                        <x-mary-menu-item title="Out Patient Department" icon="o-user-group"
+                            link="{{ route('rx.opd') }}" />
+                        <x-mary-menu-item title="Wards" icon="o-building-office-2"
+                            link="{{ route('rx.ward') }}" />
+                        <x-mary-menu-item title="Emergency Room" icon="o-heart"
+                            link="{{ route('rx.er') }}" />
+                    </x-mary-menu-sub>
+                @endcan
+
+
+                {{-- Purchases --}}
+                @canany('view-deliveries', 'view-eps')
+                    <x-mary-menu-sub title="Purchases" icon="o-shopping-cart">
+
+                        @can('view-deliveries')
+                            <x-mary-menu-item title="PIMS RIS" icon="o-document-text" link="{{ route('purchases.ris') }}" />
+                            <x-mary-menu-item title="Deliveries" icon="o-truck" link="{{ route('purchases.deliveries') }}" />
+                            <x-mary-menu-item title="Donations" icon="o-gift" link="{{ route('purchases.donations') }}" />
+                        @endcan
+
+                        @can('view-eps')
+                            <x-mary-menu-item title="Emergency Purchase" icon="o-bolt"
+                                link="{{ route('purchases.emergency-purchase') }}" />
+                        @endcan
+
+                    </x-mary-menu-sub>
+                @endcanany
+
+
+                {{-- Reports --}}
+                @can('view-reports')
+                    <x-mary-menu-item title="Reports" icon="o-chart-bar" link="/reports" />
+                @endcan
+
+
+                {{-- Queue --}}
                 <x-mary-menu-sub title="Queueing" icon="o-clock">
                     <x-mary-menu-item title="Queue Controller" icon="o-device-tablet"
                         link="{{ route('prescriptions.queue.controller2') }}" />
+
                     <x-mary-menu-item title="Cashier Queue Controller" icon="o-banknotes"
                         link="{{ route('prescriptions.cashier.queue') }}" />
+
                     <x-mary-menu-item title="Queue TV Display" icon="o-computer-desktop"
                         link="{{ route('queue.display', ['locationCode' => 2]) }}" />
+
                     <x-mary-menu-item title="Queue Display Settings" icon="o-cog-6-tooth"
                         link="{{ route('prescriptions.queue.display-setting') }}" />
                 </x-mary-menu-sub>
-                <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
-                    <x-mary-menu-item title="Users" icon="o-user-group" link="{{ route('users.index') }}" />
-                    <x-mary-menu-item title="Roles" icon="o-building-office" link="{{ route('roles.index') }}" />
-                    <x-mary-menu-item title="Permissions" icon="o-shield-check"
-                        link="{{ route('permissions.index') }}" />
-                    <x-mary-menu-item title="Non-PNF Drugs" icon="o-beaker"
-                        link="{{ route('pharmacy.non-pnf-drugs') }}" />
-                    <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
-                        link="{{ route('settings.zero-billing') }}" />
-                    <x-mary-menu-sub title="Portal" icon="o-globe-alt">
-                        <x-mary-menu-item title="Portal Users" icon="o-user-group"
-                            link="{{ route('settings.portal.users') }}" />
-                        <x-mary-menu-item title="Refill Requests" icon="o-arrow-path"
-                            link="{{ route('settings.portal.refills') }}" />
+
+
+                {{-- Settings --}}
+                @can('view-settings')
+                    <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
+
+                        <x-mary-menu-item title="Users" icon="o-user-group" link="{{ route('users.index') }}" />
+                        <x-mary-menu-item title="Roles" icon="o-building-office" link="{{ route('roles.index') }}" />
+                        <x-mary-menu-item title="Permissions" icon="o-shield-check"
+                            link="{{ route('permissions.index') }}" />
+
+                        <x-mary-menu-item title="Non-PNF Drugs" icon="o-beaker"
+                            link="{{ route('pharmacy.non-pnf-drugs') }}" />
+
+                        <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
+                            link="{{ route('settings.zero-billing') }}" />
+
+                        <x-mary-menu-sub title="Portal" icon="o-globe-alt">
+                            <x-mary-menu-item title="Portal Users" icon="o-user-group"
+                                link="{{ route('settings.portal.users') }}" />
+
+                            <x-mary-menu-item title="Refill Requests" icon="o-arrow-path"
+                                link="{{ route('settings.portal.refills') }}" />
+                        </x-mary-menu-sub>
+
                     </x-mary-menu-sub>
-                </x-mary-menu-sub>
+                @endcan
+
             </x-mary-menu>
         </x-slot:sidebar>
 
