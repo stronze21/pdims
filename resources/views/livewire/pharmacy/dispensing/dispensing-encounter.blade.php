@@ -777,7 +777,7 @@
                     <div class="space-y-2">
                         <x-mary-input label="Unit Price" wire:model.live="unit_price" type="number" step="0.01" />
                         <div class="text-xl font-bold">
-                            <x-mary-input label="TOTAL" type="text" value="{{ number_format(((float) $order_qty ?? 0) * ((float) $unit_price ?? 0), 2) }}" readonly /></strong>
+                            <x-mary-input label="TOTAL" type="text" value="{{ number_format(((float) ($order_qty ?: 0)) * ((float) ($unit_price ?: 0)), 2) }}" readonly /></strong>
                         </div>
                     </div>
                 </div>
@@ -847,7 +847,7 @@
                         <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01"
                             readonly />
                         <div class="text-sm text-right">
-                            Total: <strong>{{ number_format(($order_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
+                            Total: <strong>{{ number_format(((float) ($order_qty ?: 0)) * ((float) ($unit_price ?: 0)), 2) }}</strong>
                         </div>
                     </div>
                 </div>
@@ -866,7 +866,7 @@
                 <x-mary-input label="Unit Price" wire:model="unit_price" type="number" step="0.01" readonly />
                 <div class="text-sm text-right">
                     Total Return: <strong
-                        class="text-error">{{ number_format(($return_qty ?? 0) * ($unit_price ?? 0), 2) }}</strong>
+                        class="text-error">{{ number_format(((float) ($return_qty ?: 0)) * ((float) ($unit_price ?: 0)), 2) }}</strong>
                 </div>
             </div>
             <x-slot:actions>
