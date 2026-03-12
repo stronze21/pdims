@@ -354,44 +354,83 @@
                 {{-- Action Bar --}}
                 <div class="border-b bg-base-200/50 border-base-200">
                     <div class="flex items-center justify-between px-4 py-2">
-                        <div class="flex gap-2">
-                            <x-mary-button label="Prescriptions" icon="o-clipboard-document-list"
-                                class="btn-sm btn-outline" wire:click="$set('showPrescriptionListModal', true)"
-                                tooltip-bottom="View All Prescriptions (F4)" />
-                            <x-mary-button label="Print Rx" icon="o-printer" class="btn-sm btn-outline btn-info"
-                                wire:click="openPrintPrescriptionsModal" tooltip-bottom="Print Prescriptions (F7)" />
-                            <x-mary-button label="Summary" icon="o-document-text" class="btn-sm btn-outline"
-                                wire:click="$set('showSummaryModal', true)"
-                                tooltip-bottom="Summary of Issued Drugs (F5)" />
-                            <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank"
-                                class="btn btn-sm btn-outline tooltip tooltip-bottom"
-                                data-tip="View Issued with Return (F6)">
-                                <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Issued with Return
-                            </a>
+
+                        <!-- TOOLS DROPDOWN -->
+                        <div class="dropdown dropdown-start">
+                            <label tabindex="0" class="btn btn-sm btn-outline">
+                                <x-heroicon-o-wrench-screwdriver class="w-4 h-4 mr-1"/>
+                                Tools
+                            </label>
+
+                            <ul tabindex="0"
+                                class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 p-2 shadow-lg border border-base-200">
+
+                                <li>
+                                    <a wire:click="$set('showPrescriptionListModal', true)">
+                                        <x-heroicon-o-clipboard-document-list class="w-4 h-4"/>
+                                        Prescriptions
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a wire:click="openPrintPrescriptionsModal">
+                                        <x-heroicon-o-printer class="w-4 h-4"/>
+                                        Print Rx
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a wire:click="$set('showSummaryModal', true)">
+                                        <x-heroicon-o-document-text class="w-4 h-4"/>
+                                        Summary of Issued
+                                    </a>
+                                </li>
+
+                                <li>
+                                    <a href="{{ route('dispensing.rxo.return.sum', $hpercode) }}" target="_blank">
+                                        <x-heroicon-o-arrow-uturn-left class="w-4 h-4"/>
+                                        Issued with Return
+                                    </a>
+                                </li>
+
+                            </ul>
                         </div>
 
+                        <!-- PRIMARY ACTIONS -->
                         @if ($billstat != '02' && $billstat != '03')
-                            <div class="flex gap-2">
-                                <x-mary-button label="Select All Pending" icon="o-check-circle"
-                                    class="btn-sm btn-ghost" x-on:click="selectAllPending()"
-                                    tooltip-bottom="Select All Pending (Ctrl+A)" />
-                                <x-mary-button label="Clear" icon="o-x-circle" class="btn-sm btn-ghost"
-                                    x-on:click="clearSelection()" tooltip-bottom="Clear Selection (Esc)" />
+                        <div class="flex items-center gap-2">
 
-                                <div class="border-l border-base-300 h-6 mx-1"></div>
+                            <x-mary-button label="Select All Pending"
+                                icon="o-check-circle"
+                                class="btn-sm btn-ghost"
+                                x-on:click="selectAllPending()" />
 
-                                <x-mary-button label="Delete" icon="o-trash" class="btn-sm btn-error btn-outline"
-                                    wire:click="delete_item"
-                                    wire:mary-confirm="Delete selected pending items? This cannot be undone."
-                                    tooltip-bottom="Delete Selected (Del)" />
-                                <x-mary-button label="Charge" icon="o-credit-card"
-                                    class="btn-sm btn-info btn-outline" wire:click="charge_items"
-                                    tooltip-bottom="Charge Selected (Ctrl+C)" />
-                                <x-mary-button label="Issue" icon="o-paper-airplane" class="btn-sm btn-success"
-                                    wire:click="$set('showIssueModal', true)"
-                                    tooltip-bottom="Issue Charged Items (Ctrl+I)" />
-                            </div>
+                            <x-mary-button label="Clear"
+                                icon="o-x-circle"
+                                class="btn-sm btn-ghost"
+                                x-on:click="clearSelection()" />
+
+                            <div class="border-l border-base-300 h-6 mx-1"></div>
+
+                            <x-mary-button label="Delete"
+                                icon="o-trash"
+                                class="btn-sm btn-error btn-outline"
+                                wire:click="delete_item"
+                                wire:mary-confirm="Delete selected pending items?" />
+
+                            <x-mary-button label="Charge"
+                                icon="o-credit-card"
+                                class="btn-sm btn-info btn-outline"
+                                wire:click="charge_items" />
+
+                            <x-mary-button label="Issue"
+                                icon="o-paper-airplane"
+                                class="btn-sm btn-success"
+                                wire:click="$set('showIssueModal', true)" />
+
+                        </div>
                         @endif
+
                     </div>
                 </div>
                 <div class="flex-1 overflow-y-auto">
@@ -400,6 +439,7 @@
                             <tr class="bg-base-200">
                                 <th class="w-8"></th>
                                 <th class="text-center">Status</th>
+                                <th>Date Created</th>
                                 <th>Drug / Medicine</th>
                                 <th class="text-center">Qty</th>
                                 <th class="text-right">Unit Price</th>
@@ -452,6 +492,9 @@
                                                     class="badge badge-xs badge-ghost">{{ strtoupper($rxo->tx_type) }}</span>
                                             @endif
                                         @endif
+                                    </td>
+                                    <td class="text-xs">
+                                        {{ \Carbon\Carbon::parse($rxo->dodate)->format('M d, H:i') }}
                                     </td>
                                     <td class="text-xs font-medium max-w-xs truncate"
                                         title="{{ $rxo->drug_concat }}">
