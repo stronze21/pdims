@@ -94,7 +94,7 @@ class DispensingEncounter extends Component
 
     // Stock Item Selection
     public $item_id, $item_chrgcode, $item_dmdcomb, $item_dmdctr;
-    public $item_loc_code, $item_dmdprdte, $item_exp_date, $item_stock_bal;
+    public $item_loc_code, $item_dmdprdte, $item_exp_date, $item_stock_bal, $item_drug_concat;
 
     // Prescriptions
     public $active_prescription = [], $extra_prescriptions = [];
@@ -258,7 +258,7 @@ class DispensingEncounter extends Component
         ));
     }
 
-    public function selectStock($id, $chrgcode, $dmdcomb, $dmdctr, $loc_code, $dmdprdte, $exp_date, $stock_bal, $unit_price)
+    public function selectStock($id, $chrgcode, $dmdcomb, $dmdctr, $loc_code, $dmdprdte, $exp_date, $stock_bal, $unit_price, $drug_concat)
     {
         $this->item_id = $id;
         $this->item_chrgcode = $chrgcode;
@@ -269,6 +269,7 @@ class DispensingEncounter extends Component
         $this->item_exp_date = $exp_date;
         $this->item_stock_bal = $stock_bal;
         $this->unit_price = $unit_price;
+        $this->item_drug_concat = $drug_concat;
 
         $this->showAddItemModal = true;
     }

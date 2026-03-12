@@ -605,7 +605,7 @@
                                         wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
                                         @if ($billstat != '02' && $billstat != '03') wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
                                         '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
-                                        '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}')" @endif>
+                                        '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}', '{{ addslashes($stock->drug_concat) }}')" @endif>
                                         <td class="text-xs">
                                             <div class="font-medium truncate max-w-[280px]"
                                                 title="{{ $stock->drug_concat }}">
@@ -763,6 +763,12 @@
                 <div class="text-sm font-medium text-base-content/70">
                     Selected stock item
                 </div>
+                @if ($item_drug_concat)
+                    <div class="rounded-lg border border-base-300 bg-base-200/50 p-3 text-sm">
+                        <span class="font-semibold">Drug Description:</span>
+                        <span>{{ $item_drug_concat }}</span>
+                    </div>
+                @endif
                 <div class="grid grid-cols-3 gap-4">
                     <div class="col-span-2">
                         <x-mary-input label="Quantity" wire:model.live="order_qty" type="number" min="1"
