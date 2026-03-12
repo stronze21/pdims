@@ -430,8 +430,13 @@
                                     </td>
                                     <td class="text-center">
                                         @if ($rxo->pcchrgcod)
-                                            <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}"
-                                                target="_blank" class="link link-primary text-xs">
+                                            <a href="#"
+                                                onclick="window.open(
+                                                        '{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}',
+                                                        'chargeSlipWindow',
+                                                        'width=900,height=900'
+                                                    ); return false;"
+                                                class="link link-primary text-xs">
                                                 {{ $rxo->pcchrgcod }}
                                             </a>
                                             <br>
@@ -1802,7 +1807,12 @@
             $wire.on('open-charge-slip', ({
                 pcchrgcod
             }) => {
-                window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
+                // window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
+                const chargeWindow = window.open(
+                    '{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod,
+                    'chargeSlipWindow',
+                    'width=900,height=900'
+                );
             });
 
             $wire.on('open-print-window', ({

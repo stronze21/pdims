@@ -130,9 +130,20 @@
         function printMe() {
             var printContents = document.getElementById('print').innerHTML;
             var originalContents = document.body.innerHTML;
+
             document.body.innerHTML = printContents;
+
+            window.onafterprint = function () {
+                document.body.innerHTML = originalContents;
+
+                if (window.opener) {
+                    window.opener.focus(); // return focus to dispensing window
+                }
+
+                window.close();
+            };
+
             window.print();
-            window.close();
         }
     </script>
 @endpush

@@ -50,8 +50,6 @@
                 <x-mary-menu-separator />
             @endif
 
-            {{-- Update this section in your resources/views/layouts/app.blade.php --}}
-
             {{-- MENU ITEMS --}}
             <x-mary-menu activate-by-route>
                 <x-mary-menu-item title="Dashboard" icon="o-home" link="{{ route('dashboard') }}" />
