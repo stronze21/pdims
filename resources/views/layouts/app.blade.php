@@ -12,7 +12,7 @@
 
 </head>
 
-<body class="min-h-screen font-sans antialiased bg-base-200">
+<body class="min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
 
     {{-- 🌤️ NAVBAR (Top Header) --}}
     <x-mary-nav sticky full-width>
@@ -194,13 +194,198 @@
         </x-slot:content>
     </x-mary-main>
 
-    {{-- 📱 BOTTOM NAVIGATION (Visible only on mobile/tablets) --}}
-    <div class="fixed bottom-0 left-0 right-0 flex justify-around py-2 border-t shadow-inner bg-base-100 lg:hidden">
-        <x-mary-button flat icon="o-home" label="Home" link="/" />
-        <x-mary-button flat icon="o-cube" label="Inventory" link="/inventory" />
-        <x-mary-button flat icon="o-clipboard-document-list" label="Dispense" link="/dispensing" />
-        <x-mary-button flat icon="o-users" label="Patients" link="/patients" />
-        <x-mary-button flat icon="o-cog-6-tooth" label="Settings" link="/settings" />
+    {{-- 📱 TABLET / MOBILE BOTTOM NAV WITH SLIDE-UP DRAWER --}}
+    <div x-data="{ openMore: false }" class="lg:hidden">
+
+        {{-- Backdrop --}}
+        <div x-cloak
+            x-show="openMore"
+            x-transition.opacity
+            x-on:click="openMore = false"
+            class="fixed inset-0 z-40 bg-black/30">
+        </div>
+
+        {{-- Slide-up Drawer --}}
+        <div x-cloak
+            x-show="openMore"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-y-full"
+            x-transition:enter-end="translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="translate-y-0"
+            x-transition:leave-end="translate-y-full"
+            class="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t bg-base-100 shadow-2xl">
+
+            {{-- Drawer Handle --}}
+            <div class="flex justify-center py-2">
+                <div class="h-1.5 w-12 rounded-full bg-base-300"></div>
+            </div>
+
+            {{-- Drawer Header --}}
+            <div class="flex items-center justify-between px-4 pb-2">
+                <h3 class="text-sm font-semibold">More Actions</h3>
+                <button class="btn btn-ghost btn-xs" x-on:click="openMore = false">
+                    <x-heroicon-o-x-mark class="w-4 h-4" />
+                </button>
+            </div>
+
+            {{-- Drawer Content --}}
+            <div class="max-h-[65vh] overflow-y-auto px-4 pb-6">
+                <div class="grid grid-cols-3 gap-3 sm:grid-cols-4">
+
+                    @can('view-prescriptions')
+                        <a href="{{ route('rx.opd') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-user-group class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">OPD</span>
+                        </a>
+
+                        <a href="{{ route('rx.ward') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-building-office-2 class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Wards</span>
+                        </a>
+
+                        <a href="{{ route('rx.er') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-heart class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">ER</span>
+                        </a>
+                    @endcan
+
+                    @can('view-iotrans')
+                        <a href="{{ route('inventory.io-trans') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-arrows-right-left class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">IO Trans</span>
+                        </a>
+                    @endcan
+
+                    @can('view-ris')
+                        <a href="{{ route('inventory.ward-ris') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-building-office class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Ward RIS</span>
+                        </a>
+                    @endcan
+
+                    @can('view-deliveries')
+                        <a href="{{ route('purchases.ris') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-document-text class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">PIMS RIS</span>
+                        </a>
+
+                        <a href="{{ route('purchases.deliveries') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-truck class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Deliveries</span>
+                        </a>
+
+                        <a href="{{ route('purchases.donations') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-gift class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Donations</span>
+                        </a>
+                    @endcan
+
+                    @can('view-eps')
+                        <a href="{{ route('purchases.emergency-purchase') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-bolt class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Emergency Purchase</span>
+                        </a>
+                    @endcan
+
+                    @can('view-reports')
+                        <a href="/reports" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-chart-bar class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Reports</span>
+                        </a>
+                    @endcan
+
+                    @can('view-settings')
+                        <a href="{{ route('users.index') }}"
+                        class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-cog-6-tooth class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Settings</span>
+                        </a>
+                    @endcan
+
+                    <a href="{{ route('prescriptions.queue.controller2') }}"
+                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                        <x-heroicon-o-device-tablet class="w-5 h-5" />
+                        <span class="text-[11px] text-center leading-tight">Queue Controller</span>
+                    </a>
+
+                    <a href="{{ route('prescriptions.cashier.queue') }}"
+                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                        <x-heroicon-o-banknotes class="w-5 h-5" />
+                        <span class="text-[11px] text-center leading-tight">Cashier Queue</span>
+                    </a>
+
+                    <a href="{{ route('queue.display', ['locationCode' => 2]) }}"
+                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                        <x-heroicon-o-computer-desktop class="w-5 h-5" />
+                        <span class="text-[11px] text-center leading-tight">Queue Display</span>
+                    </a>
+
+                    <a href="{{ route('prescriptions.queue.display-setting') }}"
+                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                        <x-heroicon-o-cog-6-tooth class="w-5 h-5" />
+                        <span class="text-[11px] text-center leading-tight">Display Settings</span>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        {{-- Bottom Nav --}}
+        <div class="fixed bottom-0 left-0 right-0 z-30 border-t bg-base-100 shadow-inner">
+            <div class="flex items-center justify-around px-2 py-2">
+
+                <x-mary-button
+                    flat
+                    icon="o-home"
+                    label="Home"
+                    link="{{ route('dashboard') }}" />
+
+                @can('inventory-viewer')
+                    <x-mary-button
+                        flat
+                        icon="o-cube"
+                        label="Inventory"
+                        link="{{ route('inventory.stocks.list') }}" />
+                @endcan
+
+                @can('view-prescriptions')
+                    <button
+                        class="btn btn-primary btn-circle btn-lg -mt-8 shadow-xl"
+                        onclick="const width = screen.availWidth;
+                            const height = screen.availHeight;
+                            window.open(
+                                '{{ route('dispensing.view.enctr') }}',
+                                'dispensingApp',
+                                `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`
+                            );
+                            return false;">
+                        <x-heroicon-o-clipboard-document-list class="w-6 h-6" />
+                    </button>
+                @endcan
+
+                @can('view-patients')
+                    <x-mary-button
+                        flat
+                        icon="o-users"
+                        label="Patients"
+                        link="{{ route('records.patients.index') }}" />
+                @endcan
+
+                <button class="btn btn-ghost btn-sm flex flex-col gap-0"
+                        x-on:click="openMore = true">
+                    <x-heroicon-o-squares-2x2 class="w-5 h-5" />
+                    <span class="text-[11px]">More</span>
+                </button>
+
+            </div>
+        </div>
     </div>
 
     {{-- 🔔 TOAST NOTIFICATIONS --}}
