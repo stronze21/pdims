@@ -7,6 +7,7 @@ use App\Models\Portal\PortalPatient;
 use App\Models\Portal\PortalPatientFamily;
 use App\Models\Record\Patients\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PortalProfileController extends Controller
@@ -28,7 +29,7 @@ class PortalProfileController extends Controller
             'patient' => $patient,
             'addresses' => $patient->addresses,
             'family' => $patient->families,
-            'vitals' => $patient->vitals()->with('vitalSign')->orderByDesc('vitals_date')->get(),
+            'vitals' => $this->getVitals($patient),
             'medical_info' => $patient->additionalMedInfos,
         ]);
     }
@@ -63,6 +64,7 @@ class PortalProfileController extends Controller
 
     /**
      * Get patient vitals with vital sign details.
+     * Combines eclinic patient_vitals and hospital hvitalsign records.
      */
     public function vitals(Request $request)
     {
@@ -72,7 +74,18 @@ class PortalProfileController extends Controller
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
-        $vitals = $patient->vitals()
+        $allVitals = $this->getVitals($patient);
+
+        return response()->json($allVitals);
+    }
+
+    /**
+     * Fetch vitals from eclinic and hospital databases, merged and sorted.
+     */
+    private function getVitals($patient)
+    {
+        // Eclinic vitals (patient_vitals table)
+        $portalVitals = $patient->vitals()
             ->with('vitalSign')
             ->orderByDesc('vitals_date')
             ->get()
@@ -85,10 +98,85 @@ class PortalProfileController extends Controller
                     'unit' => $vital->vitalSign?->unit,
                     'vitals_date' => $vital->vitals_date,
                     'remarks' => $vital->remarks,
+                    'source' => 'eclinic',
                 ];
             });
 
-        return response()->json($vitals);
+        // Hospital vitals (hvitalsign table) — keyed by hpercode
+        $hospitalVitals = collect();
+        if ($patient->hpercode) {
+            $hvitals = DB::connection('hospital')->select("
+                SELECT
+                    enccode,
+                    hpercode,
+                    datelog,
+                    timelog,
+                    vsbp,
+                    vstemp,
+                    vspulse,
+                    vsresp
+                FROM hospital.dbo.hvitalsign WITH (NOLOCK)
+                WHERE hpercode = ?
+                ORDER BY datelog DESC, timelog DESC
+            ", [$patient->hpercode]);
+
+            foreach ($hvitals as $hv) {
+                $dateTime = $hv->datelog;
+
+                if (!empty($hv->vsbp)) {
+                    $hospitalVitals->push([
+                        'id' => null,
+                        'vital_sign' => 'BP',
+                        'description' => 'Blood Pressure',
+                        'value' => $hv->vsbp,
+                        'unit' => 'mmHg',
+                        'vitals_date' => $dateTime,
+                        'remarks' => null,
+                        'source' => 'hospital',
+                    ]);
+                }
+                if (!empty($hv->vstemp)) {
+                    $hospitalVitals->push([
+                        'id' => null,
+                        'vital_sign' => 'Temp',
+                        'description' => 'Temperature',
+                        'value' => $hv->vstemp,
+                        'unit' => '°C',
+                        'vitals_date' => $dateTime,
+                        'remarks' => null,
+                        'source' => 'hospital',
+                    ]);
+                }
+                if (!empty($hv->vspulse)) {
+                    $hospitalVitals->push([
+                        'id' => null,
+                        'vital_sign' => 'Pulse',
+                        'description' => 'Pulse Rate',
+                        'value' => $hv->vspulse,
+                        'unit' => 'bpm',
+                        'vitals_date' => $dateTime,
+                        'remarks' => null,
+                        'source' => 'hospital',
+                    ]);
+                }
+                if (!empty($hv->vsresp)) {
+                    $hospitalVitals->push([
+                        'id' => null,
+                        'vital_sign' => 'Resp',
+                        'description' => 'Respiratory Rate',
+                        'value' => $hv->vsresp,
+                        'unit' => 'breaths/min',
+                        'vitals_date' => $dateTime,
+                        'remarks' => null,
+                        'source' => 'hospital',
+                    ]);
+                }
+            }
+        }
+
+        return $portalVitals->concat($hospitalVitals)
+            ->sortByDesc('vitals_date')
+            ->values();
     }
 
     /**
