@@ -1921,7 +1921,7 @@ class DispensingEncounter extends Component
             'print_encounter_items' => $this->printSelectedItems,
         ]);
 
-        $this->dispatch('open-print-window', url: url("/dispensing/prescription/print/" . urlencode($enccode)));
+        $this->dispatch('open-print-window', url: url('/dispensing/prescription/print?enccode=' . urlencode($enccode)));
     }
 
     private function logStockIssue($stock_id, $docointkey, $dmdcomb, $dmdctr, $loc_code, $chrgcode, $exp_date, $trans_qty, $unit_price, $pcchrgamt, $user_id, $hpercode, $enccode, $toecode, $pcchrgcod, $tag, $ris, $dmdprdte, $retail_price, $concat, $stock_date, $date, $active_consumption = null, $unit_cost = 0): void
