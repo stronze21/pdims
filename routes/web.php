@@ -175,8 +175,13 @@ Route::middleware([
         ]);
     })->name('prescriptions.print');
 
-    Route::get('/dispensing/prescription/print/{enccode}', function ($enccode) {
+    Route::get('/dispensing/prescription/print/{enccode?}', function ($enccode = null) {
         $printItems = session('print_encounter_items', []);
+        $enccode ??= request()->query('enccode');
+
+        if (empty($enccode)) {
+            return redirect()->back()->with('error', 'Encounter not found');
+        }
 
         if (empty($printItems)) {
             return redirect()->back()->with('error', 'No items selected for printing');
