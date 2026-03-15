@@ -85,7 +85,7 @@ class PortalProfileController extends Controller
         }
 
         // Religion from hospital reference table
-        $religion = $hospitalPatient->religion?->relname ?? null;
+        $religion = $hospitalPatient->religion?->reldesc ?? null;
         if ($religion && $patient->patReligion !== $religion) {
             $updates['patReligion'] = $religion;
         }

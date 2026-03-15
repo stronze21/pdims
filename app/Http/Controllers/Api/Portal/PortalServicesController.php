@@ -22,30 +22,48 @@ class PortalServicesController extends Controller
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
-        $appointments = DB::connection('portal')->table('appointments')
-            ->where('patient_id', $patient->id)
-            ->orderByDesc('appointment_date')
-            ->get()
-            ->map(function ($appt) {
-                return [
-                    'id' => $appt->id,
-                    'appointment_date' => $appt->appointment_date,
-                    'appointment_type' => $appt->appointment_type,
-                    'attending_clinic' => $appt->attending_clinic,
-                    'doctor' => $appt->doctor,
-                    'remarks' => $appt->remarks,
-                    'ref_no' => $appt->ref_no,
-                    'queue_no' => $appt->queue_no,
-                    'status' => $appt->confirmed_by ? 'Confirmed' : 'Pending',
-                ];
-            });
+        try {
+            $appointments = DB::connection('portal')->table('appointments')
+                ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
+                ->where('appointments.patient_id', $patient->id)
+                ->whereNull('appointments.deleted_at')
+                ->orderByDesc('appointments.appointment_date')
+                ->select(
+                    'appointments.id',
+                    'appointments.appointment_date',
+                    'appointment_types.name as appointment_type_name',
+                    'appointments.attending_clinic',
+                    'appointments.doctor',
+                    'appointments.remarks',
+                    'appointments.ref_no',
+                    'appointments.queue_no',
+                    'appointments.confirmed_by'
+                )
+                ->get()
+                ->map(function ($appt) {
+                    return [
+                        'id' => $appt->id,
+                        'appointment_date' => $appt->appointment_date,
+                        'appointment_type' => $appt->appointment_type_name ?? 'General',
+                        'attending_clinic' => $appt->attending_clinic,
+                        'doctor' => $appt->doctor,
+                        'remarks' => $appt->remarks,
+                        'ref_no' => $appt->ref_no,
+                        'queue_no' => $appt->queue_no,
+                        'status' => $appt->confirmed_by ? 'Confirmed' : 'Pending',
+                    ];
+                });
 
-        return response()->json($appointments);
+            return response()->json($appointments);
+        } catch (\Exception $e) {
+            // Table may not exist yet
+            return response()->json([]);
+        }
     }
 
     /**
      * Get patient's lab results from hospital database.
-     * Queries hencdiag + encounter-linked lab orders.
+     * Queries hlaborder for laboratory orders linked to the patient.
      */
     public function labResults(Request $request)
     {
@@ -57,43 +75,45 @@ class PortalServicesController extends Controller
             return response()->json(['message' => 'No linked hospital record found.'], 404);
         }
 
-        // Query lab orders from hospital database
-        $labResults = DB::connection('hospital')->select("
-            SELECT
-                l.pcchrgcod AS lab_code,
-                c.chrgdesc AS lab_name,
-                l.hpercode,
-                l.enccode,
-                l.licession AS license_no,
-                l.estession AS department,
-                l.oression AS ordered_by,
-                l.orderfrom AS ordered_from,
-                l.datemod AS result_date,
-                enctr.encdate,
-                CASE
-                    WHEN l.estession IS NOT NULL THEN 'Released'
-                    ELSE 'Pending'
-                END AS status
-            FROM hospital.dbo.hlaborder l WITH (NOLOCK)
-            LEFT JOIN hospital.dbo.hcharge c WITH (NOLOCK)
-                ON l.pcchrgcod = c.chrgcode
-            LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
-                ON l.enccode = enctr.enccode
-            WHERE l.hpercode = ?
-            ORDER BY l.datemod DESC
-        ", [$hpercode]);
+        try {
+            $labResults = DB::connection('hospital')->select("
+                SELECT
+                    l.pcchrgcod AS lab_code,
+                    c.chrgdesc AS lab_name,
+                    l.enccode,
+                    l.estession AS department,
+                    l.oession AS ordered_by,
+                    l.orderfrom AS ordered_from,
+                    l.datemod AS result_date,
+                    enctr.encdate,
+                    CASE
+                        WHEN l.resulession IS NOT NULL THEN 'Released'
+                        ELSE 'Pending'
+                    END AS status
+                FROM hospital.dbo.hlaborder l WITH (NOLOCK)
+                LEFT JOIN hospital.dbo.hcharge c WITH (NOLOCK)
+                    ON l.pcchrgcod = c.chrgcode
+                LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                    ON l.enccode = enctr.enccode
+                WHERE l.hpercode = ?
+                ORDER BY COALESCE(l.datemod, enctr.encdate) DESC
+            ", [$hpercode]);
 
-        return response()->json(collect($labResults)->map(function ($lab) {
-            return [
-                'lab_code' => $lab->lab_code,
-                'lab_name' => $lab->lab_name ?? 'Laboratory Test',
-                'encounter_date' => $lab->encdate,
-                'result_date' => $lab->result_date,
-                'ordered_by' => $lab->ordered_by,
-                'department' => $lab->department,
-                'status' => $lab->status,
-            ];
-        })->values());
+            return response()->json(collect($labResults)->map(function ($lab) {
+                return [
+                    'lab_code' => $lab->lab_code,
+                    'lab_name' => $lab->lab_name ?? 'Laboratory Test',
+                    'encounter_date' => $lab->encdate,
+                    'result_date' => $lab->result_date,
+                    'ordered_by' => $lab->ordered_by,
+                    'department' => $lab->department,
+                    'status' => $lab->status,
+                ];
+            })->values());
+        } catch (\Exception $e) {
+            // hlaborder table may not exist in all hospital instances
+            return response()->json([]);
+        }
     }
 
     /**
