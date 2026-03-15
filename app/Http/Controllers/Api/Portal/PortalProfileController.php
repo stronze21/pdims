@@ -14,6 +14,7 @@ class PortalProfileController extends Controller
 {
     /**
      * Get the authenticated patient's full profile.
+     * Uses hospital hperson as source of truth for demographics and syncs to eclinic.
      */
     public function profile(Request $request)
     {
@@ -25,13 +26,89 @@ class PortalProfileController extends Controller
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
+        // Sync demographics from hospital hperson to eclinic patient record
+        $this->syncFromHospital($patient);
+
         return response()->json([
-            'patient' => $patient,
+            'patient' => $patient->fresh(),
             'addresses' => $patient->addresses,
             'family' => $patient->families,
             'vitals' => $this->getVitals($patient),
             'medical_info' => $patient->additionalMedInfos,
         ]);
+    }
+
+    /**
+     * Sync patient demographics from hospital hperson table to eclinic portal record.
+     * Hospital DB is the source of truth for civil status, religion, nationality, etc.
+     */
+    private function syncFromHospital(PortalPatient $patient)
+    {
+        if (!$patient->hpercode) {
+            return;
+        }
+
+        $hospitalPatient = Patient::where('hpercode', $patient->hpercode)->first();
+
+        if (!$hospitalPatient) {
+            return;
+        }
+
+        $updates = [];
+
+        // Civil status from hospital (patcstat → decoded label)
+        $civilStatus = $hospitalPatient->csstat();
+        if ($civilStatus && $civilStatus !== '...' && $patient->patcivilstat !== $civilStatus) {
+            $updates['patcivilstat'] = $civilStatus;
+        }
+
+        // Gender
+        $gender = $hospitalPatient->gender();
+        if ($gender && $patient->patgender !== $gender) {
+            $updates['patgender'] = $gender;
+        }
+
+        // Name fields (hospital is source of truth)
+        if ($hospitalPatient->patlast && $patient->patlast !== $hospitalPatient->patlast) {
+            $updates['patlast'] = $hospitalPatient->patlast;
+        }
+        if ($hospitalPatient->patfirst && $patient->patfirst !== $hospitalPatient->patfirst) {
+            $updates['patfirst'] = $hospitalPatient->patfirst;
+        }
+        if ($hospitalPatient->patmiddle !== null && $patient->patmiddle !== $hospitalPatient->patmiddle) {
+            $updates['patmiddle'] = $hospitalPatient->patmiddle;
+        }
+
+        // Birth date
+        if ($hospitalPatient->patbdate && $patient->patbdate != $hospitalPatient->patbdate) {
+            $updates['patbdate'] = $hospitalPatient->patbdate;
+        }
+
+        // Religion from hospital reference table
+        $religion = $hospitalPatient->religion?->relname ?? null;
+        if ($religion && $patient->patReligion !== $religion) {
+            $updates['patReligion'] = $religion;
+        }
+
+        // Nationality from hospital (natcode)
+        if ($hospitalPatient->natcode) {
+            $nationality = DB::connection('hospital')
+                ->table('hospital.dbo.hnatcode')
+                ->where('natcode', $hospitalPatient->natcode)
+                ->value('natdesc');
+            if ($nationality && $patient->patNationality !== $nationality) {
+                $updates['patNationality'] = $nationality;
+            }
+        }
+
+        // Contact number — only sync if portal has none
+        if (empty($patient->patcontactno) && !empty($hospitalPatient->pattelno)) {
+            $updates['patcontactno'] = $hospitalPatient->pattelno;
+        }
+
+        if (!empty($updates)) {
+            $patient->update($updates);
+        }
     }
 
     /**
