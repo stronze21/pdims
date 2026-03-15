@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalEncounterController;
 use App\Http\Controllers\Api\Portal\PortalProfileController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
+use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\StockApiController;
@@ -134,5 +135,11 @@ Route::prefix('portal')->group(function () {
         Route::get('/profile/medical-info', [PortalProfileController::class, 'medicalInfo']);
         Route::post('/profile/update', [PortalProfileController::class, 'update']);
         Route::post('/profile/family/add', [PortalProfileController::class, 'addFamily']);
+
+        // Services routes
+        Route::get('/appointments', [PortalServicesController::class, 'appointments']);
+        Route::get('/lab-results', [PortalServicesController::class, 'labResults']);
+        Route::get('/billing', [PortalServicesController::class, 'billing']);
+        Route::get('/queue', [PortalServicesController::class, 'queue']);
     });
 });
