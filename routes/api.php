@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalEncounterController;
 use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
+use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\StockApiController;

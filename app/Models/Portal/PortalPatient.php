@@ -56,6 +56,16 @@ class PortalPatient extends Model
         return $this->hasMany(PortalAdditionalMedInfo::class, 'patient_id');
     }
 
+    public function families()
+    {
+        return $this->hasMany(PortalPatientFamily::class, 'patient_id');
+    }
+
+    public function vitals()
+    {
+        return $this->hasMany(PortalPatientVital::class, 'patient_id');
+    }
+
     public function getFullnameAttribute(): string
     {
         $middle = $this->patmiddle ? ' ' . mb_substr($this->patmiddle, 0, 1) . '.' : '';
