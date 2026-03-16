@@ -232,6 +232,28 @@ class Patient extends Model
         return $statuses[$this->patcstat] ?? '...';
     }
 
+    public function citizenship()
+    {
+        $codes = [
+            'FILIP' => 'Filipino',
+            'AMERI' => 'American',
+            'CHINE' => 'Chinese',
+            'JAPAN' => 'Japanese',
+            'KOREA' => 'Korean',
+            'BRITI' => 'British',
+            'INDIA' => 'Indian',
+            'AUSTR' => 'Australian',
+            'CANAD' => 'Canadian',
+            'SPANI' => 'Spanish',
+            'GERMA' => 'German',
+            'FRENC' => 'French',
+        ];
+
+        $code = trim($this->citcode);
+
+        return $codes[$code] ?? ($code ?: null);
+    }
+
     public function empstat()
     {
         $statuses = [

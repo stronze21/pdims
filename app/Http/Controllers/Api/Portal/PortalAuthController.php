@@ -87,7 +87,10 @@ class PortalAuthController extends Controller
             'patfirst' => $hospitalPatient->patfirst,
             'patmiddle' => $hospitalPatient->patmiddle,
             'patbdate' => $hospitalPatient->patbdate,
-            'patgender' => $hospitalPatient->patsex === 'M' ? 'Male' : 'Female',
+            'patgender' => $hospitalPatient->gender(),
+            'patcivilstat' => $hospitalPatient->csstat(),
+            'patReligion' => $hospitalPatient->religion?->reldesc,
+            'patNationality' => $hospitalPatient->citizenship(),
             'patcontactno' => $request->patcontactno ?? $hospitalPatient->pattelno,
             'patemail' => $request->email,
         ]);
