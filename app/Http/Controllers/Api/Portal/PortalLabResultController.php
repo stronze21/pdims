@@ -41,6 +41,9 @@ class PortalLabResultController extends Controller
                 hdocord.pchrgup AS unit_price,
                 hdocord.speccode,
                 hspec.description AS specimen_name,
+                hdocord.resultpdf,
+                hdocord.result_pdf,
+                hdocord.RequestNum AS request_num,
                 prov.lastname + ', ' + prov.firstname AS ordered_by,
                 CASE
                     WHEN hdocord.estatus = 'S' THEN 'Released'
@@ -77,8 +80,8 @@ class PortalLabResultController extends Controller
             LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
                 ON hdocord.enccode = enctr.enccode
             WHERE hdocord.hpercode = ?
-                AND hdocord.dostat = 'A'
-                AND (hdocord.estatus IS NULL OR hdocord.estatus <> 'C')
+                AND hdocord.estatus IS NOT NULL
+                AND hdocord.estatus <> 'C'
             ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
         ", [$hpercode]);
 
@@ -119,6 +122,9 @@ class PortalLabResultController extends Controller
                 hdocord.pcchrgamt AS charge_amount,
                 hdocord.speccode,
                 hspec.description AS specimen_name,
+                hdocord.resultpdf,
+                hdocord.result_pdf,
+                hdocord.RequestNum AS request_num,
                 prov.lastname + ', ' + prov.firstname AS ordered_by,
                 CASE
                     WHEN hdocord.estatus = 'S' THEN 'Released'
@@ -143,8 +149,8 @@ class PortalLabResultController extends Controller
                 ON hprov.employeeid = prov.employeeid
             WHERE hdocord.enccode = ?
                 AND hdocord.hpercode = ?
-                AND hdocord.dostat = 'A'
-                AND (hdocord.estatus IS NULL OR hdocord.estatus <> 'C')
+                AND hdocord.estatus IS NOT NULL
+                AND hdocord.estatus <> 'C'
             ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
         ", [$enccode, $hpercode]);
 

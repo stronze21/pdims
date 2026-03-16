@@ -71,8 +71,8 @@ class PortalEncounterController extends Controller
                  JOIN hospital.dbo.hprocm prm WITH (NOLOCK)
                     ON prm.proccode = dord.proccode AND prm.costcenter = 'LABOR'
                  WHERE dord.enccode = enctr.enccode
-                    AND dord.dostat = 'A'
-                    AND (dord.estatus IS NULL OR dord.estatus <> 'C')) AS lab_order_count
+                    AND dord.estatus IS NOT NULL
+                    AND dord.estatus <> 'C') AS lab_order_count
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
             LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK)
                 ON enctr.enccode = diag.enccode
@@ -219,6 +219,9 @@ class PortalEncounterController extends Controller
                 hdocord.pcchrgamt AS charge_amount,
                 hdocord.speccode,
                 hspec.description AS specimen_name,
+                hdocord.resultpdf,
+                hdocord.result_pdf,
+                hdocord.RequestNum AS request_num,
                 prov.lastname + ', ' + prov.firstname AS ordered_by,
                 CASE
                     WHEN hdocord.estatus = 'S' THEN 'Released'
@@ -243,8 +246,8 @@ class PortalEncounterController extends Controller
                 ON hprov.employeeid = prov.employeeid
             WHERE hdocord.enccode = ?
                 AND hdocord.hpercode = ?
-                AND hdocord.dostat = 'A'
-                AND (hdocord.estatus IS NULL OR hdocord.estatus <> 'C')
+                AND hdocord.estatus IS NOT NULL
+                AND hdocord.estatus <> 'C'
             ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
         ", [$enccode, $hpercode]);
 
