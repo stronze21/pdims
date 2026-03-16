@@ -65,7 +65,14 @@ class PortalEncounterController extends Controller
                 END AS encounter_status,
                 (SELECT COUNT(*)
                  FROM webapp.dbo.prescription rx WITH (NOLOCK)
-                 WHERE rx.enccode = enctr.enccode) AS prescription_count
+                 WHERE rx.enccode = enctr.enccode) AS prescription_count,
+                (SELECT COUNT(*)
+                 FROM hospital.dbo.hdocord dord WITH (NOLOCK)
+                 JOIN hospital.dbo.hprocm prm WITH (NOLOCK)
+                    ON prm.proccode = dord.proccode AND prm.costcenter = 'LABOR'
+                 WHERE dord.enccode = enctr.enccode
+                    AND dord.dostat = 'A'
+                    AND (dord.estatus IS NULL OR dord.estatus <> 'C')) AS lab_order_count
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
             LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK)
                 ON enctr.enccode = diag.enccode
@@ -196,10 +203,56 @@ class PortalEncounterController extends Controller
             ORDER BY rx.created_at DESC
         ", [$enccode]);
 
+        // Get laboratory orders for this encounter
+        $labOrders = DB::connection('hospital')->select("
+            SELECT
+                hdocord.docointkey,
+                hprocm.proccode AS lab_code,
+                hprocm.procdesc AS lab_name,
+                hdocord.dodate AS order_date,
+                hdocord.dotime AS order_time,
+                hdocord.dodtepost AS result_date,
+                hdocord.dotmepost AS result_time,
+                hdocord.estatus,
+                hdocord.dopriority,
+                hdocord.pcchrgcod AS charge_slip_code,
+                hdocord.pcchrgamt AS charge_amount,
+                hdocord.speccode,
+                hspec.description AS specimen_name,
+                prov.lastname + ', ' + prov.firstname AS ordered_by,
+                CASE
+                    WHEN hdocord.estatus = 'S' THEN 'Released'
+                    WHEN hdocord.estatus = 'P' THEN 'Processing'
+                    WHEN hdocord.estatus = 'C' THEN 'Cancelled'
+                    ELSE 'Pending'
+                END AS status,
+                CASE
+                    WHEN hdocord.dopriority = 'STAT' THEN 'STAT'
+                    WHEN hdocord.dopriority = 'ROUTIN' THEN 'Routine'
+                    ELSE ISNULL(hdocord.dopriority, 'Routine')
+                END AS priority_label
+            FROM hospital.dbo.hdocord hdocord WITH (NOLOCK)
+            JOIN hospital.dbo.hprocm hprocm WITH (NOLOCK)
+                ON hprocm.proccode = hdocord.proccode
+                AND hprocm.costcenter = 'LABOR'
+            LEFT JOIN hospital.dbo.hspec hspec WITH (NOLOCK)
+                ON hspec.speccode = hdocord.speccode
+            LEFT JOIN hospital.dbo.hprovider hprov WITH (NOLOCK)
+                ON hdocord.licno = hprov.licno
+            LEFT JOIN hospital.dbo.hpersonal prov WITH (NOLOCK)
+                ON hprov.employeeid = prov.employeeid
+            WHERE hdocord.enccode = ?
+                AND hdocord.hpercode = ?
+                AND hdocord.dostat = 'A'
+                AND (hdocord.estatus IS NULL OR hdocord.estatus <> 'C')
+            ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
+        ", [$enccode, $hpercode]);
+
         return response()->json([
             'encounter' => $encounter,
             'diagnoses' => $processedDiagnoses,
             'prescriptions' => $prescriptions,
+            'lab_orders' => $labOrders,
         ]);
     }
 }

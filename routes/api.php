@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
 use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalEncounterController;
+use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -124,5 +125,9 @@ Route::prefix('portal')->group(function () {
         // Patient encounters (records) routes
         Route::get('/encounters', [PortalEncounterController::class, 'encounters']);
         Route::get('/encounters/details', [PortalEncounterController::class, 'encounterDetails']);
+
+        // Laboratory results routes
+        Route::get('/lab-results', [PortalLabResultController::class, 'labResults']);
+        Route::get('/lab-results/encounter', [PortalLabResultController::class, 'encounterLabResults']);
     });
 });
