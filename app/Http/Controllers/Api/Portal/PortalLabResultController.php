@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\DB;
 class PortalLabResultController extends Controller
 {
     /**
-     * Get all laboratory orders/results for the authenticated patient.
-     * Queries hdocord joined with hprocm (costcenter='LABOR') to retrieve lab orders.
+     * Get all diagnostic orders/results for the authenticated patient.
+     * Queries hdocord joined with hprocm to retrieve all diagnostic orders
+     * (laboratory, radiology, etc.)
      */
     public function labResults(Request $request)
     {
@@ -29,6 +30,16 @@ class PortalLabResultController extends Controller
                 hdocord.hpercode,
                 hprocm.proccode AS lab_code,
                 hprocm.procdesc AS lab_name,
+                hprocm.costcenter AS department,
+                CASE
+                    WHEN hprocm.costcenter = 'LABOR' THEN 'Laboratory'
+                    WHEN hprocm.costcenter = 'XRAY' THEN 'Radiology'
+                    WHEN hprocm.costcenter = 'ULTRA' THEN 'Ultrasound'
+                    WHEN hprocm.costcenter = 'CT' THEN 'CT Scan'
+                    WHEN hprocm.costcenter = 'MRI' THEN 'MRI'
+                    WHEN hprocm.costcenter = 'DIET' THEN 'Dietary'
+                    ELSE hprocm.costcenter
+                END AS department_name,
                 hdocord.dodate AS order_date,
                 hdocord.dotime AS order_time,
                 hdocord.dodtepost AS result_date,
@@ -70,7 +81,6 @@ class PortalLabResultController extends Controller
             FROM hospital.dbo.hdocord hdocord WITH (NOLOCK)
             JOIN hospital.dbo.hprocm hprocm WITH (NOLOCK)
                 ON hprocm.proccode = hdocord.proccode
-                AND hprocm.costcenter = 'LABOR'
             LEFT JOIN hospital.dbo.hspec hspec WITH (NOLOCK)
                 ON hspec.speccode = hdocord.speccode
             LEFT JOIN hospital.dbo.hprovider hprov WITH (NOLOCK)
@@ -89,7 +99,7 @@ class PortalLabResultController extends Controller
     }
 
     /**
-     * Get laboratory orders/results for a specific encounter.
+     * Get diagnostic orders/results for a specific encounter.
      */
     public function encounterLabResults(Request $request)
     {
@@ -112,6 +122,16 @@ class PortalLabResultController extends Controller
                 hdocord.docointkey,
                 hprocm.proccode AS lab_code,
                 hprocm.procdesc AS lab_name,
+                hprocm.costcenter AS department,
+                CASE
+                    WHEN hprocm.costcenter = 'LABOR' THEN 'Laboratory'
+                    WHEN hprocm.costcenter = 'XRAY' THEN 'Radiology'
+                    WHEN hprocm.costcenter = 'ULTRA' THEN 'Ultrasound'
+                    WHEN hprocm.costcenter = 'CT' THEN 'CT Scan'
+                    WHEN hprocm.costcenter = 'MRI' THEN 'MRI'
+                    WHEN hprocm.costcenter = 'DIET' THEN 'Dietary'
+                    ELSE hprocm.costcenter
+                END AS department_name,
                 hdocord.dodate AS order_date,
                 hdocord.dotime AS order_time,
                 hdocord.dodtepost AS result_date,
@@ -140,7 +160,6 @@ class PortalLabResultController extends Controller
             FROM hospital.dbo.hdocord hdocord WITH (NOLOCK)
             JOIN hospital.dbo.hprocm hprocm WITH (NOLOCK)
                 ON hprocm.proccode = hdocord.proccode
-                AND hprocm.costcenter = 'LABOR'
             LEFT JOIN hospital.dbo.hspec hspec WITH (NOLOCK)
                 ON hspec.speccode = hdocord.speccode
             LEFT JOIN hospital.dbo.hprovider hprov WITH (NOLOCK)

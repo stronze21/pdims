@@ -69,7 +69,7 @@ class PortalEncounterController extends Controller
                 (SELECT COUNT(*)
                  FROM hospital.dbo.hdocord dord WITH (NOLOCK)
                  JOIN hospital.dbo.hprocm prm WITH (NOLOCK)
-                    ON prm.proccode = dord.proccode AND prm.costcenter = 'LABOR'
+                    ON prm.proccode = dord.proccode
                  WHERE dord.enccode = enctr.enccode
                     AND dord.estatus IS NOT NULL
                     AND dord.estatus <> 'C') AS lab_order_count
@@ -203,12 +203,22 @@ class PortalEncounterController extends Controller
             ORDER BY rx.created_at DESC
         ", [$enccode]);
 
-        // Get laboratory orders for this encounter
+        // Get diagnostic orders (laboratory, radiology, etc.) for this encounter
         $labOrders = DB::connection('hospital')->select("
             SELECT
                 hdocord.docointkey,
                 hprocm.proccode AS lab_code,
                 hprocm.procdesc AS lab_name,
+                hprocm.costcenter AS department,
+                CASE
+                    WHEN hprocm.costcenter = 'LABOR' THEN 'Laboratory'
+                    WHEN hprocm.costcenter = 'XRAY' THEN 'Radiology'
+                    WHEN hprocm.costcenter = 'ULTRA' THEN 'Ultrasound'
+                    WHEN hprocm.costcenter = 'CT' THEN 'CT Scan'
+                    WHEN hprocm.costcenter = 'MRI' THEN 'MRI'
+                    WHEN hprocm.costcenter = 'DIET' THEN 'Dietary'
+                    ELSE hprocm.costcenter
+                END AS department_name,
                 hdocord.dodate AS order_date,
                 hdocord.dotime AS order_time,
                 hdocord.dodtepost AS result_date,
@@ -237,7 +247,6 @@ class PortalEncounterController extends Controller
             FROM hospital.dbo.hdocord hdocord WITH (NOLOCK)
             JOIN hospital.dbo.hprocm hprocm WITH (NOLOCK)
                 ON hprocm.proccode = hdocord.proccode
-                AND hprocm.costcenter = 'LABOR'
             LEFT JOIN hospital.dbo.hspec hspec WITH (NOLOCK)
                 ON hspec.speccode = hdocord.speccode
             LEFT JOIN hospital.dbo.hprovider hprov WITH (NOLOCK)
