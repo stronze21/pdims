@@ -84,10 +84,16 @@ class PortalProfileController extends Controller
             $updates['patbdate'] = $hospitalPatient->patbdate;
         }
 
-        // Religion from hospital reference table
-        $religion = $hospitalPatient->religion?->reldesc ?? null;
-        if ($religion && $patient->patReligion !== $religion) {
-            $updates['patReligion'] = $religion;
+        // Religion from hospital reference table (trim relcode to handle char padding)
+        $religion = $hospitalPatient->religion?->reldesc;
+        if (!$religion && $hospitalPatient->relcode) {
+            $religion = DB::connection('hospital')
+                ->table('hospital.dbo.hreligion')
+                ->whereRaw("RTRIM(relcode) = ?", [trim($hospitalPatient->relcode)])
+                ->value('reldesc');
+        }
+        if ($religion && $patient->patReligion !== trim($religion)) {
+            $updates['patReligion'] = trim($religion);
         }
 
         // Nationality from hospital (citcode stores citizenship code directly)

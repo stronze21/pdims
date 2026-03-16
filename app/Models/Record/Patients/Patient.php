@@ -249,7 +249,9 @@ class Patient extends Model
             'FRENC' => 'French',
         ];
 
-        return $codes[$this->citcode] ?? $this->citcode;
+        $code = trim($this->citcode);
+
+        return $codes[$code] ?? ($code ?: null);
     }
 
     public function empstat()
