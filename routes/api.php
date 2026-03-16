@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalEncounterController;
 use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
+use App\Http\Controllers\Api\Portal\PortalProfileController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -116,6 +117,15 @@ Route::prefix('portal')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user', [PortalAuthController::class, 'user']);
         Route::post('/logout', [PortalAuthController::class, 'logout']);
+
+        // Patient profile routes (syncs demographics from hospital DB)
+        Route::get('/profile', [PortalProfileController::class, 'profile']);
+        Route::put('/profile', [PortalProfileController::class, 'update']);
+        Route::get('/profile/addresses', [PortalProfileController::class, 'addresses']);
+        Route::get('/profile/family', [PortalProfileController::class, 'family']);
+        Route::post('/profile/family', [PortalProfileController::class, 'addFamily']);
+        Route::get('/profile/vitals', [PortalProfileController::class, 'vitals']);
+        Route::get('/profile/medical-info', [PortalProfileController::class, 'medicalInfo']);
 
         // Prescription refill routes
         Route::get('/prescriptions', [PortalPrescriptionController::class, 'prescriptions']);

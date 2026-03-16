@@ -7,6 +7,7 @@ use App\Models\Portal\PortalPatient;
 use App\Models\Portal\PortalUserAccount;
 use App\Models\Record\Patients\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -80,6 +81,15 @@ class PortalAuthController extends Controller
             ]);
         }
 
+        // Resolve religion and nationality from hospital reference tables
+        $religion = $hospitalPatient->religion?->reldesc;
+        $nationality = $hospitalPatient->natcode
+            ? DB::connection('hospital')
+                ->table('hospital.dbo.hnatcode')
+                ->where('natcode', $hospitalPatient->natcode)
+                ->value('natdesc')
+            : null;
+
         // Sync patient data from hospital to portal database
         $portalPatient = $existingPortalPatient ?? PortalPatient::create([
             'hpercode' => $hospitalPatient->hpercode,
@@ -88,6 +98,9 @@ class PortalAuthController extends Controller
             'patmiddle' => $hospitalPatient->patmiddle,
             'patbdate' => $hospitalPatient->patbdate,
             'patgender' => $hospitalPatient->patsex === 'M' ? 'Male' : 'Female',
+            'patcivilstat' => $hospitalPatient->csstat(),
+            'patReligion' => $religion,
+            'patNationality' => $nationality,
             'patcontactno' => $request->patcontactno ?? $hospitalPatient->pattelno,
             'patemail' => $request->email,
         ]);
