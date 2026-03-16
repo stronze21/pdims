@@ -260,10 +260,67 @@ class PortalEncounterController extends Controller
             ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
         ", [$enccode, $hpercode]);
 
+        // Get vital signs for this encounter from hospital hvitalsign table
+        $hvitals = DB::connection('hospital')->select("
+            SELECT
+                datelog,
+                timelog,
+                vsbp,
+                vstemp,
+                vspulse,
+                vsresp
+            FROM hospital.dbo.hvitalsign WITH (NOLOCK)
+            WHERE enccode = ? AND hpercode = ?
+            ORDER BY datelog DESC, timelog DESC
+        ", [$enccode, $hpercode]);
+
+        $vitals = [];
+        foreach ($hvitals as $hv) {
+            $dateTime = $hv->datelog;
+
+            if (!empty($hv->vsbp)) {
+                $vitals[] = [
+                    'vital_sign' => 'BP',
+                    'description' => 'Blood Pressure',
+                    'value' => $hv->vsbp,
+                    'unit' => 'mmHg',
+                    'vitals_date' => $dateTime,
+                ];
+            }
+            if (!empty($hv->vstemp)) {
+                $vitals[] = [
+                    'vital_sign' => 'Temp',
+                    'description' => 'Temperature',
+                    'value' => $hv->vstemp,
+                    'unit' => '°C',
+                    'vitals_date' => $dateTime,
+                ];
+            }
+            if (!empty($hv->vspulse)) {
+                $vitals[] = [
+                    'vital_sign' => 'Pulse',
+                    'description' => 'Pulse Rate',
+                    'value' => $hv->vspulse,
+                    'unit' => 'bpm',
+                    'vitals_date' => $dateTime,
+                ];
+            }
+            if (!empty($hv->vsresp)) {
+                $vitals[] = [
+                    'vital_sign' => 'Resp',
+                    'description' => 'Respiratory Rate',
+                    'value' => $hv->vsresp,
+                    'unit' => 'breaths/min',
+                    'vitals_date' => $dateTime,
+                ];
+            }
+        }
+
         return response()->json([
             'encounter' => $encounter,
             'diagnoses' => $processedDiagnoses,
             'prescriptions' => $prescriptions,
+            'vitals' => $vitals,
             'lab_orders' => $labOrders,
         ]);
     }
