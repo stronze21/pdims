@@ -90,15 +90,10 @@ class PortalProfileController extends Controller
             $updates['patReligion'] = $religion;
         }
 
-        // Nationality from hospital (natcode)
-        if ($hospitalPatient->natcode) {
-            $nationality = DB::connection('hospital')
-                ->table('hospital.dbo.hnatcode')
-                ->where('natcode', $hospitalPatient->natcode)
-                ->value('natdesc');
-            if ($nationality && $patient->patNationality !== $nationality) {
-                $updates['patNationality'] = $nationality;
-            }
+        // Nationality from hospital (citcode stores citizenship code directly)
+        $nationality = $hospitalPatient->citizenship();
+        if ($nationality && $patient->patNationality !== $nationality) {
+            $updates['patNationality'] = $nationality;
         }
 
         // Contact number — only sync if portal has none
