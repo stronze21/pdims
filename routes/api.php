@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
 use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalEncounterController;
-use App\Http\Controllers\Api\Portal\PortalProfileController;
+use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
@@ -127,19 +127,8 @@ Route::prefix('portal')->group(function () {
         Route::get('/encounters', [PortalEncounterController::class, 'encounters']);
         Route::get('/encounters/details', [PortalEncounterController::class, 'encounterDetails']);
 
-        // Profile routes
-        Route::get('/profile', [PortalProfileController::class, 'profile']);
-        Route::get('/profile/addresses', [PortalProfileController::class, 'addresses']);
-        Route::get('/profile/family', [PortalProfileController::class, 'family']);
-        Route::get('/profile/vitals', [PortalProfileController::class, 'vitals']);
-        Route::get('/profile/medical-info', [PortalProfileController::class, 'medicalInfo']);
-        Route::post('/profile/update', [PortalProfileController::class, 'update']);
-        Route::post('/profile/family/add', [PortalProfileController::class, 'addFamily']);
-
-        // Services routes
-        Route::get('/appointments', [PortalServicesController::class, 'appointments']);
-        Route::get('/lab-results', [PortalServicesController::class, 'labResults']);
-        Route::get('/billing', [PortalServicesController::class, 'billing']);
-        Route::get('/queue', [PortalServicesController::class, 'queue']);
+        // Laboratory results routes
+        Route::get('/lab-results', [PortalLabResultController::class, 'labResults']);
+        Route::get('/lab-results/encounter', [PortalLabResultController::class, 'encounterLabResults']);
     });
 });

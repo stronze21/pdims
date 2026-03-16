@@ -65,7 +65,14 @@ class PortalEncounterController extends Controller
                 END AS encounter_status,
                 (SELECT COUNT(*)
                  FROM webapp.dbo.prescription rx WITH (NOLOCK)
-                 WHERE rx.enccode = enctr.enccode) AS prescription_count
+                 WHERE rx.enccode = enctr.enccode) AS prescription_count,
+                (SELECT COUNT(*)
+                 FROM hospital.dbo.hdocord dord WITH (NOLOCK)
+                 JOIN hospital.dbo.hprocm prm WITH (NOLOCK)
+                    ON prm.proccode = dord.proccode
+                 WHERE dord.enccode = enctr.enccode
+                    AND dord.estatus IS NOT NULL
+                    AND dord.estatus <> 'C') AS lab_order_count
             FROM hospital.dbo.henctr enctr WITH (NOLOCK)
             LEFT JOIN hospital.dbo.hencdiag diag WITH (NOLOCK)
                 ON enctr.enccode = diag.enccode
@@ -196,67 +203,68 @@ class PortalEncounterController extends Controller
             ORDER BY rx.created_at DESC
         ", [$enccode]);
 
-        // Get vital signs for this encounter
-        $vitals = DB::connection('hospital')->select("
+        // Get diagnostic orders (laboratory, radiology, etc.) for this encounter
+        $labOrders = DB::connection('hospital')->select("
             SELECT
-                datelog,
-                timelog,
-                vsbp,
-                vstemp,
-                vspulse,
-                vsresp
-            FROM hospital.dbo.hvitalsign WITH (NOLOCK)
-            WHERE enccode = ?
-            ORDER BY datelog DESC, timelog DESC
-        ", [$enccode]);
-
-        $processedVitals = collect();
-        foreach ($vitals as $hv) {
-            $dateTime = $hv->datelog;
-
-            if (!empty($hv->vsbp)) {
-                $processedVitals->push([
-                    'vital_sign' => 'BP',
-                    'description' => 'Blood Pressure',
-                    'value' => $hv->vsbp,
-                    'unit' => 'mmHg',
-                    'vitals_date' => $dateTime,
-                ]);
-            }
-            if (!empty($hv->vstemp)) {
-                $processedVitals->push([
-                    'vital_sign' => 'Temp',
-                    'description' => 'Temperature',
-                    'value' => $hv->vstemp,
-                    'unit' => '°C',
-                    'vitals_date' => $dateTime,
-                ]);
-            }
-            if (!empty($hv->vspulse)) {
-                $processedVitals->push([
-                    'vital_sign' => 'Pulse',
-                    'description' => 'Pulse Rate',
-                    'value' => $hv->vspulse,
-                    'unit' => 'bpm',
-                    'vitals_date' => $dateTime,
-                ]);
-            }
-            if (!empty($hv->vsresp)) {
-                $processedVitals->push([
-                    'vital_sign' => 'Resp',
-                    'description' => 'Respiratory Rate',
-                    'value' => $hv->vsresp,
-                    'unit' => 'breaths/min',
-                    'vitals_date' => $dateTime,
-                ]);
-            }
-        }
+                hdocord.docointkey,
+                hprocm.proccode AS lab_code,
+                hprocm.procdesc AS lab_name,
+                hprocm.costcenter AS department,
+                CASE
+                    WHEN hprocm.costcenter = 'LABOR' THEN 'Laboratory'
+                    WHEN hprocm.costcenter = 'XRAY' THEN 'Radiology'
+                    WHEN hprocm.costcenter = 'ULTRA' THEN 'Ultrasound'
+                    WHEN hprocm.costcenter = 'CT' THEN 'CT Scan'
+                    WHEN hprocm.costcenter = 'MRI' THEN 'MRI'
+                    WHEN hprocm.costcenter = 'DIET' THEN 'Dietary'
+                    ELSE hprocm.costcenter
+                END AS department_name,
+                hdocord.dodate AS order_date,
+                hdocord.dotime AS order_time,
+                hdocord.dodtepost AS result_date,
+                hdocord.dotmepost AS result_time,
+                hdocord.estatus,
+                hdocord.dopriority,
+                hdocord.pcchrgcod AS charge_slip_code,
+                hdocord.pcchrgamt AS charge_amount,
+                hdocord.speccode,
+                hspec.description AS specimen_name,
+                hdocord.resultpdf,
+                hdocord.result_pdf,
+                hdocord.RequestNum AS request_num,
+                prov.lastname + ', ' + prov.firstname AS ordered_by,
+                CASE
+                    WHEN hdocord.estatus = 'S' THEN 'Released'
+                    WHEN hdocord.estatus = 'P' THEN 'Processing'
+                    WHEN hdocord.estatus = 'C' THEN 'Cancelled'
+                    ELSE 'Pending'
+                END AS status,
+                CASE
+                    WHEN hdocord.dopriority = 'STAT' THEN 'STAT'
+                    WHEN hdocord.dopriority = 'ROUTIN' THEN 'Routine'
+                    ELSE ISNULL(hdocord.dopriority, 'Routine')
+                END AS priority_label
+            FROM hospital.dbo.hdocord hdocord WITH (NOLOCK)
+            JOIN hospital.dbo.hprocm hprocm WITH (NOLOCK)
+                ON hprocm.proccode = hdocord.proccode
+            LEFT JOIN hospital.dbo.hspec hspec WITH (NOLOCK)
+                ON hspec.speccode = hdocord.speccode
+            LEFT JOIN hospital.dbo.hprovider hprov WITH (NOLOCK)
+                ON hdocord.licno = hprov.licno
+            LEFT JOIN hospital.dbo.hpersonal prov WITH (NOLOCK)
+                ON hprov.employeeid = prov.employeeid
+            WHERE hdocord.enccode = ?
+                AND hdocord.hpercode = ?
+                AND hdocord.estatus IS NOT NULL
+                AND hdocord.estatus <> 'C'
+            ORDER BY hdocord.dodate DESC, hdocord.dotime DESC
+        ", [$enccode, $hpercode]);
 
         return response()->json([
             'encounter' => $encounter,
             'diagnoses' => $processedDiagnoses,
             'prescriptions' => $prescriptions,
-            'vitals' => $processedVitals->values(),
+            'lab_orders' => $labOrders,
         ]);
     }
 }
