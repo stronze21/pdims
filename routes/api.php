@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Portal\PortalEncounterController;
 use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
 use App\Http\Controllers\Api\Portal\PortalProfileController;
+use App\Http\Controllers\Api\Portal\PortalChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -150,5 +151,12 @@ Route::prefix('portal')->group(function () {
         Route::get('/appointments/slots', [PortalAppointmentController::class, 'slots']);
         Route::post('/appointments', [PortalAppointmentController::class, 'store']);
         Route::get('/appointments/{id}', [PortalAppointmentController::class, 'show']);
+
+        // Chat routes
+        Route::get('/chat/conversations', [PortalChatController::class, 'conversations']);
+        Route::post('/chat/conversations', [PortalChatController::class, 'createConversation']);
+        Route::get('/chat/conversations/{id}/messages', [PortalChatController::class, 'messages']);
+        Route::post('/chat/conversations/{id}/messages', [PortalChatController::class, 'sendMessage']);
+        Route::patch('/chat/conversations/{id}/read', [PortalChatController::class, 'markRead']);
     });
 });

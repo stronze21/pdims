@@ -9,3 +9,9 @@ use Illuminate\Support\Facades\Broadcast;
 Broadcast::channel('pharmacy.location.{locationCode}', function ($user, $locationCode) {
     return true;
 });
+
+Broadcast::channel('chat.conversation.{conversationId}', function ($user, $conversationId) {
+    return \App\Models\Portal\ChatConversation::where('id', $conversationId)
+        ->where('patient_id', $user->patient_id)
+        ->exists();
+});
