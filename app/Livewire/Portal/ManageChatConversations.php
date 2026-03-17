@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal;
 
+use App\Events\Portal\NewChatMessage;
 use App\Models\Portal\ChatConversation;
 use App\Models\Portal\ChatMessage;
 use Livewire\Component;
@@ -20,6 +21,22 @@ class ManageChatConversations extends Component
     public $activeConversation = null;
     public $messages = [];
     public $replyBody = '';
+
+    public function getListeners()
+    {
+        if ($this->activeConversation) {
+            return [
+                "echo:chat.conversation.{$this->activeConversation->id},.new.message" => 'onNewMessage',
+            ];
+        }
+
+        return [];
+    }
+
+    public function onNewMessage($event)
+    {
+        $this->loadMessages();
+    }
 
     public function updatedSearch()
     {
@@ -68,7 +85,7 @@ class ManageChatConversations extends Component
 
         $staffName = auth()->user()->name ?? 'Staff';
 
-        ChatMessage::create([
+        $message = ChatMessage::create([
             'conversation_id' => $this->activeConversation->id,
             'sender_type' => 'staff',
             'sender_id' => auth()->id(),
@@ -77,6 +94,8 @@ class ManageChatConversations extends Component
         ]);
 
         $this->activeConversation->update(['last_message_at' => now()]);
+
+        broadcast(new NewChatMessage($message));
 
         $this->replyBody = '';
         $this->loadMessages();

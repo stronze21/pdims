@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Portal;
 
+use App\Events\Portal\NewChatMessage;
 use App\Http\Controllers\Controller;
 use App\Models\Portal\ChatConversation;
 use App\Models\Portal\ChatMessage;
@@ -56,13 +57,15 @@ class PortalChatController extends Controller
             ? trim($account->patient->patfirst . ' ' . $account->patient->patlast)
             : $account->username;
 
-        ChatMessage::create([
+        $message = ChatMessage::create([
             'conversation_id' => $conversation->id,
             'sender_type' => 'patient',
             'sender_id' => $patientId,
             'sender_name' => $patientName,
             'body' => $request->message,
         ]);
+
+        broadcast(new NewChatMessage($message));
 
         return response()->json([
             'message' => 'Conversation created successfully.',
@@ -131,6 +134,8 @@ class PortalChatController extends Controller
         ]);
 
         $conversation->update(['last_message_at' => now()]);
+
+        broadcast(new NewChatMessage($message));
 
         return response()->json([
             'message' => [
