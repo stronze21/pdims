@@ -1429,21 +1429,25 @@ class DispensingEncounter extends Component
     private function fetchOrders(string $enccode): array
     {
         if ($this->toecode == 'WALKN') {
-            return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
+            return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal,
+                                pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                                 FROM henctr enctr
                                 INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
                                 INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                                 INNER JOIN hcharge ON orderfrom = chrgcode
                                 LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
+                                LEFT JOIN webapp.dbo.prescription_data pd WITH (NOLOCK) ON hrxo.prescription_data_id = pd.id
                                 WHERE hrxo.hpercode = '" . $this->hpercode . "' AND enctr.toecode = 'WALKN'
                                 ORDER BY dodate DESC");
         }
 
-        return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id
+        return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal,
+                            pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                             FROM hospital.dbo.hrxo
                             INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
                             INNER JOIN hcharge ON orderfrom = chrgcode
                             LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
+                            LEFT JOIN webapp.dbo.prescription_data pd WITH (NOLOCK) ON hrxo.prescription_data_id = pd.id
                             WHERE hrxo.enccode = '" . $enccode . "'
                             ORDER BY dodate DESC");
     }
