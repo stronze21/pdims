@@ -26,6 +26,7 @@ class PortalAppointmentController extends Controller
             $appointments = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
                 ->leftJoin('clinics', 'appointments.attending_clinic', '=', 'clinics.tscode')
+                ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
                 ->where('appointments.patient_id', $patient->id)
                 ->whereNull('appointments.deleted_at')
                 ->orderByDesc('appointments.appointment_date')
@@ -43,10 +44,20 @@ class PortalAppointmentController extends Controller
                     'appointments.ref_no',
                     'appointments.queue_no',
                     'appointments.confirmed_by',
-                    'appointments.created_at'
+                    'appointments.created_at',
+                    'patients.hpercode',
+                    'patients.patlast',
+                    'patients.patfirst',
+                    'patients.patmiddle'
                 )
                 ->get()
                 ->map(function ($appt) {
+                    $patientName = trim(
+                        ($appt->patlast ?? '') . ', ' .
+                        ($appt->patfirst ?? '') . ' ' .
+                        ($appt->patmiddle ?? '')
+                    );
+
                     return [
                         'id' => $appt->id,
                         'appointment_date' => $appt->appointment_date,
@@ -64,6 +75,8 @@ class PortalAppointmentController extends Controller
                         'status' => $appt->confirmed_by ? 'Confirmed' : 'Pending',
                         'confirmed_by' => $appt->confirmed_by,
                         'created_at' => $appt->created_at,
+                        'patient_name' => $patientName,
+                        'hospital_number' => $appt->hpercode,
                     ];
                 });
 
@@ -90,6 +103,7 @@ class PortalAppointmentController extends Controller
             $appointment = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
                 ->leftJoin('clinics', 'appointments.attending_clinic', '=', 'clinics.tscode')
+                ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
                 ->where('appointments.id', $id)
                 ->where('appointments.patient_id', $patient->id)
                 ->whereNull('appointments.deleted_at')
@@ -107,7 +121,11 @@ class PortalAppointmentController extends Controller
                     'appointments.ref_no',
                     'appointments.queue_no',
                     'appointments.confirmed_by',
-                    'appointments.created_at'
+                    'appointments.created_at',
+                    'patients.hpercode',
+                    'patients.patlast',
+                    'patients.patfirst',
+                    'patients.patmiddle'
                 )
                 ->first();
 
@@ -171,6 +189,12 @@ class PortalAppointmentController extends Controller
                     ];
                 });
 
+            $patientName = trim(
+                ($appointment->patlast ?? '') . ', ' .
+                ($appointment->patfirst ?? '') . ' ' .
+                ($appointment->patmiddle ?? '')
+            );
+
             return response()->json([
                 'appointment' => [
                     'id' => $appointment->id,
@@ -189,6 +213,8 @@ class PortalAppointmentController extends Controller
                     'status' => $appointment->confirmed_by ? 'Confirmed' : 'Pending',
                     'confirmed_by' => $appointment->confirmed_by,
                     'created_at' => $appointment->created_at,
+                    'patient_name' => $patientName,
+                    'hospital_number' => $appointment->hpercode,
                 ],
                 'reschedules' => $reschedules,
                 'files' => $files,
