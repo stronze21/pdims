@@ -67,68 +67,92 @@ class PortalAppointmentController extends Controller
         $month = (int) $request->query('month');
 
         try {
-            // Get max appointments config for this clinic (by day of week and hour)
-            $maxConfig = DB::connection('portal')->table('clinic_max_appointments')
+            // Get daily summary rows (hr=0) grouped by day of week
+            $dailySummaries = DB::connection('portal')->table('clinic_max_appointments')
                 ->where('tscode', $clinic)
+                ->where('hr', 0)
+                ->where('max', '>', 0)
+                ->pluck('max', 'day'); // day => max
+
+            // Also get hourly configs (hr > 0) for today's past-hour filtering
+            $hourlyConfigs = DB::connection('portal')->table('clinic_max_appointments')
+                ->where('tscode', $clinic)
+                ->where('hr', '>', 0)
                 ->where('max', '>', 0)
                 ->get()
                 ->groupBy('day');
 
-            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
             $now = now();
             $today = $now->copy()->startOfDay();
             $currentHour = (int) $now->format('H');
+
+            $startDate = \Carbon\Carbon::create($year, $month, 1);
+            $daysInMonth = $startDate->daysInMonth;
             $dates = [];
+
+            // Batch: get all appointment counts for this clinic+month in one query
+            $monthlyCounts = DB::connection('portal')->table('appointments')
+                ->where('attending_clinic', $clinic)
+                ->whereNull('deleted_at')
+                ->whereYear('appointment_date', $year)
+                ->whereMonth('appointment_date', $month)
+                ->selectRaw('DATE(appointment_date) as appt_date, COUNT(*) as cnt')
+                ->groupByRaw('DATE(appointment_date)')
+                ->pluck('cnt', 'appt_date');
+
+            // For today, also get hourly breakdown
+            $todayHourlyCounts = collect();
+            if ($month == $now->month && $year == $now->year) {
+                $todayHourlyCounts = DB::connection('portal')->table('appointments')
+                    ->where('attending_clinic', $clinic)
+                    ->whereNull('deleted_at')
+                    ->whereDate('appointment_date', $today->format('Y-m-d'))
+                    ->selectRaw('HOUR(appointment_date) as hr, COUNT(*) as cnt')
+                    ->groupByRaw('HOUR(appointment_date)')
+                    ->pluck('cnt', 'hr');
+            }
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $date = \Carbon\Carbon::create($year, $month, $d);
+                $dateStr = $date->format('Y-m-d');
                 $dayOfWeek = (int) $date->dayOfWeek; // 0=Sun, 1=Mon ... 6=Sat
 
                 // Past dates are unavailable
                 if ($date->lt($today)) {
-                    $dates[] = ['date' => $date->format('Y-m-d'), 'available' => false, 'total_slots' => 0];
+                    $dates[] = ['date' => $dateStr, 'available' => false, 'total_slots' => 0];
                     continue;
                 }
 
                 // Check if clinic has capacity for this day of week
-                $dayConfig = $maxConfig->get($dayOfWeek, collect());
-                if ($dayConfig->isEmpty()) {
-                    $dates[] = ['date' => $date->format('Y-m-d'), 'available' => false, 'total_slots' => 0];
+                $dailyMax = $dailySummaries->get($dayOfWeek);
+                if (!$dailyMax) {
+                    $dates[] = ['date' => $dateStr, 'available' => false, 'total_slots' => 0];
                     continue;
                 }
 
                 $isToday = $date->eq($today);
-                $remaining = 0;
 
-                foreach ($dayConfig as $hourConfig) {
-                    $hour = $hourConfig->hr;
-
-                    // Skip past hours on today's date
-                    if ($isToday && $hour <= $currentHour) {
-                        continue;
+                if ($isToday) {
+                    // For today: check each future hour individually
+                    $dayHourConfigs = $hourlyConfigs->get($dayOfWeek, collect());
+                    $remaining = 0;
+                    foreach ($dayHourConfigs as $hc) {
+                        if ($hc->hr <= $currentHour) continue;
+                        $booked = $todayHourlyCounts->get($hc->hr, 0);
+                        $remaining += max(0, $hc->max - $booked);
                     }
-
-                    // Count booked for this specific hour
-                    $booked = DB::connection('portal')->table('appointments')
-                        ->where('attending_clinic', $clinic)
-                        ->whereNull('deleted_at')
-                        ->whereDate('appointment_date', $date->format('Y-m-d'))
-                        ->whereRaw('HOUR(appointment_date) = ?', [$hour])
-                        ->count();
-
-                    $remaining += max(0, $hourConfig->max - $booked);
+                    $dates[] = ['date' => $dateStr, 'available' => $remaining > 0, 'total_slots' => $remaining];
+                } else {
+                    // For future dates: use daily summary row vs total booked
+                    $booked = $monthlyCounts->get($dateStr, 0);
+                    $remaining = max(0, $dailyMax - $booked);
+                    $dates[] = ['date' => $dateStr, 'available' => $remaining > 0, 'total_slots' => $remaining];
                 }
-
-                $dates[] = [
-                    'date' => $date->format('Y-m-d'),
-                    'available' => $remaining > 0,
-                    'total_slots' => $remaining,
-                ];
             }
 
             return response()->json($dates);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to load availability.'], 500);
+            return response()->json(['message' => 'Failed to load availability: ' . $e->getMessage()], 500);
         }
     }
 
@@ -151,13 +175,23 @@ class PortalAppointmentController extends Controller
         $currentHour = (int) $now->format('H');
 
         try {
-            // Get hour configs for this day of week
+            // Get hour configs for this day of week (exclude hr=0 summary rows)
             $hourConfigs = DB::connection('portal')->table('clinic_max_appointments')
                 ->where('tscode', $clinic)
                 ->where('day', $dayOfWeek)
+                ->where('hr', '>', 0)
                 ->where('max', '>', 0)
                 ->orderBy('hr')
                 ->get();
+
+            // Batch: get all hourly counts for this date in one query
+            $hourlyCounts = DB::connection('portal')->table('appointments')
+                ->where('attending_clinic', $clinic)
+                ->whereNull('deleted_at')
+                ->whereDate('appointment_date', $date)
+                ->selectRaw('HOUR(appointment_date) as hr, COUNT(*) as cnt')
+                ->groupByRaw('HOUR(appointment_date)')
+                ->pluck('cnt', 'hr');
 
             $slots = [];
             foreach ($hourConfigs as $config) {
@@ -168,14 +202,7 @@ class PortalAppointmentController extends Controller
                     continue;
                 }
 
-                // Count booked for this specific hour
-                $booked = DB::connection('portal')->table('appointments')
-                    ->where('attending_clinic', $clinic)
-                    ->whereNull('deleted_at')
-                    ->whereDate('appointment_date', $date)
-                    ->whereRaw('HOUR(appointment_date) = ?', [$hour])
-                    ->count();
-
+                $booked = $hourlyCounts->get($hour, 0);
                 $available = max(0, $config->max - $booked);
                 if ($available > 0) {
                     $timeLabel = \Carbon\Carbon::createFromTime($hour, 0)->format('h:i A');
