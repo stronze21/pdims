@@ -178,6 +178,9 @@
 
                             <x-mary-menu-item title="Refill Requests" icon="o-arrow-path"
                                 link="{{ route('settings.portal.refills') }}" />
+
+                            <x-mary-menu-item title="Chat" icon="o-chat-bubble-left-right"
+                                link="{{ route('settings.portal.chat') }}" />
                         </x-mary-menu-sub>
 
                     </x-mary-menu-sub>
