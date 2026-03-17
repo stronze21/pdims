@@ -75,7 +75,9 @@ class PortalAppointmentController extends Controller
                 ->groupBy('day');
 
             $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
-            $today = now()->startOfDay();
+            $now = now();
+            $today = $now->copy()->startOfDay();
+            $currentHour = (int) $now->format('H');
             $dates = [];
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
@@ -95,17 +97,28 @@ class PortalAppointmentController extends Controller
                     continue;
                 }
 
-                // Sum total max slots for the day
-                $totalMax = $dayConfig->sum('max');
+                $isToday = $date->eq($today);
+                $remaining = 0;
 
-                // Count existing appointments for this date
-                $booked = DB::connection('portal')->table('appointments')
-                    ->where('attending_clinic', $clinic)
-                    ->whereNull('deleted_at')
-                    ->whereDate('appointment_date', $date->format('Y-m-d'))
-                    ->count();
+                foreach ($dayConfig as $hourConfig) {
+                    $hour = $hourConfig->hr;
 
-                $remaining = max(0, $totalMax - $booked);
+                    // Skip past hours on today's date
+                    if ($isToday && $hour <= $currentHour) {
+                        continue;
+                    }
+
+                    // Count booked for this specific hour
+                    $booked = DB::connection('portal')->table('appointments')
+                        ->where('attending_clinic', $clinic)
+                        ->whereNull('deleted_at')
+                        ->whereDate('appointment_date', $date->format('Y-m-d'))
+                        ->whereRaw('HOUR(appointment_date) = ?', [$hour])
+                        ->count();
+
+                    $remaining += max(0, $hourConfig->max - $booked);
+                }
+
                 $dates[] = [
                     'date' => $date->format('Y-m-d'),
                     'available' => $remaining > 0,
@@ -133,6 +146,9 @@ class PortalAppointmentController extends Controller
         $date = $request->query('date');
         $dateObj = \Carbon\Carbon::parse($date);
         $dayOfWeek = (int) $dateObj->dayOfWeekIso;
+        $now = now();
+        $isToday = $dateObj->isSameDay($now);
+        $currentHour = (int) $now->format('H');
 
         try {
             // Get hour configs for this day of week
@@ -146,6 +162,11 @@ class PortalAppointmentController extends Controller
             $slots = [];
             foreach ($hourConfigs as $config) {
                 $hour = $config->hr;
+
+                // Skip past hours on today's date
+                if ($isToday && $hour <= $currentHour) {
+                    continue;
+                }
 
                 // Count booked for this specific hour
                 $booked = DB::connection('portal')->table('appointments')
