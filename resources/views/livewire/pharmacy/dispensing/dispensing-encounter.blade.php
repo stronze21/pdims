@@ -441,7 +441,9 @@
                                 <th class="text-center">Status</th>
                                 <th>Date Created</th>
                                 <th>Drug / Medicine</th>
-                                <th class="text-center">Qty</th>
+                                <th class="text-center">Ordered</th>
+                                <th class="text-center">Issued</th>
+                                <th class="text-center">Balance</th>
                                 <th class="text-right">Unit Price</th>
                                 <th class="text-right">Amount</th>
                                 <th>Remarks</th>
@@ -505,19 +507,32 @@
                                         <br>
                                         <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
                                     </td>
+                                    <td class="text-xs text-center">
+                                        {{ number_format($rxo->pchrgqty, 0) }}
+                                    </td>
                                     <td class="text-xs text-center font-semibold">
-                                        @if ($rxo->estatus == 'S')
-                                            {{ number_format($rxo->qtyissued, 0) }}
-                                        @else
-                                            {{ number_format($rxo->pchrgqty, 0) }}
-                                        @endif
+                                        {{ number_format($rxo->qtyissued ?? 0, 0) }}
+                                    </td>
+                                    <td class="text-xs text-center">
+                                        {{ number_format($rxo->qtybal ?? 0, 0) }}
                                     </td>
                                     <td class="text-xs text-right">{{ number_format($rxo->pchrgup, 2) }}</td>
                                     <td class="text-xs text-right font-semibold">
                                         {{ number_format($rxo->pcchrgamt, 2) }}
                                     </td>
-                                    <td class="text-xs max-w-[120px] truncate" title="{{ $rxo->remarks }}">
-                                        {{ $rxo->remarks }}</td>
+                                    <td class="text-xs max-w-[150px]" title="{{ $rxo->remarks }}{{ $rxo->rx_remark ? ' | ' . $rxo->rx_remark : '' }}">
+                                        @if ($rxo->remarks)
+                                            <div class="truncate">{{ $rxo->remarks }}</div>
+                                        @endif
+                                        @if ($rxo->rx_frequency || $rxo->rx_duration || $rxo->rx_remark || $rxo->rx_addtl_remarks)
+                                            <div class="text-[10px] text-base-content/60 italic truncate">
+                                                @if ($rxo->rx_frequency){{ $rxo->rx_frequency }}@endif
+                                                @if ($rxo->rx_duration) x {{ $rxo->rx_duration }}@endif
+                                                @if ($rxo->rx_remark) - {{ $rxo->rx_remark }}@endif
+                                                @if ($rxo->rx_addtl_remarks) ({{ $rxo->rx_addtl_remarks }})@endif
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td>
                                         <div class="dropdown dropdown-end">
                                             <label tabindex="0" class="btn btn-ghost btn-xs tooltip tooltip-left"
@@ -557,7 +572,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center py-8 text-base-content/50">
+                                    <td colspan="12" class="text-center py-8 text-base-content/50">
                                         <x-heroicon-o-inbox class="w-8 h-8 mx-auto mb-2 opacity-30" />
                                         No orders found
                                     </td>

@@ -87,6 +87,28 @@
                             <td class="text-right">{{ number_format($item->pchrgup, 2) }}</td>
                             <td class="text-right">{{ number_format($amount, 2) }}</td>
                         </tr>
+                        @if ($item->prescription_data && ($item->prescription_data->frequency || $item->prescription_data->duration || $item->prescription_data->remark || $item->prescription_data->addtl_remarks))
+                            <tr class="border-x border-black">
+                                <td colspan="{{ $view_returns ? 5 : 4 }}" class="!text-2xs italic px-2 pb-1">
+                                    @if ($item->prescription_data->frequency || $item->prescription_data->duration)
+                                        <span>
+                                            @if ($item->prescription_data->frequency)
+                                                {{ $item->prescription_data->frequency }}
+                                            @endif
+                                            @if ($item->prescription_data->duration)
+                                                x {{ $item->prescription_data->duration }}
+                                            @endif
+                                        </span>
+                                    @endif
+                                    @if ($item->prescription_data->remark)
+                                        <span>- {{ $item->prescription_data->remark }}</span>
+                                    @endif
+                                    @if ($item->prescription_data->addtl_remarks)
+                                        <span>({{ $item->prescription_data->addtl_remarks }})</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endif
                         @php $total_issued++; @endphp
                     @empty
                         <tr class="border-b border-black border-x">
