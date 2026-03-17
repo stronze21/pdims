@@ -151,11 +151,12 @@
 
                 {{-- Reply box --}}
                 @if($activeConversation->status === 'open')
-                    <div class="flex gap-2 pt-2">
-                        <x-mary-textarea wire:model="replyBody" placeholder="Type your reply..." rows="2" class="flex-1" />
+                    <div class="flex items-end gap-3 pt-2">
+                        <div class="flex-1">
+                            <x-mary-textarea wire:model.live="replyBody" placeholder="Type your reply..." rows="2" />
+                        </div>
                         <x-mary-button label="Send" icon="o-paper-airplane" wire:click="sendReply"
-                            class="btn-primary self-end" spinner="sendReply"
-                            :disabled="empty(trim($replyBody))" />
+                            class="btn-primary" spinner="sendReply" />
                     </div>
                 @else
                     <div class="text-center text-gray-400 text-sm py-2 bg-gray-100 rounded-lg">
@@ -168,7 +169,7 @@
 
         <x-slot:actions>
             @if($activeConversation && $activeConversation->status === 'open')
-                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning btn-sm" />
+                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning" />
             @endif
             <x-mary-button label="Close" wire:click="$set('chatModal', false)" />
         </x-slot:actions>
