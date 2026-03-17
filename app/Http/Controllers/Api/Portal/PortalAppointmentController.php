@@ -82,7 +82,7 @@ class PortalAppointmentController extends Controller
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $date = \Carbon\Carbon::create($year, $month, $d);
-                $dayOfWeek = (int) $date->dayOfWeekIso; // 1=Mon ... 7=Sun
+                $dayOfWeek = (int) $date->dayOfWeek; // 0=Sun, 1=Mon ... 6=Sat
 
                 // Past dates are unavailable
                 if ($date->lt($today)) {
@@ -145,7 +145,7 @@ class PortalAppointmentController extends Controller
         $clinic = $request->query('clinic');
         $date = $request->query('date');
         $dateObj = \Carbon\Carbon::parse($date);
-        $dayOfWeek = (int) $dateObj->dayOfWeekIso;
+        $dayOfWeek = (int) $dateObj->dayOfWeek; // 0=Sun, 1=Mon ... 6=Sat
         $now = now();
         $isToday = $dateObj->isSameDay($now);
         $currentHour = (int) $now->format('H');
