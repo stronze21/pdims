@@ -112,6 +112,12 @@ class PortalAppointmentController extends Controller
                     ->pluck('cnt', 'hr');
             }
 
+            // Get holidays for this month
+            $holidays = DB::connection('portal')->table('holidays')
+                ->whereYear('holiday_date', $year)
+                ->whereMonth('holiday_date', $month)
+                ->pluck('holiday', 'holiday_date'); // date => holiday name
+
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $date = \Carbon\Carbon::create($year, $month, $d);
                 $dateStr = $date->format('Y-m-d');
@@ -120,6 +126,12 @@ class PortalAppointmentController extends Controller
                 // Past dates are unavailable
                 if ($date->lt($today)) {
                     $dates[] = ['date' => $dateStr, 'available' => false, 'total_slots' => 0];
+                    continue;
+                }
+
+                // Holidays are unavailable
+                if ($holidays->has($dateStr)) {
+                    $dates[] = ['date' => $dateStr, 'available' => false, 'total_slots' => 0, 'holiday' => $holidays->get($dateStr)];
                     continue;
                 }
 
