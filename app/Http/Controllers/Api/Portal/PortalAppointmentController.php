@@ -9,6 +9,226 @@ use Illuminate\Support\Facades\DB;
 class PortalAppointmentController extends Controller
 {
     /**
+     * Get available appointment types.
+     */
+    public function types()
+    {
+        try {
+            $types = DB::connection('portal')->table('appointment_types')
+                ->whereNull('deleted_at')
+                ->select('id', 'name', 'description')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json($types);
+        } catch (\Exception $e) {
+            return response()->json([]);
+        }
+    }
+
+    /**
+     * Get clinics that have appointment capacity configured.
+     */
+    public function clinics()
+    {
+        try {
+            $clinics = DB::connection('portal')->table('clinics')
+                ->whereNull('deleted_at')
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('clinic_max_appointments')
+                        ->whereColumn('clinic_max_appointments.tscode', 'clinics.tscode')
+                        ->where('clinic_max_appointments.max', '>', 0);
+                })
+                ->select('tscode', 'clinic', 'contact_no')
+                ->orderBy('clinic')
+                ->get();
+
+            return response()->json($clinics);
+        } catch (\Exception $e) {
+            return response()->json([]);
+        }
+    }
+
+    /**
+     * Get availability for a clinic in a given month.
+     * Returns dates with available/unavailable status.
+     */
+    public function availability(Request $request)
+    {
+        $request->validate([
+            'clinic' => 'required|string',
+            'year' => 'required|integer',
+            'month' => 'required|integer|min:1|max:12',
+        ]);
+
+        $clinic = $request->query('clinic');
+        $year = (int) $request->query('year');
+        $month = (int) $request->query('month');
+
+        try {
+            // Get max appointments config for this clinic (by day of week and hour)
+            $maxConfig = DB::connection('portal')->table('clinic_max_appointments')
+                ->where('tscode', $clinic)
+                ->where('max', '>', 0)
+                ->get()
+                ->groupBy('day');
+
+            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+            $today = now()->startOfDay();
+            $dates = [];
+
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $date = \Carbon\Carbon::create($year, $month, $d);
+                $dayOfWeek = (int) $date->dayOfWeekIso; // 1=Mon ... 7=Sun
+
+                // Past dates are unavailable
+                if ($date->lt($today)) {
+                    $dates[] = ['date' => $date->format('Y-m-d'), 'available' => false, 'total_slots' => 0];
+                    continue;
+                }
+
+                // Check if clinic has capacity for this day of week
+                $dayConfig = $maxConfig->get($dayOfWeek, collect());
+                if ($dayConfig->isEmpty()) {
+                    $dates[] = ['date' => $date->format('Y-m-d'), 'available' => false, 'total_slots' => 0];
+                    continue;
+                }
+
+                // Sum total max slots for the day
+                $totalMax = $dayConfig->sum('max');
+
+                // Count existing appointments for this date
+                $booked = DB::connection('portal')->table('appointments')
+                    ->where('attending_clinic', $clinic)
+                    ->whereNull('deleted_at')
+                    ->whereDate('appointment_date', $date->format('Y-m-d'))
+                    ->count();
+
+                $remaining = max(0, $totalMax - $booked);
+                $dates[] = [
+                    'date' => $date->format('Y-m-d'),
+                    'available' => $remaining > 0,
+                    'total_slots' => $remaining,
+                ];
+            }
+
+            return response()->json($dates);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to load availability.'], 500);
+        }
+    }
+
+    /**
+     * Get available time slots for a clinic on a specific date.
+     */
+    public function slots(Request $request)
+    {
+        $request->validate([
+            'clinic' => 'required|string',
+            'date' => 'required|date',
+        ]);
+
+        $clinic = $request->query('clinic');
+        $date = $request->query('date');
+        $dateObj = \Carbon\Carbon::parse($date);
+        $dayOfWeek = (int) $dateObj->dayOfWeekIso;
+
+        try {
+            // Get hour configs for this day of week
+            $hourConfigs = DB::connection('portal')->table('clinic_max_appointments')
+                ->where('tscode', $clinic)
+                ->where('day', $dayOfWeek)
+                ->where('max', '>', 0)
+                ->orderBy('hr')
+                ->get();
+
+            $slots = [];
+            foreach ($hourConfigs as $config) {
+                $hour = $config->hr;
+
+                // Count booked for this specific hour
+                $booked = DB::connection('portal')->table('appointments')
+                    ->where('attending_clinic', $clinic)
+                    ->whereNull('deleted_at')
+                    ->whereDate('appointment_date', $date)
+                    ->whereRaw('HOUR(appointment_date) = ?', [$hour])
+                    ->count();
+
+                $available = max(0, $config->max - $booked);
+                if ($available > 0) {
+                    $timeLabel = \Carbon\Carbon::createFromTime($hour, 0)->format('h:i A');
+                    $slots[] = [
+                        'hour' => $hour,
+                        'time' => $timeLabel,
+                        'available' => $available,
+                        'max' => $config->max,
+                    ];
+                }
+            }
+
+            return response()->json($slots);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to load time slots.'], 500);
+        }
+    }
+
+    /**
+     * Book a new appointment.
+     */
+    public function store(Request $request)
+    {
+        $account = $request->user();
+        $account->load('patient');
+        $patient = $account->patient;
+
+        if (!$patient) {
+            return response()->json(['message' => 'No linked patient record found.'], 404);
+        }
+
+        $request->validate([
+            'appointment_type' => 'required|integer',
+            'attending_clinic' => 'required|string',
+            'appointment_date' => 'required|date',
+            'contact_number' => 'required|string',
+            'email' => 'required|email',
+            'doctor' => 'nullable|string|max:50',
+            'diagnosis' => 'nullable|string|max:255',
+            'remarks' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            // Generate unique ref_no
+            $refNo = 'PA-' . now()->format('Ymd') . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+
+            // Ensure unique
+            while (DB::connection('portal')->table('appointments')->where('ref_no', $refNo)->exists()) {
+                $refNo = 'PA-' . now()->format('Ymd') . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+            }
+
+            $id = DB::connection('portal')->table('appointments')->insertGetId([
+                'patient_id' => $patient->id,
+                'appointment_date' => $request->input('appointment_date'),
+                'appointment_type' => $request->input('appointment_type'),
+                'attending_clinic' => $request->input('attending_clinic'),
+                'doctor' => $request->input('doctor'),
+                'remarks' => $request->input('remarks'),
+                'ref_no' => $refNo,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Appointment booked successfully.',
+                'appointment_id' => $id,
+                'ref_no' => $refNo,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to book appointment. Please try again.'], 500);
+        }
+    }
+
+    /**
      * Get patient's appointment history from eclinic database.
      * Joins with appointment_types and clinics for enriched data.
      */

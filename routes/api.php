@@ -144,6 +144,11 @@ Route::prefix('portal')->group(function () {
 
         // Appointment routes
         Route::get('/appointments', [PortalAppointmentController::class, 'index']);
+        Route::get('/appointments/types', [PortalAppointmentController::class, 'types']);
+        Route::get('/appointments/clinics', [PortalAppointmentController::class, 'clinics']);
+        Route::get('/appointments/availability', [PortalAppointmentController::class, 'availability']);
+        Route::get('/appointments/slots', [PortalAppointmentController::class, 'slots']);
+        Route::post('/appointments', [PortalAppointmentController::class, 'store']);
         Route::get('/appointments/{id}', [PortalAppointmentController::class, 'show']);
     });
 });
