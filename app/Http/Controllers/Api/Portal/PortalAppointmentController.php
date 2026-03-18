@@ -303,11 +303,22 @@ class PortalAppointmentController extends Controller
         }
 
         try {
+            // Collect all portal patient IDs that share the same hospital number (hpercode)
+            // This handles cases where appointments were linked to a different portal patient record
+            $patientIds = [$patient->id];
+            if ($patient->hpercode) {
+                $linkedIds = DB::connection('portal')->table('patients')
+                    ->where('hpercode', $patient->hpercode)
+                    ->pluck('id')
+                    ->toArray();
+                $patientIds = array_unique(array_merge($patientIds, $linkedIds));
+            }
+
             $appointments = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
                 ->leftJoin('clinics', 'appointments.attending_clinic', '=', 'clinics.tscode')
                 ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
-                ->where('appointments.patient_id', $patient->id)
+                ->whereIn('appointments.patient_id', $patientIds)
                 ->whereNull('appointments.deleted_at')
                 ->orderByDesc('appointments.appointment_date')
                 ->select(
