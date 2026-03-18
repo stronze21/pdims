@@ -1,4 +1,4 @@
-<div class="flex flex-col px-5 py-5 mx-auto max-w-screen" wire:poll.15s>
+<div class="flex flex-col px-5 py-5 mx-auto max-w-screen">
     <x-mary-header title="Chat Conversations" subtitle="Manage patient chat conversations from Salun-at portal" separator progress-indicator>
         <x-slot:middle class="!justify-end">
             <x-mary-input placeholder="Search subject, patient name..." wire:model.live.debounce.300ms="search"
@@ -136,8 +136,7 @@
                         let el = $el;
                         el.scrollTop = el.scrollHeight;
                         new MutationObserver(() => el.scrollTop = el.scrollHeight).observe(el, { childList: true, subtree: true });
-                    "
-                    wire:poll.5s="loadMessages">
+                    ">
                     @forelse($messages as $msg)
                         <div class="flex {{ $msg['sender_type'] === 'staff' ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[75%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">

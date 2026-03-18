@@ -20,9 +20,12 @@ class NewChatMessage implements ShouldBroadcastNow
         $this->message = $message;
     }
 
-    public function broadcastOn(): Channel
+    public function broadcastOn(): array
     {
-        return new Channel('chat.conversation.' . $this->message->conversation_id);
+        return [
+            new Channel('chat.conversation.' . $this->message->conversation_id),
+            new Channel('chat.updates'),
+        ];
     }
 
     public function broadcastAs(): string

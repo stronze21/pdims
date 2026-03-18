@@ -24,18 +24,27 @@ class ManageChatConversations extends Component
 
     public function getListeners()
     {
+        $listeners = [
+            // Always listen for any new message to refresh the conversation list
+            "echo:chat.updates,.new.message" => 'onChatUpdated',
+        ];
+
         if ($this->activeConversation) {
-            return [
-                "echo:chat.conversation.{$this->activeConversation->id},.new.message" => 'onNewMessage',
-            ];
+            // Also listen on the specific conversation channel for instant message updates
+            $listeners["echo:chat.conversation.{$this->activeConversation->id},.new.message"] = 'onNewMessage';
         }
 
-        return [];
+        return $listeners;
     }
 
     public function onNewMessage($event)
     {
         $this->loadMessages();
+    }
+
+    public function onChatUpdated($event)
+    {
+        // Re-render to refresh conversation list (unread counts, last message, etc.)
     }
 
     public function updatedSearch()
