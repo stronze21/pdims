@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\Portal\PortalLabResultController;
 use App\Http\Controllers\Api\Portal\PortalPrescriptionController;
 use App\Http\Controllers\Api\Portal\PortalProfileController;
 use App\Http\Controllers\Api\Portal\PortalChatController;
+use App\Http\Controllers\Api\Portal\PortalFriendsController;
+use App\Http\Controllers\Api\Portal\PortalPatientChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -152,11 +154,31 @@ Route::prefix('portal')->group(function () {
         Route::post('/appointments', [PortalAppointmentController::class, 'store']);
         Route::get('/appointments/{id}', [PortalAppointmentController::class, 'show']);
 
-        // Chat routes
+        // Chat routes (patient-to-staff)
         Route::get('/chat/conversations', [PortalChatController::class, 'conversations']);
         Route::post('/chat/conversations', [PortalChatController::class, 'createConversation']);
         Route::get('/chat/conversations/{id}/messages', [PortalChatController::class, 'messages']);
         Route::post('/chat/conversations/{id}/messages', [PortalChatController::class, 'sendMessage']);
         Route::patch('/chat/conversations/{id}/read', [PortalChatController::class, 'markRead']);
+
+        // Friends routes
+        Route::get('/friends', [PortalFriendsController::class, 'index']);
+        Route::get('/friends/search', [PortalFriendsController::class, 'search']);
+        Route::post('/friends/request', [PortalFriendsController::class, 'sendRequest']);
+        Route::get('/friends/requests', [PortalFriendsController::class, 'requests']);
+        Route::get('/friends/requests/sent', [PortalFriendsController::class, 'sentRequests']);
+        Route::post('/friends/requests/{requestId}/accept', [PortalFriendsController::class, 'acceptRequest']);
+        Route::post('/friends/requests/{requestId}/decline', [PortalFriendsController::class, 'declineRequest']);
+        Route::delete('/friends/{friendId}', [PortalFriendsController::class, 'removeFriend']);
+
+        // Patient-to-patient chat routes
+        Route::get('/chat/patient/conversations', [PortalPatientChatController::class, 'conversations']);
+        Route::post('/chat/patient/conversations', [PortalPatientChatController::class, 'createConversation']);
+        Route::get('/chat/patient/conversations/{id}/messages', [PortalPatientChatController::class, 'messages']);
+        Route::post('/chat/patient/conversations/{id}/messages', [PortalPatientChatController::class, 'sendMessage']);
+        Route::patch('/chat/patient/conversations/{id}/read', [PortalPatientChatController::class, 'markRead']);
+        Route::post('/chat/patient/conversations/{id}/members', [PortalPatientChatController::class, 'addMember']);
+        Route::delete('/chat/patient/conversations/{id}/members/{userId}', [PortalPatientChatController::class, 'removeMember']);
+        Route::post('/chat/patient/conversations/{id}/leave', [PortalPatientChatController::class, 'leave']);
     });
 });

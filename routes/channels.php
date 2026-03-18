@@ -21,3 +21,10 @@ Broadcast::channel('chat.conversation.{conversationId}', function ($user, $conve
         ->where('patient_id', $user->patient_id)
         ->exists();
 });
+
+Broadcast::channel('patient.chat.{conversationId}', function ($user, $conversationId) {
+    // Verify user is a member of the patient-to-patient conversation
+    return \App\Models\Portal\PatientConversationMember::where('conversation_id', $conversationId)
+        ->where('user_id', $user->id)
+        ->exists();
+});
