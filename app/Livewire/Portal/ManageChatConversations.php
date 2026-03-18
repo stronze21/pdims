@@ -44,7 +44,10 @@ class ManageChatConversations extends Component
 
     public function onChatUpdated($event)
     {
-        // Re-render to refresh conversation list (unread counts, last message, etc.)
+        // Also refresh the open chat's messages if a conversation is open
+        if ($this->activeConversation) {
+            $this->loadMessages();
+        }
     }
 
     public function updatedSearch()
