@@ -28,3 +28,8 @@ Broadcast::channel('patient.chat.{conversationId}', function ($user, $conversati
         ->where('user_id', $user->id)
         ->exists();
 });
+
+Broadcast::channel('friends.{userId}', function ($user, $userId) {
+    // Users can only listen to their own friends channel
+    return (int) $user->id === (int) $userId;
+});

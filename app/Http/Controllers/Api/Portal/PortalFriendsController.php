@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Portal;
 
+use App\Events\Portal\FriendRequestAccepted;
+use App\Events\Portal\FriendRequestSent;
 use App\Http\Controllers\Controller;
 use App\Models\Portal\Friend;
 use App\Models\Portal\FriendRequest;
@@ -130,10 +132,13 @@ class PortalFriendsController extends Controller
         ]);
 
         $friendRequest->load(['fromUser.patient', 'toUser.patient']);
+        $formatted = $this->formatFriendRequest($friendRequest);
+
+        broadcast(new FriendRequestSent($toUserId, $formatted));
 
         return response()->json([
             'message' => 'Friend request sent.',
-            'friend_request' => $this->formatFriendRequest($friendRequest),
+            'friend_request' => $formatted,
         ], 201);
     }
 
@@ -187,10 +192,14 @@ class PortalFriendsController extends Controller
         ]);
 
         $friendRequest->load(['fromUser.patient', 'toUser.patient']);
+        $formatted = $this->formatFriendRequest($friendRequest);
+
+        // Notify the original requester that their request was accepted
+        broadcast(new FriendRequestAccepted($friendRequest->from_user_id, $formatted));
 
         return response()->json([
             'message' => 'Friend request accepted.',
-            'friend_request' => $this->formatFriendRequest($friendRequest),
+            'friend_request' => $formatted,
         ]);
     }
 
