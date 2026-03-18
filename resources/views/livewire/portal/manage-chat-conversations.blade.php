@@ -108,69 +108,80 @@
         </div>
     </div>
 
-    {{-- Chat Drawer --}}
-    <x-drawer wire:model="chatModal" right with-close-button close-on-escape class="w-11/12 lg:w-1/3"
-        title="{{ $activeConversation?->subject ?? 'Chat' }}"
-        subtitle="{{ $activeConversation?->patient?->fullname ?? '' }} {{ $activeConversation?->patient?->hpercode ? '(' . $activeConversation->patient->hpercode . ')' : '' }}"
-        separator>
-        @if($activeConversation)
-            <div class="flex flex-col h-full">
-                {{-- Status --}}
-                <div class="flex items-center gap-2 mb-3">
-                    @if($activeConversation->status === 'open')
-                        <span class="badge badge-success badge-sm">Open</span>
-                    @else
-                        <span class="badge badge-ghost badge-sm">Closed</span>
-                    @endif
-                </div>
+    {{-- Chat Drawer (DaisyUI) --}}
+    <div class="drawer drawer-end" x-data="{ open: @entangle('chatModal') }">
+        <input type="checkbox" class="drawer-toggle" :checked="open" />
+        <div class="drawer-side z-50">
+            <label class="drawer-overlay" @click="open = false"></label>
+            <div class="bg-white w-[90vw] lg:w-[420px] h-full flex flex-col">
+                @if($activeConversation)
+                    {{-- Header --}}
+                    <div class="px-4 py-3 border-b bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 flex items-center justify-between">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-base font-bold text-white truncate">{{ $activeConversation->subject ?? 'General Inquiry' }}</h3>
+                            <p class="text-xs text-slate-300">
+                                {{ $activeConversation->patient?->fullname ?? 'Unknown Patient' }}
+                                <span class="font-mono">({{ $activeConversation->patient?->hpercode ?? 'N/A' }})</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+                            @if($activeConversation->status === 'open')
+                                <span class="badge badge-success badge-sm">Open</span>
+                            @else
+                                <span class="badge badge-ghost badge-sm">Closed</span>
+                            @endif
+                            <button @click="open = false" class="btn btn-ghost btn-xs text-white">
+                                <x-mary-icon name="o-x-mark" class="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
 
-                {{-- Messages --}}
-                <div class="flex-1 overflow-y-auto space-y-3 p-3 bg-gray-50 rounded-lg mb-3" id="chat-messages-container"
-                    style="min-height: 400px; max-height: calc(100vh - 320px);"
-                    x-data x-init="
-                        let el = $el;
-                        el.scrollTop = el.scrollHeight;
-                        new MutationObserver(() => el.scrollTop = el.scrollHeight).observe(el, { childList: true, subtree: true });
-                    ">
-                    @forelse($messages as $msg)
-                        <div class="flex {{ $msg['sender_type'] === 'staff' ? 'justify-end' : 'justify-start' }}">
-                            <div class="max-w-[80%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">
-                                <div class="text-xs font-semibold mb-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-100' : 'text-purple-600' }}">
-                                    {{ $msg['sender_name'] ?? ($msg['sender_type'] === 'staff' ? 'Staff' : 'Patient') }}
-                                </div>
-                                <div class="text-sm whitespace-pre-wrap break-words">{{ $msg['body'] }}</div>
-                                <div class="text-xs mt-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-200' : 'text-gray-400' }}">
-                                    {{ \Carbon\Carbon::parse($msg['created_at'])->format('M d, h:i A') }}
+                    {{-- Messages --}}
+                    <div class="flex-1 overflow-y-auto space-y-3 p-3 bg-gray-50" id="chat-messages-container"
+                        x-data x-init="
+                            let el = $el;
+                            el.scrollTop = el.scrollHeight;
+                            new MutationObserver(() => el.scrollTop = el.scrollHeight).observe(el, { childList: true, subtree: true });
+                        ">
+                        @forelse($messages as $msg)
+                            <div class="flex {{ $msg['sender_type'] === 'staff' ? 'justify-end' : 'justify-start' }}">
+                                <div class="max-w-[80%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">
+                                    <div class="text-xs font-semibold mb-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-100' : 'text-purple-600' }}">
+                                        {{ $msg['sender_name'] ?? ($msg['sender_type'] === 'staff' ? 'Staff' : 'Patient') }}
+                                    </div>
+                                    <div class="text-sm whitespace-pre-wrap break-words">{{ $msg['body'] }}</div>
+                                    <div class="text-xs mt-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-200' : 'text-gray-400' }}">
+                                        {{ \Carbon\Carbon::parse($msg['created_at'])->format('M d, h:i A') }}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    @empty
-                        <div class="text-center text-gray-400 py-8">No messages in this conversation.</div>
-                    @endforelse
-                </div>
-
-                {{-- Reply box --}}
-                @if($activeConversation->status === 'open')
-                    <div class="flex items-end gap-3">
-                        <div class="flex-1">
-                            <x-mary-textarea wire:model.live="replyBody" placeholder="Type your reply..." rows="2" />
-                        </div>
-                        <x-mary-button label="Send" icon="o-paper-airplane" wire:click="sendReply"
-                            class="btn-primary" spinner="sendReply" />
+                        @empty
+                            <div class="text-center text-gray-400 py-8">No messages in this conversation.</div>
+                        @endforelse
                     </div>
-                @else
-                    <div class="text-center text-gray-400 text-sm py-2 bg-gray-100 rounded-lg">
-                        This conversation is closed.
-                        <button wire:click="reopenConversation({{ $activeConversation->id }})" class="text-blue-600 underline ml-1">Reopen</button>
+
+                    {{-- Reply box / Actions --}}
+                    <div class="border-t bg-white p-3">
+                        @if($activeConversation->status === 'open')
+                            <div class="flex items-end gap-2">
+                                <div class="flex-1">
+                                    <x-mary-textarea wire:model.live="replyBody" placeholder="Type your reply..." rows="2" />
+                                </div>
+                                <x-mary-button icon="o-paper-airplane" wire:click="sendReply"
+                                    class="btn-primary btn-sm" spinner="sendReply" />
+                            </div>
+                            <div class="mt-2 text-right">
+                                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning btn-xs" />
+                            </div>
+                        @else
+                            <div class="text-center text-gray-400 text-sm py-2 bg-gray-100 rounded-lg">
+                                This conversation is closed.
+                                <button wire:click="reopenConversation({{ $activeConversation->id }})" class="text-blue-600 underline ml-1">Reopen</button>
+                            </div>
+                        @endif
                     </div>
                 @endif
             </div>
-        @endif
-
-        <x-slot:actions>
-            @if($activeConversation && $activeConversation->status === 'open')
-                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning btn-sm" />
-            @endif
-        </x-slot:actions>
-    </x-drawer>
+        </div>
+    </div>
 </div>
