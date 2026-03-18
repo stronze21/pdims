@@ -164,6 +164,7 @@ Route::prefix('portal')->group(function () {
         // Friends routes
         Route::get('/friends', [PortalFriendsController::class, 'index']);
         Route::get('/friends/search', [PortalFriendsController::class, 'search']);
+        Route::post('/friends/quick-add', [PortalFriendsController::class, 'quickAdd']);
         Route::post('/friends/request', [PortalFriendsController::class, 'sendRequest']);
         Route::get('/friends/requests', [PortalFriendsController::class, 'requests']);
         Route::get('/friends/requests/sent', [PortalFriendsController::class, 'sentRequests']);

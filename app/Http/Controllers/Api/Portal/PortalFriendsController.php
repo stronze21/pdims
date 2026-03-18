@@ -7,6 +7,7 @@ use App\Events\Portal\FriendRequestSent;
 use App\Http\Controllers\Controller;
 use App\Models\Portal\Friend;
 use App\Models\Portal\FriendRequest;
+use App\Models\Portal\PortalPatient;
 use App\Models\Portal\PortalUserAccount;
 use Illuminate\Http\Request;
 
@@ -236,6 +237,77 @@ class PortalFriendsController extends Controller
         Friend::where('user_id', $friendUserId)->where('friend_user_id', $userId)->delete();
 
         return response()->json(['message' => 'Friend removed.']);
+    }
+
+    /**
+     * Instantly create a friendship from a scanned QR code (no request/accept flow).
+     * The QR code value is the patient's hpercode.
+     */
+    public function quickAdd(Request $request)
+    {
+        $request->validate([
+            'hpercode' => 'required|string',
+        ]);
+
+        $fromUserId = $request->user()->id;
+        $hpercode   = trim($request->hpercode);
+
+        // Resolve portal patient by hpercode
+        $patient = PortalPatient::where('hpercode', $hpercode)->first();
+        if (!$patient) {
+            return response()->json(['message' => 'No patient found for this QR code.'], 404);
+        }
+
+        // Resolve their portal user account
+        $targetUser = PortalUserAccount::where('patient_id', $patient->id)->first();
+        if (!$targetUser) {
+            return response()->json(['message' => 'This patient does not have a portal account yet.'], 404);
+        }
+
+        $toUserId = $targetUser->id;
+
+        if ($fromUserId === $toUserId) {
+            return response()->json(['message' => 'You cannot add yourself.'], 422);
+        }
+
+        // Already friends — return success so the app can show the correct state
+        if (Friend::where('user_id', $fromUserId)->where('friend_user_id', $toUserId)->exists()) {
+            return response()->json([
+                'message'        => 'Already friends.',
+                'already_friends' => true,
+                'friend' => [
+                    'user_id'    => $toUserId,
+                    'username'   => $targetUser->username,
+                    'first_name' => $patient->patfirst,
+                    'last_name'  => $patient->patlast,
+                ],
+            ]);
+        }
+
+        // Clear any existing pending requests between these two users
+        FriendRequest::where('status', 'pending')
+            ->where(function ($q) use ($fromUserId, $toUserId) {
+                $q->where(function ($q2) use ($fromUserId, $toUserId) {
+                    $q2->where('from_user_id', $fromUserId)->where('to_user_id', $toUserId);
+                })->orWhere(function ($q2) use ($fromUserId, $toUserId) {
+                    $q2->where('from_user_id', $toUserId)->where('to_user_id', $fromUserId);
+                });
+            })
+            ->delete();
+
+        // Create bidirectional friendship immediately (QR = physical consent)
+        Friend::firstOrCreate(['user_id' => $fromUserId, 'friend_user_id' => $toUserId]);
+        Friend::firstOrCreate(['user_id' => $toUserId, 'friend_user_id' => $fromUserId]);
+
+        return response()->json([
+            'message' => 'Friend added successfully.',
+            'friend'  => [
+                'user_id'    => $toUserId,
+                'username'   => $targetUser->username,
+                'first_name' => $patient->patfirst,
+                'last_name'  => $patient->patlast,
+            ],
+        ], 201);
     }
 
     private function formatFriendRequest(FriendRequest $r): array
