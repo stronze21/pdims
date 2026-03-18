@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Portal;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PortalAppointmentController extends Controller
 {
@@ -299,15 +300,34 @@ class PortalAppointmentController extends Controller
         $patient = $account->patient;
 
         if (!$patient) {
+            Log::warning('[Appointments] No patient linked to account', ['account_id' => $account->id]);
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
         try {
+            // Collect all portal patient IDs that share the same hospital number (hpercode)
+            // This handles cases where appointments were linked to a different portal patient record
+            $patientIds = [$patient->id];
+            if ($patient->hpercode) {
+                $linkedIds = DB::connection('portal')->table('patients')
+                    ->where('hpercode', $patient->hpercode)
+                    ->pluck('id')
+                    ->toArray();
+                $patientIds = array_unique(array_merge($patientIds, $linkedIds));
+            }
+
+            Log::info('[Appointments] Querying for patient', [
+                'account_id'  => $account->id,
+                'patient_id'  => $patient->id,
+                'hpercode'    => $patient->hpercode,
+                'patient_ids' => $patientIds,
+            ]);
+
             $appointments = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
                 ->leftJoin('clinics', 'appointments.attending_clinic', '=', 'clinics.tscode')
                 ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
-                ->where('appointments.patient_id', $patient->id)
+                ->whereIn('appointments.patient_id', $patientIds)
                 ->whereNull('appointments.deleted_at')
                 ->orderByDesc('appointments.appointment_date')
                 ->select(
@@ -360,8 +380,18 @@ class PortalAppointmentController extends Controller
                     ];
                 });
 
+            Log::info('[Appointments] Query result', [
+                'account_id' => $account->id,
+                'count'      => $appointments->count(),
+            ]);
+
             return response()->json($appointments);
         } catch (\Exception $e) {
+            Log::error('[Appointments] Exception in index()', [
+                'account_id' => $account->id,
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
             return response()->json([]);
         }
     }
@@ -380,12 +410,22 @@ class PortalAppointmentController extends Controller
         }
 
         try {
+            // Collect all portal patient IDs that share the same hospital number (hpercode)
+            $patientIds = [$patient->id];
+            if ($patient->hpercode) {
+                $linkedIds = DB::connection('portal')->table('patients')
+                    ->where('hpercode', $patient->hpercode)
+                    ->pluck('id')
+                    ->toArray();
+                $patientIds = array_unique(array_merge($patientIds, $linkedIds));
+            }
+
             $appointment = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
                 ->leftJoin('clinics', 'appointments.attending_clinic', '=', 'clinics.tscode')
                 ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
                 ->where('appointments.id', $id)
-                ->where('appointments.patient_id', $patient->id)
+                ->whereIn('appointments.patient_id', $patientIds)
                 ->whereNull('appointments.deleted_at')
                 ->select(
                     'appointments.id',
