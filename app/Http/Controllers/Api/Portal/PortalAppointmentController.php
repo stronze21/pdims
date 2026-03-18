@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Portal;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PortalAppointmentController extends Controller
 {
@@ -299,6 +300,7 @@ class PortalAppointmentController extends Controller
         $patient = $account->patient;
 
         if (!$patient) {
+            Log::warning('[Appointments] No patient linked to account', ['account_id' => $account->id]);
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
@@ -313,6 +315,13 @@ class PortalAppointmentController extends Controller
                     ->toArray();
                 $patientIds = array_unique(array_merge($patientIds, $linkedIds));
             }
+
+            Log::info('[Appointments] Querying for patient', [
+                'account_id'  => $account->id,
+                'patient_id'  => $patient->id,
+                'hpercode'    => $patient->hpercode,
+                'patient_ids' => $patientIds,
+            ]);
 
             $appointments = DB::connection('portal')->table('appointments')
                 ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
@@ -371,8 +380,18 @@ class PortalAppointmentController extends Controller
                     ];
                 });
 
+            Log::info('[Appointments] Query result', [
+                'account_id' => $account->id,
+                'count'      => $appointments->count(),
+            ]);
+
             return response()->json($appointments);
         } catch (\Exception $e) {
+            Log::error('[Appointments] Exception in index()', [
+                'account_id' => $account->id,
+                'error'      => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
             return response()->json([]);
         }
     }
