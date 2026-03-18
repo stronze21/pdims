@@ -108,30 +108,25 @@
         </div>
     </div>
 
-    {{-- Chat Modal --}}
-    <x-mary-modal wire:model="chatModal" title="" class="backdrop-blur" box-class="max-w-3xl">
+    {{-- Chat Drawer --}}
+    <x-drawer wire:model="chatModal" right with-close-button close-on-escape class="w-11/12 lg:w-1/3"
+        title="{{ $activeConversation?->subject ?? 'Chat' }}"
+        subtitle="{{ $activeConversation?->patient?->fullname ?? '' }} {{ $activeConversation?->patient?->hpercode ? '(' . $activeConversation->patient->hpercode . ')' : '' }}"
+        separator>
         @if($activeConversation)
-            <div class="space-y-4">
-                {{-- Conversation header --}}
-                <div class="flex items-center justify-between pb-3 border-b">
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-900">{{ $activeConversation->subject ?? 'General Inquiry' }}</h3>
-                        <p class="text-sm text-gray-500">
-                            {{ $activeConversation->patient?->fullname ?? 'Unknown Patient' }}
-                            <span class="font-mono text-xs">({{ $activeConversation->patient?->hpercode ?? 'N/A' }})</span>
-                        </p>
-                    </div>
-                    <div>
-                        @if($activeConversation->status === 'open')
-                            <span class="badge badge-success">Open</span>
-                        @else
-                            <span class="badge badge-ghost">Closed</span>
-                        @endif
-                    </div>
+            <div class="flex flex-col h-full">
+                {{-- Status --}}
+                <div class="flex items-center gap-2 mb-3">
+                    @if($activeConversation->status === 'open')
+                        <span class="badge badge-success badge-sm">Open</span>
+                    @else
+                        <span class="badge badge-ghost badge-sm">Closed</span>
+                    @endif
                 </div>
 
                 {{-- Messages --}}
-                <div class="h-96 overflow-y-auto space-y-3 p-3 bg-gray-50 rounded-lg" id="chat-messages-container"
+                <div class="flex-1 overflow-y-auto space-y-3 p-3 bg-gray-50 rounded-lg mb-3" id="chat-messages-container"
+                    style="min-height: 400px; max-height: calc(100vh - 320px);"
                     x-data x-init="
                         let el = $el;
                         el.scrollTop = el.scrollHeight;
@@ -139,7 +134,7 @@
                     ">
                     @forelse($messages as $msg)
                         <div class="flex {{ $msg['sender_type'] === 'staff' ? 'justify-end' : 'justify-start' }}">
-                            <div class="max-w-[75%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">
+                            <div class="max-w-[80%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">
                                 <div class="text-xs font-semibold mb-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-100' : 'text-purple-600' }}">
                                     {{ $msg['sender_name'] ?? ($msg['sender_type'] === 'staff' ? 'Staff' : 'Patient') }}
                                 </div>
@@ -156,7 +151,7 @@
 
                 {{-- Reply box --}}
                 @if($activeConversation->status === 'open')
-                    <div class="flex items-end gap-3 pt-2">
+                    <div class="flex items-end gap-3">
                         <div class="flex-1">
                             <x-mary-textarea wire:model.live="replyBody" placeholder="Type your reply..." rows="2" />
                         </div>
@@ -174,9 +169,8 @@
 
         <x-slot:actions>
             @if($activeConversation && $activeConversation->status === 'open')
-                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning" />
+                <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning btn-sm" />
             @endif
-            <x-mary-button label="Close" wire:click="$set('chatModal', false)" />
         </x-slot:actions>
-    </x-mary-modal>
+    </x-drawer>
 </div>
