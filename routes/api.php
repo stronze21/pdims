@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Portal\PortalChatController;
 use App\Http\Controllers\Api\Portal\PortalFriendsController;
 use App\Http\Controllers\Api\Portal\PortalPatientChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
+use App\Http\Controllers\Api\Portal\PortalEmergencyContactController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\StockApiController;
@@ -118,7 +119,15 @@ Route::prefix('portal')->group(function () {
     Route::post('/login', [PortalAuthController::class, 'login']);
     Route::post('/register', [PortalAuthController::class, 'register']);
 
+    // Public endpoint - no auth required (accessible from login page)
+    Route::get('/emergency-contacts', [PortalEmergencyContactController::class, 'index']);
+
     Route::middleware('auth:sanctum')->group(function () {
+        // Emergency contacts management (CRUD)
+        Route::get('/emergency-contacts/all', [PortalEmergencyContactController::class, 'all']);
+        Route::post('/emergency-contacts', [PortalEmergencyContactController::class, 'store']);
+        Route::put('/emergency-contacts/{id}', [PortalEmergencyContactController::class, 'update']);
+        Route::delete('/emergency-contacts/{id}', [PortalEmergencyContactController::class, 'destroy']);
         Route::get('/user', [PortalAuthController::class, 'user']);
         Route::post('/logout', [PortalAuthController::class, 'logout']);
 
