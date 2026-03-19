@@ -149,6 +149,7 @@ Route::prefix('portal')->group(function () {
         Route::get('/appointments', [PortalAppointmentController::class, 'index']);
         Route::get('/appointments/types', [PortalAppointmentController::class, 'types']);
         Route::get('/appointments/clinics', [PortalAppointmentController::class, 'clinics']);
+        Route::get('/clinics/directory', [PortalAppointmentController::class, 'directory']);
         Route::get('/appointments/availability', [PortalAppointmentController::class, 'availability']);
         Route::get('/appointments/slots', [PortalAppointmentController::class, 'slots']);
         Route::post('/appointments', [PortalAppointmentController::class, 'store']);

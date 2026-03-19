@@ -28,6 +28,24 @@ class PortalAppointmentController extends Controller
     }
 
     /**
+     * Get all clinics for directory listing (includes url for messenger links).
+     */
+    public function directory()
+    {
+        try {
+            $clinics = DB::connection('portal')->table('clinics')
+                ->whereNull('deleted_at')
+                ->select('tscode', 'clinic', 'contact_no', 'url')
+                ->orderBy('clinic')
+                ->get();
+
+            return response()->json($clinics);
+        } catch (\Exception $e) {
+            return response()->json([]);
+        }
+    }
+
+    /**
      * Get clinics that have appointment capacity configured.
      */
     public function clinics()
