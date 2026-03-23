@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'ntfy' => [
+        'url' => env('NTFY_URL', 'http://ntfy.mmmhmc.local:2586'),
+        'user' => env('NTFY_USER'),
+        'password' => env('NTFY_PASSWORD'),
+    ],
+
 ];
