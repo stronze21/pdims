@@ -39,6 +39,8 @@ return [
         'url' => env('NTFY_URL', 'http://ntfy.mmmhmc.local:2586'),
         'user' => env('NTFY_USER'),
         'password' => env('NTFY_PASSWORD'),
+        'subscriber_user' => env('NTFY_SUBSCRIBER_USER'),
+        'subscriber_password' => env('NTFY_SUBSCRIBER_PASSWORD'),
     ],
 
 ];

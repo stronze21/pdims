@@ -24,10 +24,7 @@ class PushSubscriptionController extends Controller
             ->first();
 
         if ($existing) {
-            return response()->json([
-                'ntfy_topic' => $existing->ntfy_topic,
-                'ntfy_url' => config('services.ntfy.url', 'http://ntfy.mmmhmc.local:2586'),
-            ]);
+            return response()->json($this->buildResponse($existing->ntfy_topic));
         }
 
         $topic = 'salunat-' . $userId . '-' . Str::random(16);
@@ -38,10 +35,26 @@ class PushSubscriptionController extends Controller
             'platform' => $platform,
         ]);
 
-        return response()->json([
-            'ntfy_topic' => $subscription->ntfy_topic,
+        return response()->json($this->buildResponse($subscription->ntfy_topic), 201);
+    }
+
+    private function buildResponse(string $topic): array
+    {
+        $response = [
+            'ntfy_topic' => $topic,
             'ntfy_url' => config('services.ntfy.url', 'http://ntfy.mmmhmc.local:2586'),
-        ], 201);
+        ];
+
+        // Include subscriber credentials if configured (for auth-protected ntfy servers)
+        $subscriberUser = config('services.ntfy.subscriber_user');
+        $subscriberPassword = config('services.ntfy.subscriber_password');
+
+        if ($subscriberUser && $subscriberPassword) {
+            $response['ntfy_user'] = $subscriberUser;
+            $response['ntfy_password'] = $subscriberPassword;
+        }
+
+        return $response;
     }
 
     public function unsubscribe(Request $request)
