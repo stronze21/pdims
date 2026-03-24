@@ -44,6 +44,9 @@ use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Portal\ManageChatConversations;
 use App\Livewire\Portal\ManagePortalUsers;
 use App\Livewire\Portal\ManageRefillRequests;
+use App\Livewire\Teleconsult\TeleconsultLobby;
+use App\Livewire\Teleconsult\TeleconsultRoom;
+use App\Livewire\Teleconsult\TeleconsultSummary;
 use App\Livewire\Records\DischargedPatients;
 use App\Livewire\Records\ForDischargePatients;
 use App\Livewire\Records\PatientsList;
@@ -229,6 +232,13 @@ Route::middleware([
     // Permissions Management Routes
     Route::get('/permissions', ManagePermissions::class)
         ->name('permissions.index');
+
+    // Teleconsult Routes
+    Route::prefix('teleconsult')->name('teleconsult.')->group(function () {
+        Route::get('/', TeleconsultLobby::class)->name('lobby');
+        Route::get('/room/{sessionId}', TeleconsultRoom::class)->name('room');
+        Route::get('/summary/{sessionId}', TeleconsultSummary::class)->name('summary');
+    });
 
     Route::get('/settings/zero-billing-charges', ManageZeroBillingCharges::class)->name('settings.zero-billing');
 

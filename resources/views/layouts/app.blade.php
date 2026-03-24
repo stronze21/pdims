@@ -157,6 +157,10 @@
                 </x-mary-menu-sub>
 
 
+                {{-- Teleconsult --}}
+                <x-mary-menu-item title="Teleconsult" icon="o-video-camera"
+                    link="{{ route('teleconsult.lobby') }}" />
+
                 {{-- Settings --}}
                 @can('view-settings')
                     <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
