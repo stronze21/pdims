@@ -3,11 +3,7 @@
 namespace App\Providers;
 
 use App\Models\PersonalAccessToken;
-use App\Events\Portal\NewChatMessage;
-use App\Events\Portal\NewPatientChatMessage;
-use App\Listeners\SendChatPushNotification;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
@@ -29,8 +25,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
-        Event::listen(NewChatMessage::class, SendChatPushNotification::class);
-        Event::listen(NewPatientChatMessage::class, SendChatPushNotification::class);
+        // SendChatPushNotification is auto-discovered by Laravel via its handle() type-hint.
+        // Do NOT manually register it here — that causes duplicate event firing.
 
         App::singleton('chargetable', function () {
             return array(
