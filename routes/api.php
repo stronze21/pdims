@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Portal\PortalFriendsController;
 use App\Http\Controllers\Api\Portal\PortalPatientChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\Portal\PortalEmergencyContactController;
+use App\Http\Controllers\Api\Portal\PushSubscriptionController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\StockApiController;
@@ -181,6 +182,10 @@ Route::prefix('portal')->group(function () {
         Route::post('/friends/requests/{requestId}/accept', [PortalFriendsController::class, 'acceptRequest']);
         Route::post('/friends/requests/{requestId}/decline', [PortalFriendsController::class, 'declineRequest']);
         Route::delete('/friends/{friendId}', [PortalFriendsController::class, 'removeFriend']);
+
+        // Push notification subscription routes
+        Route::post('/push/subscribe', [PushSubscriptionController::class, 'subscribe']);
+        Route::delete('/push/unsubscribe', [PushSubscriptionController::class, 'unsubscribe']);
 
         // Patient-to-patient chat routes
         Route::get('/chat/patient/conversations', [PortalPatientChatController::class, 'conversations']);

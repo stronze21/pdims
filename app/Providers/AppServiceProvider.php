@@ -25,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
+        // SendChatPushNotification is auto-discovered by Laravel via its handle() type-hint.
+        // Do NOT manually register it here — that causes duplicate event firing.
+
         App::singleton('chargetable', function () {
             return array(
                 'DRUMA',
