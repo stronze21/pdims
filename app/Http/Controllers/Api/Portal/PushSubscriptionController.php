@@ -42,7 +42,7 @@ class PushSubscriptionController extends Controller
     {
         $response = [
             'ntfy_topic' => $topic,
-            'ntfy_url' => config('services.ntfy.url', 'http://ntfy.mmmhmc.local:2586'),
+            'ntfy_url' => config('services.ntfy.subscriber_url') ?: config('services.ntfy.url', 'http://ntfy.mmmhmc.local:2586'),
         ];
 
         // Include subscriber credentials if configured (for auth-protected ntfy servers)
