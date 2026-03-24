@@ -12,6 +12,19 @@ class PushNotificationService
     {
         $subscriptions = PushNotificationSubscription::where('user_id', $userId)->get();
 
+        Log::info('PushNotificationService: sending to user', [
+            'user_id' => $userId,
+            'subscription_count' => $subscriptions->count(),
+            'topics' => $subscriptions->pluck('ntfy_topic')->toArray(),
+        ]);
+
+        if ($subscriptions->isEmpty()) {
+            Log::warning('PushNotificationService: no subscriptions found for user', [
+                'user_id' => $userId,
+            ]);
+            return;
+        }
+
         foreach ($subscriptions as $subscription) {
             $this->sendToTopic($subscription->ntfy_topic, $title, $body, $data);
         }
@@ -23,6 +36,12 @@ class PushNotificationService
         $ntfyUser = config('services.ntfy.user');
         $ntfyPassword = config('services.ntfy.password');
 
+        Log::info('PushNotificationService: posting to ntfy', [
+            'url' => "{$ntfyUrl}/{$topic}",
+            'title' => $title,
+            'has_auth' => !empty($ntfyUser),
+        ]);
+
         try {
             $request = Http::timeout(5)
                 ->withHeaders([
@@ -33,7 +52,6 @@ class PushNotificationService
 
             if (!empty($data)) {
                 $request = $request->withHeaders([
-                    'Actions' => 'view, Open Chat, intent://chat/' . ($data['conversation_id'] ?? ''),
                     'X-Data' => json_encode($data),
                 ]);
             }
@@ -42,9 +60,15 @@ class PushNotificationService
                 $request = $request->withBasicAuth($ntfyUser, $ntfyPassword);
             }
 
-            $request->post("{$ntfyUrl}/{$topic}", $body);
+            // ntfy expects the message body as raw text with Content-Type text/plain
+            $response = $request->withBody($body, 'text/plain')->post("{$ntfyUrl}/{$topic}");
+
+            Log::info('PushNotificationService: ntfy response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
         } catch (\Exception $e) {
-            Log::warning('Failed to send ntfy push notification', [
+            Log::error('PushNotificationService: failed to send ntfy push notification', [
                 'topic' => $topic,
                 'error' => $e->getMessage(),
             ]);
