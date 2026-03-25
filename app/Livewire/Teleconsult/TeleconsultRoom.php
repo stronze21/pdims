@@ -26,7 +26,6 @@ class TeleconsultRoom extends Component
     public $additionalNotes = '';
 
     // Webex connection info
-    public $hostToken = '';
     public $hostKey = '';
     public $meetingLink = '';
     public $sipAddress = '';

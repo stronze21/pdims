@@ -63,12 +63,10 @@ class TeleconsultLobby extends Component
                 $firstName = $parts[1] ?? '';
 
                 $query->where(function ($q) use ($lastName, $firstName) {
-                    $q->where(function ($q2) use ($lastName, $firstName) {
-                        $q2->where('patients.patlast', 'LIKE', "%{$lastName}%");
-                        if ($firstName) {
-                            $q2->where('patients.patfirst', 'LIKE', "%{$firstName}%");
-                        }
-                    });
+                    $q->where('patients.patlast', 'LIKE', "%{$lastName}%");
+                    if ($firstName) {
+                        $q->where('patients.patfirst', 'LIKE', "%{$firstName}%");
+                    }
                 });
             } else {
                 // Single term: search across all fields
