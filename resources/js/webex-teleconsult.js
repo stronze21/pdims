@@ -3,11 +3,6 @@
  *
  * Initializes the Webex Browser SDK for the teleconsult room.
  * The Webex SDK is loaded via CDN in the teleconsult-room blade view.
- * This script handles:
- * - Connecting to Webex with host/guest tokens
- * - Joining meetings
- * - Managing audio/video streams
- * - Rendering local/remote video
  */
 
 window.WebexTeleconsult = {
@@ -17,7 +12,6 @@ window.WebexTeleconsult = {
 
     /**
      * Initialize the Webex SDK and join a meeting.
-     * Called from the teleconsult room blade view.
      */
     async init() {
         const container = document.getElementById('webex-meeting-container');
@@ -33,7 +27,6 @@ window.WebexTeleconsult = {
         }
 
         try {
-            // Webex SDK is loaded via CDN (<script> tag in teleconsult-room blade)
             if (typeof window.Webex === 'undefined') {
                 throw new Error('Webex SDK not loaded. Ensure the CDN script is included.');
             }
@@ -48,22 +41,22 @@ window.WebexTeleconsult = {
 
             console.log('[Webex] SDK initialized, creating meeting...');
 
-            // Create meeting using SIP address or meeting link
             const destination = sipAddress || meetingLink;
             this.meeting = await this.webex.meetings.create(destination);
 
-            // Set up media event listeners
             this.setupMediaListeners();
 
-            // Join the meeting
             const mediaOptions = await this.getMediaOptions();
             await this.meeting.join({ mediaOptions });
 
             console.log('[Webex] Joined meeting successfully');
 
-            // Hide loading, show video
+            // Hide loading, show controls
             const loading = document.getElementById('webex-loading');
             if (loading) loading.classList.add('hidden');
+
+            const controls = document.getElementById('media-controls');
+            if (controls) controls.classList.remove('hidden');
 
         } catch (error) {
             console.error('[Webex] Error:', error);
@@ -73,6 +66,7 @@ window.WebexTeleconsult = {
                     <div class="text-red-400 text-center">
                         <p class="text-lg mb-2">Failed to connect to Webex</p>
                         <p class="text-sm">${error.message || 'Unknown error'}</p>
+                        <p class="text-xs text-gray-500 mt-2">Make sure your domain is registered in the Webex integration settings.</p>
                         <button onclick="WebexTeleconsult.init()" class="btn btn-sm btn-outline mt-4">
                             Retry
                         </button>
@@ -82,9 +76,6 @@ window.WebexTeleconsult = {
         }
     },
 
-    /**
-     * Get media options for joining (request camera + microphone).
-     */
     async getMediaOptions() {
         try {
             this.localStream = await navigator.mediaDevices.getUserMedia({
@@ -116,9 +107,6 @@ window.WebexTeleconsult = {
         }
     },
 
-    /**
-     * Set up listeners for remote and local media streams.
-     */
     setupMediaListeners() {
         if (!this.meeting) return;
 
@@ -176,9 +164,6 @@ window.WebexTeleconsult = {
         });
     },
 
-    /**
-     * Toggle local video on/off.
-     */
     async toggleVideo() {
         if (!this.meeting) return;
         try {
@@ -192,9 +177,6 @@ window.WebexTeleconsult = {
         }
     },
 
-    /**
-     * Toggle local audio on/off.
-     */
     async toggleAudio() {
         if (!this.meeting) return;
         try {
@@ -208,9 +190,6 @@ window.WebexTeleconsult = {
         }
     },
 
-    /**
-     * Leave the meeting and clean up resources.
-     */
     async leave() {
         try {
             if (this.meeting) {
