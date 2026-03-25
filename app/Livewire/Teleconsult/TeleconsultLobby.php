@@ -38,6 +38,7 @@ class TeleconsultLobby extends Component
 
     /**
      * Server-side search for appointments by ref_no, patient name, or hpercode.
+     * Supports "Last, First" format (e.g. "Ednilao, Christian").
      */
     public function searchAppointments(string $value = '')
     {
@@ -55,12 +56,31 @@ class TeleconsultLobby extends Component
             ->where('appointments.appointment_date', '>=', now()->startOfDay());
 
         if (strlen($value) >= 2) {
-            $query->where(function ($q) use ($value) {
-                $q->where('appointments.ref_no', 'LIKE', "%{$value}%")
-                    ->orWhere('patients.patlast', 'LIKE', "%{$value}%")
-                    ->orWhere('patients.patfirst', 'LIKE', "%{$value}%")
-                    ->orWhere('patients.hpercode', 'LIKE', "%{$value}%");
-            });
+            // Check if search contains a comma ("Last, First" format)
+            if (str_contains($value, ',')) {
+                $parts = array_map('trim', explode(',', $value, 2));
+                $lastName = $parts[0];
+                $firstName = $parts[1] ?? '';
+
+                $query->where(function ($q) use ($lastName, $firstName) {
+                    $q->where(function ($q2) use ($lastName, $firstName) {
+                        $q2->where('patients.patlast', 'LIKE', "%{$lastName}%");
+                        if ($firstName) {
+                            $q2->where('patients.patfirst', 'LIKE', "%{$firstName}%");
+                        }
+                    });
+                });
+            } else {
+                // Single term: search across all fields
+                $query->where(function ($q) use ($value) {
+                    $q->where('appointments.ref_no', 'LIKE', "%{$value}%")
+                        ->orWhere('patients.patlast', 'LIKE', "%{$value}%")
+                        ->orWhere('patients.patfirst', 'LIKE', "%{$value}%")
+                        ->orWhere('patients.hpercode', 'LIKE', "%{$value}%")
+                        ->orWhereRaw("CONCAT(patients.patlast, ', ', patients.patfirst) LIKE ?", ["%{$value}%"])
+                        ->orWhereRaw("CONCAT(patients.patfirst, ' ', patients.patlast) LIKE ?", ["%{$value}%"]);
+                });
+            }
         }
 
         $this->appointmentOptions = $query
@@ -97,6 +117,8 @@ class TeleconsultLobby extends Component
     public function updatedAppointmentId($value)
     {
         if (!$value) {
+            $this->scheduledDate = '';
+            $this->scheduledTime = '';
             return;
         }
 
