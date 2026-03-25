@@ -2,6 +2,7 @@
  * Webex Teleconsult Integration
  *
  * Initializes the Webex Browser SDK for the teleconsult room.
+ * The Webex SDK is loaded via CDN in the teleconsult-room blade view.
  * This script handles:
  * - Connecting to Webex with host/guest tokens
  * - Joining meetings
@@ -32,10 +33,12 @@ window.WebexTeleconsult = {
         }
 
         try {
-            // Dynamic import - webex SDK should be installed via npm
-            const Webex = (await import('webex')).default;
+            // Webex SDK is loaded via CDN (<script> tag in teleconsult-room blade)
+            if (typeof window.Webex === 'undefined') {
+                throw new Error('Webex SDK not loaded. Ensure the CDN script is included.');
+            }
 
-            this.webex = Webex.init({
+            this.webex = window.Webex.init({
                 credentials: {
                     access_token: hostToken,
                 },

@@ -119,4 +119,9 @@
             </x-slot:actions>
         </x-mary-form>
     </x-mary-modal>
+
+    {{-- Webex SDK via CDN (only loaded on this page) --}}
+    @push('scripts')
+        <script src="https://unpkg.com/webex@latest/umd/webex.min.js"></script>
+    @endpush
 </div>
