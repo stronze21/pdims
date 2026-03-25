@@ -1,5 +1,4 @@
 import './bootstrap';
-import './webex-teleconsult';
 
 document.addEventListener('livewire:init', () => {
     // 1. The Directive

@@ -35,29 +35,34 @@
 
     {{-- Main Content: Video + Sidebar --}}
     <div class="flex flex-col lg:flex-row gap-0 h-[calc(100vh-140px)]">
-        {{-- Video Panel --}}
+        {{-- Video / Meeting Panel --}}
         <div class="lg:w-3/5 w-full bg-black rounded-bl-lg flex items-center justify-center relative">
-            <div id="webex-meeting-container" class="w-full h-full"
-                data-host-token="{{ $hostToken }}"
-                data-meeting-link="{{ $meetingLink }}"
-                data-sip-address="{{ $sipAddress }}"
-                data-session-id="{{ $sessionId }}">
-
-                @if (!$hostToken && !$meetingLink)
-                    <div class="text-white text-center">
-                        <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p class="text-lg">No Webex meeting configured</p>
-                        <p class="text-sm text-gray-400">Meeting will appear here once the session is started.</p>
-                    </div>
-                @else
-                    <div id="webex-loading" class="text-white text-center">
-                        <div class="loading loading-spinner loading-lg mb-4"></div>
-                        <p>Connecting to Webex...</p>
-                    </div>
-                    <div id="remote-video" class="w-full h-full hidden"></div>
-                    <div id="local-video" class="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden hidden"></div>
-                @endif
-            </div>
+            @if ($meetingLink)
+                <div class="text-white text-center space-y-4">
+                    <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
+                    <p class="text-xl font-semibold">Webex Meeting Ready</p>
+                    <p class="text-sm text-gray-400">Click below to join the meeting in Webex.</p>
+                    <a href="{{ $meetingLink }}" target="_blank" rel="noopener"
+                        class="btn btn-primary btn-lg gap-2">
+                        <x-mary-icon name="o-video-camera" class="w-5 h-5" />
+                        Join Webex Meeting
+                    </a>
+                    @if ($session->webex_meeting_number)
+                        <div class="text-xs text-gray-500 mt-4 space-y-1">
+                            <p>Meeting Number: {{ $session->webex_meeting_number }}</p>
+                            @if ($sipAddress)
+                                <p>SIP: {{ $sipAddress }}</p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @else
+                <div class="text-white text-center">
+                    <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p class="text-lg">No Webex meeting configured</p>
+                    <p class="text-sm text-gray-400">Meeting will appear here once the session is started.</p>
+                </div>
+            @endif
         </div>
 
         {{-- Sidebar: SOAP Notes + Actions --}}
@@ -119,9 +124,4 @@
             </x-slot:actions>
         </x-mary-form>
     </x-mary-modal>
-
-    {{-- Webex SDK via CDN (only loaded on this page) --}}
-    @push('scripts')
-        <script src="https://unpkg.com/webex@latest/umd/webex.min.js"></script>
-    @endpush
 </div>
