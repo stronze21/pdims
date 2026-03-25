@@ -23,6 +23,9 @@ class TeleconsultLobby extends Component
     public $scheduledDate = '';
     public $scheduledTime = '';
 
+    // Searchable appointment options
+    public $appointmentOptions = [];
+
     public function updatedSearch()
     {
         $this->resetPage();
@@ -31,6 +34,80 @@ class TeleconsultLobby extends Component
     public function updatedStatusFilter()
     {
         $this->resetPage();
+    }
+
+    /**
+     * Server-side search for appointments by ref_no, patient name, or hpercode.
+     */
+    public function searchAppointments(string $value = '')
+    {
+        $query = DB::connection('portal')->table('appointments')
+            ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
+            ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
+            ->where('appointments.confirmed_by', '!=', null)
+            ->whereNull('appointments.deleted_at')
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('teleconsult_sessions')
+                    ->whereColumn('teleconsult_sessions.appointment_id', 'appointments.id')
+                    ->whereIn('teleconsult_sessions.status', ['scheduled', 'waiting', 'in_progress']);
+            })
+            ->where('appointments.appointment_date', '>=', now()->startOfDay());
+
+        if (strlen($value) >= 2) {
+            $query->where(function ($q) use ($value) {
+                $q->where('appointments.ref_no', 'LIKE', "%{$value}%")
+                    ->orWhere('patients.patlast', 'LIKE', "%{$value}%")
+                    ->orWhere('patients.patfirst', 'LIKE', "%{$value}%")
+                    ->orWhere('patients.hpercode', 'LIKE', "%{$value}%");
+            });
+        }
+
+        $this->appointmentOptions = $query
+            ->orderBy('appointments.appointment_date')
+            ->select(
+                'appointments.id',
+                'appointments.ref_no',
+                'appointments.appointment_date',
+                'appointment_types.name as type_name',
+                'patients.patlast',
+                'patients.patfirst',
+                'patients.patmiddle',
+                'patients.hpercode'
+            )
+            ->limit(30)
+            ->get()
+            ->map(function ($a) {
+                $name = trim(($a->patlast ?? '') . ', ' . ($a->patfirst ?? ''));
+                $hpercode = $a->hpercode ? " [{$a->hpercode}]" : '';
+                $type = $a->type_name ?? 'General';
+                $date = date('M d, Y h:i A', strtotime($a->appointment_date));
+
+                return [
+                    'id' => $a->id,
+                    'name' => "{$a->ref_no} - {$name}{$hpercode} ({$type}) - {$date}",
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Auto-populate date/time when appointment is selected.
+     */
+    public function updatedAppointmentId($value)
+    {
+        if (!$value) {
+            return;
+        }
+
+        $appointment = DB::connection('portal')->table('appointments')
+            ->where('id', $value)
+            ->first();
+
+        if ($appointment && $appointment->appointment_date) {
+            $this->scheduledDate = date('Y-m-d', strtotime($appointment->appointment_date));
+            $this->scheduledTime = date('H:i', strtotime($appointment->appointment_date));
+        }
     }
 
     public function createSession()
@@ -42,12 +119,24 @@ class TeleconsultLobby extends Component
         ]);
 
         $appointment = DB::connection('portal')->table('appointments')
-            ->where('id', $this->appointmentId)
-            ->whereNull('deleted_at')
+            ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
+            ->where('appointments.id', $this->appointmentId)
+            ->whereNull('appointments.deleted_at')
+            ->select('appointments.*', 'patients.hpercode')
             ->first();
 
         if (!$appointment) {
             $this->error('Appointment not found.');
+            return;
+        }
+
+        // Check if a session already exists for this appointment
+        $existing = TeleconsultSession::where('appointment_id', $this->appointmentId)
+            ->whereIn('status', ['scheduled', 'waiting', 'in_progress'])
+            ->exists();
+
+        if ($existing) {
+            $this->error('An active teleconsult session already exists for this appointment.');
             return;
         }
 
@@ -59,7 +148,7 @@ class TeleconsultLobby extends Component
         // Create meeting via Webex middleware
         $webex = new WebexService();
         $meeting = $webex->createMeeting([
-            'title' => 'Teleconsult - Appointment #' . $appointment->ref_no,
+            'title' => 'Teleconsult - ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id),
             'start' => $scheduledAt,
             'end' => date('Y-m-d H:i:s', strtotime($scheduledAt) + 1800), // 30 min default
         ]);
@@ -79,8 +168,8 @@ class TeleconsultLobby extends Component
         ]);
 
         $this->showCreateModal = false;
-        $this->reset(['appointmentId', 'scheduledDate', 'scheduledTime']);
-        $this->success('Teleconsult session created.');
+        $this->reset(['appointmentId', 'scheduledDate', 'scheduledTime', 'appointmentOptions']);
+        $this->success('Teleconsult session created for ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id) . '.');
     }
 
     public function startSession($sessionId)
@@ -126,7 +215,8 @@ class TeleconsultLobby extends Component
                     $q2->where('doctor_name', 'LIKE', "%{$this->search}%")
                         ->orWhereHas('patient', function ($pq) {
                             $pq->where('patlast', 'LIKE', "%{$this->search}%")
-                                ->orWhere('patfirst', 'LIKE', "%{$this->search}%");
+                                ->orWhere('patfirst', 'LIKE', "%{$this->search}%")
+                                ->orWhere('hpercode', 'LIKE', "%{$this->search}%");
                         });
                 });
             });
@@ -148,42 +238,8 @@ class TeleconsultLobby extends Component
 
         $sessions = $query->orderBy('scheduled_at', 'desc')->paginate(15);
 
-        // Get confirmed teleconsult appointments for the create modal
-        $appointments = DB::connection('portal')->table('appointments')
-            ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
-            ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
-            ->where('appointments.confirmed_by', '!=', null)
-            ->whereNull('appointments.deleted_at')
-            ->whereNotExists(function ($q) {
-                $q->select(DB::raw(1))
-                    ->from('teleconsult_sessions')
-                    ->whereColumn('teleconsult_sessions.appointment_id', 'appointments.id')
-                    ->whereIn('teleconsult_sessions.status', ['scheduled', 'waiting', 'in_progress']);
-            })
-            ->where('appointments.appointment_date', '>=', now()->startOfDay())
-            ->orderBy('appointments.appointment_date')
-            ->select(
-                'appointments.id',
-                'appointments.ref_no',
-                'appointments.appointment_date',
-                'appointment_types.name as type_name',
-                'patients.patlast',
-                'patients.patfirst',
-                'patients.patmiddle'
-            )
-            ->limit(50)
-            ->get()
-            ->map(function ($a) {
-                $name = trim(($a->patlast ?? '') . ', ' . ($a->patfirst ?? ''));
-                return [
-                    'id' => $a->id,
-                    'name' => $a->ref_no . ' - ' . $name . ' (' . ($a->type_name ?? 'General') . ')',
-                ];
-            });
-
         return view('livewire.teleconsult.teleconsult-lobby', [
             'sessions' => $sessions,
-            'appointments' => $appointments,
         ]);
     }
 }

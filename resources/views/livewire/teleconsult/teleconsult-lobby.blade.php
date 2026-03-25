@@ -32,7 +32,7 @@
 
     {{-- Search --}}
     <div class="mb-6">
-        <x-mary-input wire:model.live.debounce.300ms="search" placeholder="Search by patient or doctor name..."
+        <x-mary-input wire:model.live.debounce.300ms="search" placeholder="Search by patient name, doctor, or hpercode..."
             icon="o-magnifying-glass" clearable />
     </div>
 
@@ -40,6 +40,8 @@
     <x-mary-card>
         <x-mary-table :headers="[
             ['key' => 'patient', 'label' => 'Patient'],
+            ['key' => 'hpercode', 'label' => 'Hpercode'],
+            ['key' => 'ref_no', 'label' => 'Ref No.'],
             ['key' => 'doctor', 'label' => 'Doctor'],
             ['key' => 'scheduled', 'label' => 'Scheduled'],
             ['key' => 'status', 'label' => 'Status'],
@@ -49,6 +51,26 @@
             @scope('cell_patient', $session)
                 <div class="font-medium">
                     {{ $session->patient?->getFullnameAttribute() ?? 'N/A' }}
+                </div>
+            @endscope
+
+            @scope('cell_hpercode', $session)
+                <div class="font-mono text-sm">
+                    {{ $session->patient?->hpercode ?? '-' }}
+                </div>
+            @endscope
+
+            @scope('cell_ref_no', $session)
+                @php
+                    $refNo = $session->appointment_id
+                        ? \Illuminate\Support\Facades\DB::connection('portal')
+                            ->table('appointments')
+                            ->where('id', $session->appointment_id)
+                            ->value('ref_no')
+                        : null;
+                @endphp
+                <div class="font-mono text-sm">
+                    {{ $refNo ?? '-' }}
                 </div>
             @endscope
 
@@ -104,11 +126,19 @@
     </x-mary-card>
 
     {{-- Create Session Modal --}}
-    <x-mary-modal wire:model="showCreateModal" title="Create Teleconsult Session">
+    <x-mary-modal wire:model="showCreateModal" title="Create Teleconsult Session" class="backdrop-blur">
         <x-mary-form wire:submit="createSession">
-            <x-mary-select label="Appointment" wire:model="appointmentId"
-                :options="$appointments" option-value="id" option-label="name"
-                placeholder="Select confirmed appointment..." />
+            <x-mary-choices
+                label="Appointment"
+                wire:model="appointmentId"
+                :options="$appointmentOptions"
+                option-value="id"
+                option-label="name"
+                placeholder="Search by ref no., patient name, or hpercode..."
+                search-function="searchAppointments"
+                min-chars="2"
+                searchable
+                single />
 
             <div class="grid grid-cols-2 gap-4">
                 <x-mary-input label="Date" type="date" wire:model="scheduledDate" />
