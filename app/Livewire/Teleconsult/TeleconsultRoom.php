@@ -27,6 +27,7 @@ class TeleconsultRoom extends Component
 
     // Webex connection info
     public $hostToken = '';
+    public $hostKey = '';
     public $meetingLink = '';
     public $sipAddress = '';
 
@@ -47,6 +48,7 @@ class TeleconsultRoom extends Component
         $this->session = $session;
         $this->meetingLink = $session->webex_meeting_link ?? '';
         $this->sipAddress = $session->webex_sip_address ?? '';
+        $this->hostKey = $session->webex_host_key ?? '';
 
         // Load existing notes if any
         if ($session->note) {
@@ -55,12 +57,6 @@ class TeleconsultRoom extends Component
             $this->assessment = $session->note->assessment ?? '';
             $this->plan = $session->note->plan ?? '';
             $this->additionalNotes = $session->note->additional_notes ?? '';
-        }
-
-        // Get host token for the doctor
-        if ($session->webex_meeting_id) {
-            $webex = new WebexService();
-            $this->hostToken = $webex->getHostToken($session->webex_meeting_id) ?? '';
         }
     }
 

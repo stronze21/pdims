@@ -163,6 +163,7 @@ class TeleconsultLobby extends Component
             'webex_sip_address' => $meeting['sipAddress'] ?? null,
             'webex_meeting_number' => $meeting['meetingNumber'] ?? null,
             'webex_meeting_password' => $meeting['password'] ?? null,
+            'webex_host_key' => $meeting['hostKey'] ?? null,
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
         ]);

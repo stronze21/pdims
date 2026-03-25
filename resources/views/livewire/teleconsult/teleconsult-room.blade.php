@@ -47,14 +47,20 @@
                         <x-mary-icon name="o-video-camera" class="w-5 h-5" />
                         Join Webex Meeting
                     </a>
-                    @if ($session->webex_meeting_number)
-                        <div class="text-xs text-gray-500 mt-4 space-y-1">
+                    <div class="text-xs text-gray-500 mt-4 space-y-1">
+                        @if ($session->webex_meeting_number)
                             <p>Meeting Number: {{ $session->webex_meeting_number }}</p>
-                            @if ($sipAddress)
-                                <p>SIP: {{ $sipAddress }}</p>
-                            @endif
-                        </div>
-                    @endif
+                        @endif
+                        @if ($sipAddress)
+                            <p>SIP: {{ $sipAddress }}</p>
+                        @endif
+                        @if ($hostKey)
+                            <div class="mt-3 p-2 bg-gray-800 rounded-lg inline-block">
+                                <p class="text-yellow-400 font-semibold">Host Key: {{ $hostKey }}</p>
+                                <p class="text-gray-500 text-[10px]">Enter this in Webex to claim host role</p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             @else
                 <div class="text-white text-center">
