@@ -3,6 +3,7 @@
 namespace App\Livewire\Teleconsult;
 
 use App\Models\Portal\TeleconsultSession;
+use App\Services\JitsiService;
 use App\Services\WebexService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -22,9 +23,24 @@ class TeleconsultLobby extends Component
     public $appointmentId = null;
     public $scheduledDate = '';
     public $scheduledTime = '';
+    public $platform = '';
 
     // Searchable appointment options
     public $appointmentOptions = [];
+
+    // Platform options for dropdown
+    public function getPlatformOptionsProperty(): array
+    {
+        return [
+            ['id' => 'jitsi', 'name' => 'Jitsi Meet (Self-hosted)'],
+            ['id' => 'webex', 'name' => 'Cisco Webex'],
+        ];
+    }
+
+    public function mount()
+    {
+        $this->platform = config('services.teleconsult.default_platform', 'jitsi');
+    }
 
     public function updatedSearch()
     {
@@ -136,6 +152,7 @@ class TeleconsultLobby extends Component
             'appointmentId' => 'required|integer',
             'scheduledDate' => 'required|date',
             'scheduledTime' => 'required|string',
+            'platform' => 'required|in:webex,jitsi',
         ]);
 
         $appointment = DB::connection('portal')->table('appointments')
@@ -161,35 +178,48 @@ class TeleconsultLobby extends Component
         }
 
         $scheduledAt = $this->scheduledDate . ' ' . $this->scheduledTime;
+        $title = 'Teleconsult - ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id);
 
         // Get doctor info from current user
         $user = auth()->user();
 
-        // Create meeting via Webex middleware
-        $webex = new WebexService();
-        $meeting = $webex->createMeeting([
-            'title' => 'Teleconsult - ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id),
-            'start' => $scheduledAt,
-            'end' => date('Y-m-d H:i:s', strtotime($scheduledAt) + 1800), // 30 min default
-        ]);
-
-        $session = TeleconsultSession::create([
+        $sessionData = [
             'appointment_id' => $this->appointmentId,
             'patient_id' => $appointment->patient_id,
             'doctor_employee_id' => $user->employeeid ?? $user->id,
             'doctor_name' => $user->name,
-            'webex_meeting_id' => $meeting['id'] ?? null,
-            'webex_meeting_link' => $meeting['meetingLink'] ?? $meeting['joinLink'] ?? null,
-            'webex_sip_address' => $meeting['sipAddress'] ?? null,
-            'webex_meeting_number' => $meeting['meetingNumber'] ?? null,
-            'webex_meeting_password' => $meeting['password'] ?? null,
-            'webex_host_key' => $meeting['hostKey'] ?? null,
+            'platform' => $this->platform,
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
-        ]);
+        ];
+
+        if ($this->platform === 'jitsi') {
+            $jitsi = new JitsiService();
+            $meeting = $jitsi->createMeeting(['title' => $title]);
+
+            $sessionData['jitsi_room_name'] = $meeting['room_name'] ?? null;
+            $sessionData['jitsi_meeting_link'] = $meeting['meeting_link'] ?? null;
+        } else {
+            $webex = new WebexService();
+            $meeting = $webex->createMeeting([
+                'title' => $title,
+                'start' => $scheduledAt,
+                'end' => date('Y-m-d H:i:s', strtotime($scheduledAt) + 1800),
+            ]);
+
+            $sessionData['webex_meeting_id'] = $meeting['id'] ?? null;
+            $sessionData['webex_meeting_link'] = $meeting['meetingLink'] ?? $meeting['joinLink'] ?? null;
+            $sessionData['webex_sip_address'] = $meeting['sipAddress'] ?? null;
+            $sessionData['webex_meeting_number'] = $meeting['meetingNumber'] ?? null;
+            $sessionData['webex_meeting_password'] = $meeting['password'] ?? null;
+            $sessionData['webex_host_key'] = $meeting['hostKey'] ?? null;
+        }
+
+        $session = TeleconsultSession::create($sessionData);
 
         $this->showCreateModal = false;
         $this->reset(['appointmentId', 'scheduledDate', 'scheduledTime', 'appointmentOptions']);
+        $this->platform = config('services.teleconsult.default_platform', 'jitsi');
         $this->success('Teleconsult session created for ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id) . '.');
     }
 
@@ -207,7 +237,8 @@ class TeleconsultLobby extends Component
             return;
         }
 
-        if ($session->webex_meeting_id) {
+        // Clean up meeting on the platform side (only Webex needs API cleanup)
+        if ($session->platform === 'webex' && $session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($session->webex_meeting_id);
         }

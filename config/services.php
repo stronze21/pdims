@@ -40,6 +40,16 @@ return [
         'middleware_api_key' => env('WEBEX_MIDDLEWARE_API_KEY'),
     ],
 
+    'jitsi' => [
+        'server_url' => env('JITSI_SERVER_URL', 'https://meet.jit.si'),
+        'jwt_app_id' => env('JITSI_JWT_APP_ID'),
+        'jwt_secret' => env('JITSI_JWT_SECRET'),
+    ],
+
+    'teleconsult' => [
+        'default_platform' => env('TELECONSULT_DEFAULT_PLATFORM', 'jitsi'),
+    ],
+
     'ntfy' => [
         'url' => env('NTFY_URL', 'http://ntfy.mmmhmc.local:2586'),
         'subscriber_url' => env('NTFY_SUBSCRIBER_URL'),

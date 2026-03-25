@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Portal\TeleconsultSession;
-use App\Services\WebexService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,11 +37,16 @@ class PortalTeleconsultController extends Controller
                 'appointment_id' => $session->appointment_id,
                 'status' => $session->status,
                 'doctor_name' => $session->doctor_name,
+                'platform' => $session->platform ?? 'webex',
                 'scheduled_at' => $session->scheduled_at?->toISOString(),
                 'started_at' => $session->started_at?->toISOString(),
                 'ended_at' => $session->ended_at?->toISOString(),
                 'duration_minutes' => $session->duration_minutes,
+                'meeting_link' => $session->platform === 'jitsi'
+                    ? $session->jitsi_meeting_link
+                    : $session->webex_meeting_link,
                 'webex_meeting_link' => $session->webex_meeting_link,
+                'jitsi_meeting_link' => $session->jitsi_meeting_link,
                 'is_joinable' => $session->isJoinable(),
                 'is_active' => $session->isActive(),
             ]);
@@ -82,12 +86,25 @@ class PortalTeleconsultController extends Controller
                 return response()->json(['message' => 'This teleconsult session is no longer available.'], 422);
             }
 
-            return response()->json([
-                'meeting_link' => $session->webex_meeting_link,
-                'sip_address' => $session->webex_sip_address,
-                'meeting_number' => $session->webex_meeting_number,
-                'password' => $session->webex_meeting_password,
-            ]);
+            $data = [
+                'platform' => $session->platform ?? 'webex',
+                'meeting_link' => $session->platform === 'jitsi'
+                    ? $session->jitsi_meeting_link
+                    : $session->webex_meeting_link,
+            ];
+
+            if ($session->platform === 'jitsi') {
+                $data['jitsi_room_name'] = $session->jitsi_room_name;
+                $data['jitsi_server_domain'] = config('services.jitsi.server_url')
+                    ? parse_url(config('services.jitsi.server_url'), PHP_URL_HOST)
+                    : null;
+            } else {
+                $data['sip_address'] = $session->webex_sip_address;
+                $data['meeting_number'] = $session->webex_meeting_number;
+                $data['password'] = $session->webex_meeting_password;
+            }
+
+            return response()->json($data);
         } catch (\Exception $e) {
             Log::error('[Teleconsult] Error fetching join info', [
                 'session_id' => $sessionId,
@@ -202,6 +219,7 @@ class PortalTeleconsultController extends Controller
                         'appointment_id' => $session->appointment_id,
                         'status' => $session->status,
                         'doctor_name' => $session->doctor_name,
+                        'platform' => $session->platform ?? 'webex',
                         'scheduled_at' => $session->scheduled_at?->toISOString(),
                         'is_joinable' => $session->isJoinable(),
                         'is_active' => $session->isActive(),
