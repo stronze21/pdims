@@ -11,8 +11,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection($this->connection)->table('teleconsult_sessions', function (Blueprint $table) {
-            $table->string('webex_meeting_number')->nullable()->after('webex_sip_address');
-            $table->string('webex_meeting_password')->nullable()->after('webex_meeting_number');
             $table->string('webex_host_key')->nullable()->after('webex_meeting_password');
         });
     }
@@ -20,7 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::connection($this->connection)->table('teleconsult_sessions', function (Blueprint $table) {
-            $table->dropColumn(['webex_meeting_number', 'webex_meeting_password', 'webex_host_key']);
+            $table->dropColumn('webex_host_key');
         });
     }
 };
