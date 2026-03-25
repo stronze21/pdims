@@ -41,12 +41,44 @@
                 <div class="text-white text-center space-y-4">
                     <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
                     <p class="text-xl font-semibold">Webex Meeting Ready</p>
-                    <p class="text-sm text-gray-400">Click below to join. Use PDIMS alongside Webex for notes.</p>
+                    <p class="text-sm text-gray-400">Click below to join. Host key will be copied to your clipboard automatically.</p>
+
+                    {{-- Join button: copies host key to clipboard then opens Webex --}}
                     <a href="{{ $meetingLink }}" target="_blank" rel="noopener"
-                        class="btn btn-primary btn-lg gap-2">
+                        class="btn btn-primary btn-lg gap-2"
+                        @if ($hostKey)
+                            x-data
+                            x-on:click="
+                                navigator.clipboard.writeText('{{ $hostKey }}');
+                                $dispatch('notify', { message: 'Host key copied to clipboard!', type: 'info' });
+                            "
+                        @endif
+                    >
                         <x-mary-icon name="o-video-camera" class="w-5 h-5" />
                         Join Webex Meeting
                     </a>
+
+                    {{-- Claim Host button: API-based promotion --}}
+                    @if ($session->status === 'in_progress' && $session->webex_meeting_id)
+                        <div class="mt-2">
+                            @if ($claimHostStatus === 'success')
+                                <div class="badge badge-success gap-1 py-3">
+                                    <x-mary-icon name="o-check-circle" class="w-4 h-4" />
+                                    Host role claimed
+                                </div>
+                            @else
+                                <x-mary-button
+                                    label="Claim Host Role"
+                                    icon="o-shield-check"
+                                    class="btn-sm btn-warning"
+                                    wire:click="claimHost"
+                                    spinner="claimHost"
+                                />
+                                <p class="text-gray-500 text-[10px] mt-1">Click after joining Webex to get host controls</p>
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="text-xs text-gray-500 mt-4 space-y-1">
                         @if ($session->webex_meeting_number)
                             <p>Meeting Number: {{ $session->webex_meeting_number }}</p>
@@ -55,9 +87,15 @@
                             <p>SIP: {{ $sipAddress }}</p>
                         @endif
                         @if ($hostKey)
-                            <div class="mt-3 p-2 bg-gray-800 rounded-lg inline-block">
-                                <p class="text-yellow-400 font-semibold">Host Key: {{ $hostKey }}</p>
-                                <p class="text-gray-500 text-[10px]">Enter this in Webex to claim host role</p>
+                            <div class="mt-3 p-2 bg-gray-800 rounded-lg inline-block" x-data>
+                                <p class="text-yellow-400 font-semibold">
+                                    Host Key: {{ $hostKey }}
+                                    <button class="btn btn-xs btn-ghost text-gray-400 ml-1"
+                                        x-on:click="navigator.clipboard.writeText('{{ $hostKey }}')">
+                                        <x-mary-icon name="o-clipboard-document" class="w-3 h-3" />
+                                    </button>
+                                </p>
+                                <p class="text-gray-500 text-[10px]">Fallback: In Webex, go to Participants > ... > Claim Host Role</p>
                             </div>
                         @endif
                     </div>

@@ -35,6 +35,7 @@ class TeleconsultRoom extends Component
     public $showLabOrderModal = false;
     public $showFollowUpModal = false;
     public $noteSaved = false;
+    public $claimHostStatus = ''; // '', 'claiming', 'success', 'failed'
 
     // Follow-up form
     public $followUpDate = '';
@@ -56,6 +57,28 @@ class TeleconsultRoom extends Component
             $this->assessment = $session->note->assessment ?? '';
             $this->plan = $session->note->plan ?? '';
             $this->additionalNotes = $session->note->additional_notes ?? '';
+        }
+    }
+
+    public function claimHost()
+    {
+        if (! $this->session->webex_meeting_id) {
+            $this->error('No Webex meeting associated with this session.');
+
+            return;
+        }
+
+        $this->claimHostStatus = 'claiming';
+
+        $webex = new WebexService();
+        $result = $webex->claimHost($this->session->webex_meeting_id);
+
+        if ($result && ($result['success'] ?? false)) {
+            $this->claimHostStatus = 'success';
+            $this->success('Host role claimed! You now have full meeting controls in Webex.');
+        } else {
+            $this->claimHostStatus = 'failed';
+            $this->warning('Could not auto-claim host. Use the host key in Webex: Participants > Claim Host Role.');
         }
     }
 

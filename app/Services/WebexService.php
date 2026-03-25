@@ -100,6 +100,35 @@ class WebexService
     }
 
     /**
+     * Promote the first non-host participant to co-host via the middleware.
+     */
+    public function claimHost(string $meetingId): ?array
+    {
+        try {
+            $response = Http::timeout(15)
+                ->withHeaders([
+                    'X-Api-Key' => config('services.webex.middleware_api_key'),
+                ])
+                ->post("{$this->middlewareUrl}/api/meetings/{$meetingId}/claim-host");
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::warning('Webex claim host failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Webex claim host error: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
      * Get the host access token for the doctor to join with full controls.
      */
     public function getHostToken(string $meetingId): ?string
