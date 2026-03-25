@@ -126,7 +126,7 @@
     </x-mary-card>
 
     {{-- Create Session Modal --}}
-    <x-mary-modal wire:model="showCreateModal" title="Create Teleconsult Session" class="backdrop-blur" box-class="w-11/12 max-w-lg overflow-visible">
+    <x-mary-modal wire:model="showCreateModal" title="Create Teleconsult Session" class="backdrop-blur" box-class="w-11/12 max-w-2xl overflow-visible">
         <x-mary-form wire:submit="createSession">
             <x-mary-choices
                 label="Appointment"
