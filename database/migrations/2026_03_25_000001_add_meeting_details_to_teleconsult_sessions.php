@@ -1,0 +1,24 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    protected $connection = 'portal';
+
+    public function up(): void
+    {
+        Schema::connection($this->connection)->table('teleconsult_sessions', function (Blueprint $table) {
+            $table->string('webex_host_key')->nullable()->after('webex_meeting_password');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::connection($this->connection)->table('teleconsult_sessions', function (Blueprint $table) {
+            $table->dropColumn('webex_host_key');
+        });
+    }
+};
