@@ -33,3 +33,15 @@ Broadcast::channel('friends.{userId}', function ($user, $userId) {
     // Users can only listen to their own friends channel
     return (int) $user->id === (int) $userId;
 });
+
+Broadcast::channel('teleconsult.{sessionId}', function ($user, $sessionId) {
+    // Staff can access all teleconsult channels
+    if (!isset($user->patient_id)) {
+        return true;
+    }
+
+    // Patients can only access their own teleconsult sessions
+    return \App\Models\Portal\TeleconsultSession::where('id', $sessionId)
+        ->where('patient_id', $user->patient_id)
+        ->exists();
+});

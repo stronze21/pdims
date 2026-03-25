@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'webex' => [
+        'middleware_url' => env('WEBEX_MIDDLEWARE_URL', 'http://localhost:3100'),
+        'middleware_api_key' => env('WEBEX_MIDDLEWARE_API_KEY'),
+    ],
+
     'ntfy' => [
         'url' => env('NTFY_URL', 'http://ntfy.mmmhmc.local:2586'),
         'subscriber_url' => env('NTFY_SUBSCRIBER_URL'),

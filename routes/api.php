@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Portal\PortalFriendsController;
 use App\Http\Controllers\Api\Portal\PortalPatientChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\Portal\PortalEmergencyContactController;
+use App\Http\Controllers\Api\Portal\PortalTeleconsultController;
 use App\Http\Controllers\Api\Portal\PushSubscriptionController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QueueController;
@@ -186,6 +187,13 @@ Route::prefix('portal')->group(function () {
         // Push notification subscription routes
         Route::post('/push/subscribe', [PushSubscriptionController::class, 'subscribe']);
         Route::delete('/push/unsubscribe', [PushSubscriptionController::class, 'unsubscribe']);
+
+        // Teleconsult routes
+        Route::get('/teleconsult/upcoming', [PortalTeleconsultController::class, 'upcoming']);
+        Route::get('/teleconsult/{appointmentId}', [PortalTeleconsultController::class, 'show']);
+        Route::get('/teleconsult/{sessionId}/join-info', [PortalTeleconsultController::class, 'joinInfo']);
+        Route::post('/teleconsult/{sessionId}/join', [PortalTeleconsultController::class, 'join']);
+        Route::post('/teleconsult/{sessionId}/leave', [PortalTeleconsultController::class, 'leave']);
 
         // Patient-to-patient chat routes
         Route::get('/chat/patient/conversations', [PortalPatientChatController::class, 'conversations']);
