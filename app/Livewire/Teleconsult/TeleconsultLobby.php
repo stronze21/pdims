@@ -70,8 +70,10 @@ class TeleconsultLobby extends Component
             'doctor_employee_id' => $user->employeeid ?? $user->id,
             'doctor_name' => $user->name,
             'webex_meeting_id' => $meeting['id'] ?? null,
-            'webex_meeting_link' => $meeting['webLink'] ?? $meeting['join_link'] ?? null,
+            'webex_meeting_link' => $meeting['meetingLink'] ?? $meeting['joinLink'] ?? null,
             'webex_sip_address' => $meeting['sipAddress'] ?? null,
+            'webex_meeting_number' => $meeting['meetingNumber'] ?? null,
+            'webex_meeting_password' => $meeting['password'] ?? null,
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
         ]);

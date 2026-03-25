@@ -56,38 +56,6 @@ class WebexService
     }
 
     /**
-     * Generate a guest token for a patient to join without a Webex account.
-     */
-    public function generateGuestToken(string $displayName, string $sessionId): ?string
-    {
-        try {
-            $response = Http::timeout(15)
-                ->withHeaders([
-                    'X-Api-Key' => config('services.webex.middleware_api_key'),
-                ])
-                ->post("{$this->middlewareUrl}/api/guest-token", [
-                    'display_name' => $displayName,
-                    'session_id' => $sessionId,
-                ]);
-
-            if ($response->successful()) {
-                return $response->json('token');
-            }
-
-            Log::error('Webex guest token generation failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Webex guest token error: ' . $e->getMessage());
-
-            return null;
-        }
-    }
-
-    /**
      * Delete/end a Webex meeting.
      */
     public function deleteMeeting(string $meetingId): bool

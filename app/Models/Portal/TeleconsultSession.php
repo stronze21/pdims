@@ -20,7 +20,8 @@ class TeleconsultSession extends Model
         'webex_meeting_id',
         'webex_meeting_link',
         'webex_sip_address',
-        'webex_guest_token',
+        'webex_meeting_number',
+        'webex_meeting_password',
         'status',
         'scheduled_at',
         'started_at',
@@ -36,7 +37,7 @@ class TeleconsultSession extends Model
     ];
 
     protected $hidden = [
-        'webex_guest_token',
+        'webex_meeting_password',
     ];
 
     public function patient(): BelongsTo

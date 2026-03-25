@@ -191,7 +191,7 @@ Route::prefix('portal')->group(function () {
         // Teleconsult routes
         Route::get('/teleconsult/upcoming', [PortalTeleconsultController::class, 'upcoming']);
         Route::get('/teleconsult/{appointmentId}', [PortalTeleconsultController::class, 'show']);
-        Route::get('/teleconsult/{sessionId}/guest-token', [PortalTeleconsultController::class, 'guestToken']);
+        Route::get('/teleconsult/{sessionId}/join-info', [PortalTeleconsultController::class, 'joinInfo']);
         Route::post('/teleconsult/{sessionId}/join', [PortalTeleconsultController::class, 'join']);
         Route::post('/teleconsult/{sessionId}/leave', [PortalTeleconsultController::class, 'leave']);
 

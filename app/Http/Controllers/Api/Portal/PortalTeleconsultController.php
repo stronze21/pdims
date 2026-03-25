@@ -57,9 +57,9 @@ class PortalTeleconsultController extends Controller
     }
 
     /**
-     * Get guest token for patient to join the teleconsult via Webex SDK.
+     * Get meeting join info for patient to join the teleconsult via browser.
      */
-    public function guestToken(Request $request, $sessionId)
+    public function joinInfo(Request $request, $sessionId)
     {
         $account = $request->user();
         $account->load('patient');
@@ -82,38 +82,19 @@ class PortalTeleconsultController extends Controller
                 return response()->json(['message' => 'This teleconsult session is no longer available.'], 422);
             }
 
-            // Return cached guest token if still valid
-            if ($session->webex_guest_token) {
-                return response()->json([
-                    'token' => $session->webex_guest_token,
-                    'meeting_link' => $session->webex_meeting_link,
-                    'sip_address' => $session->webex_sip_address,
-                ]);
-            }
-
-            // Generate new guest token via middleware
-            $webex = new WebexService();
-            $displayName = $patient->getFullnameAttribute();
-            $token = $webex->generateGuestToken($displayName, (string) $session->id);
-
-            if (!$token) {
-                return response()->json(['message' => 'Failed to generate access token.'], 500);
-            }
-
-            $session->update(['webex_guest_token' => $token]);
-
             return response()->json([
-                'token' => $token,
                 'meeting_link' => $session->webex_meeting_link,
                 'sip_address' => $session->webex_sip_address,
+                'meeting_number' => $session->webex_meeting_number,
+                'password' => $session->webex_meeting_password,
             ]);
         } catch (\Exception $e) {
-            Log::error('[Teleconsult] Error generating guest token', [
+            Log::error('[Teleconsult] Error fetching join info', [
                 'session_id' => $sessionId,
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json(['message' => 'Failed to generate access token.'], 500);
+            return response()->json(['message' => 'Failed to get meeting info.'], 500);
         }
     }
 
