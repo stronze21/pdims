@@ -14,7 +14,7 @@
 
 <body class="min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
 
-    {{-- 🌤️ NAVBAR (Top Header) --}}
+    {{-- NAVBAR (Top Header) --}}
     <x-mary-nav sticky full-width>
         <x-slot:brand>
             {{-- Drawer toggle for sidebar --}}
@@ -34,9 +34,9 @@
         </x-slot:actions>
     </x-mary-nav>
 
-    {{-- 🌙 MAIN BODY --}}
+    {{-- MAIN BODY --}}
     <x-mary-main with-nav full-width>
-        {{-- 🧱 SIDEBAR (Collapsible + Drawer) --}}
+        {{-- SIDEBAR (Collapsible + Drawer) --}}
         <x-slot:sidebar drawer="main-drawer" collapsible class="border-r bg-base-100">
             {{-- User Info --}}
             @if ($user = auth()->user())
@@ -157,10 +157,6 @@
                 </x-mary-menu-sub>
 
 
-                {{-- Teleconsult --}}
-                <x-mary-menu-item title="Teleconsult" icon="o-video-camera"
-                    link="{{ route('teleconsult.lobby') }}" />
-
                 {{-- Settings --}}
                 @can('view-settings')
                     <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
@@ -185,6 +181,9 @@
 
                             <x-mary-menu-item title="Chat" icon="o-chat-bubble-left-right"
                                 link="{{ route('settings.portal.chat') }}" />
+
+                            <x-mary-menu-item title="Teleconsult" icon="o-video-camera"
+                                link="{{ route('teleconsult.lobby') }}" />
                         </x-mary-menu-sub>
 
                     </x-mary-menu-sub>
@@ -193,7 +192,7 @@
             </x-mary-menu>
         </x-slot:sidebar>
 
-        {{-- 📄 PAGE CONTENT --}}
+        {{-- PAGE CONTENT --}}
         <x-slot:content>
             <div class="p-4 lg:p-6">
                 {{ $slot }}
@@ -201,7 +200,7 @@
         </x-slot:content>
     </x-mary-main>
 
-    {{-- 📱 TABLET / MOBILE BOTTOM NAV WITH SLIDE-UP DRAWER --}}
+    {{-- TABLET / MOBILE BOTTOM NAV WITH SLIDE-UP DRAWER --}}
     <div x-data="{ openMore: false }" class="lg:hidden">
 
         {{-- Backdrop --}}
@@ -308,6 +307,12 @@
                         </a>
                     @endcan
 
+                    <a href="{{ route('teleconsult.lobby') }}"
+                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                        <x-heroicon-o-video-camera class="w-5 h-5" />
+                        <span class="text-[11px] text-center leading-tight">Teleconsult</span>
+                    </a>
+
                     @can('view-settings')
                         <a href="{{ route('users.index') }}"
                         class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
@@ -395,7 +400,7 @@
         </div>
     </div>
 
-    {{-- 🔔 TOAST NOTIFICATIONS --}}
+    {{-- TOAST NOTIFICATIONS --}}
     <x-mary-toast />
 
     @stack('scripts')
