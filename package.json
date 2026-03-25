@@ -20,5 +20,8 @@
         "pusher-js": "^8.4.0",
         "tailwindcss": "^4.1.16",
         "vite": "^7.0.7"
+    },
+    "dependencies": {
+        "webex": "^3.5.0"
     }
 }
