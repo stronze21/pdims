@@ -7,6 +7,8 @@ use App\Events\Portal\TeleconsultStarted;
 use App\Models\Portal\TeleconsultNote;
 use App\Models\Portal\TeleconsultSession;
 use App\Services\PushNotificationService;
+use App\Services\JitsiService;
+use App\Services\LiveKitService;
 use App\Services\WebexService;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -25,10 +27,23 @@ class TeleconsultRoom extends Component
     public $plan = '';
     public $additionalNotes = '';
 
+    // Platform info
+    public $platform = 'webex';
+
     // Webex connection info
     public $hostKey = '';
     public $meetingLink = '';
     public $sipAddress = '';
+
+    // Jitsi connection info
+    public $jitsiRoomName = '';
+    public $jitsiMeetingLink = '';
+    public $jitsiServerDomain = '';
+
+    // LiveKit connection info
+    public $livekitRoomName = '';
+    public $livekitToken = '';
+    public $livekitWsUrl = '';
 
     // UI state
     public $showPrescriptionModal = false;
@@ -46,9 +61,29 @@ class TeleconsultRoom extends Component
         $this->sessionId = $sessionId;
         $session = TeleconsultSession::with(['patient', 'note'])->findOrFail($sessionId);
         $this->session = $session;
-        $this->meetingLink = $session->webex_meeting_link ?? '';
-        $this->sipAddress = $session->webex_sip_address ?? '';
-        $this->hostKey = $session->webex_host_key ?? '';
+        $this->platform = $session->platform ?? 'webex';
+
+        // Load platform-specific connection info
+        if ($this->platform === 'jitsi') {
+            $this->jitsiRoomName = $session->jitsi_room_name ?? '';
+            $this->jitsiMeetingLink = $session->jitsi_meeting_link ?? '';
+            $jitsi = new JitsiService();
+            $this->jitsiServerDomain = $jitsi->getServerDomain();
+        } elseif ($this->platform === 'livekit') {
+            $this->livekitRoomName = $session->livekit_room_name ?? '';
+            $livekit = new LiveKitService();
+            $this->livekitWsUrl = $livekit->getWsUrl();
+            // Generate a fresh token for the doctor each time they enter the room
+            $this->livekitToken = $livekit->generateParticipantToken(
+                $this->livekitRoomName,
+                auth()->user()->name ?? 'Doctor',
+                true
+            ) ?? '';
+        } else {
+            $this->meetingLink = $session->webex_meeting_link ?? '';
+            $this->sipAddress = $session->webex_sip_address ?? '';
+            $this->hostKey = $session->webex_host_key ?? '';
+        }
 
         // Load existing notes if any
         if ($session->note) {
@@ -62,8 +97,8 @@ class TeleconsultRoom extends Component
 
     public function claimHost()
     {
-        if (! $this->session->webex_meeting_id) {
-            $this->error('No Webex meeting associated with this session.');
+        if ($this->platform !== 'webex' || !$this->session->webex_meeting_id) {
+            $this->error('Host claiming is only available for Webex meetings.');
 
             return;
         }
@@ -144,10 +179,13 @@ class TeleconsultRoom extends Component
         ]);
         $this->session->refresh();
 
-        // Delete the Webex meeting
-        if ($this->session->webex_meeting_id) {
+        // Clean up platform meeting
+        if ($this->session->platform === 'webex' && $this->session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($this->session->webex_meeting_id);
+        } elseif ($this->session->platform === 'livekit' && $this->session->livekit_room_name) {
+            $livekit = new LiveKitService();
+            $livekit->deleteRoom($this->session->livekit_room_name);
         }
 
         // Notify patient
@@ -163,9 +201,12 @@ class TeleconsultRoom extends Component
             'ended_at' => now(),
         ]);
 
-        if ($this->session->webex_meeting_id) {
+        if ($this->session->platform === 'webex' && $this->session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($this->session->webex_meeting_id);
+        } elseif ($this->session->platform === 'livekit' && $this->session->livekit_room_name) {
+            $livekit = new LiveKitService();
+            $livekit->deleteRoom($this->session->livekit_room_name);
         }
 
         $this->success('Session marked as no-show.');

@@ -12,6 +12,17 @@
                     <span class="badge badge-sm {{ $session->status === 'in_progress' ? 'badge-success' : 'badge-warning' }}">
                         {{ ucfirst(str_replace('_', ' ', $session->status)) }}
                     </span>
+                    &middot;
+                    @php
+                        $platformLabel = match($platform) {
+                            'jitsi' => ['badge-info', 'Jitsi Meet'],
+                            'livekit' => ['badge-secondary', 'LiveKit'],
+                            default => ['badge-accent', 'Webex'],
+                        };
+                    @endphp
+                    <span class="badge badge-sm {{ $platformLabel[0] }}">
+                        {{ $platformLabel[1] }}
+                    </span>
                 </p>
             </div>
         </div>
@@ -37,75 +48,266 @@
     <div class="flex flex-col lg:flex-row gap-0 h-[calc(100vh-140px)]">
         {{-- Video / Meeting Panel --}}
         <div class="lg:w-3/5 w-full bg-black rounded-bl-lg flex items-center justify-center relative">
-            @if ($meetingLink)
-                <div class="text-white text-center space-y-4">
-                    <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
-                    <p class="text-xl font-semibold">Webex Meeting Ready</p>
-                    <p class="text-sm text-gray-400">Click below to join. Host key will be copied to your clipboard automatically.</p>
 
-                    {{-- Join button: copies host key to clipboard then opens Webex --}}
-                    <a href="{{ $meetingLink }}" target="_blank" rel="noopener"
-                        class="btn btn-primary btn-lg gap-2"
-                        @if ($hostKey)
-                            x-data
-                            x-on:click="
-                                navigator.clipboard.writeText('{{ $hostKey }}');
-                                $dispatch('notify', { message: 'Host key copied to clipboard!', type: 'info' });
-                            "
-                        @endif
-                    >
-                        <x-mary-icon name="o-video-camera" class="w-5 h-5" />
-                        Join Webex Meeting
-                    </a>
+            @if ($platform === 'jitsi')
+                {{-- ===== JITSI MEET EMBEDDED ===== --}}
+                @if ($jitsiRoomName)
+                    <div class="w-full h-full flex flex-col" x-data="jitsiMeet()" x-init="init()">
+                        {{-- Jitsi iframe container --}}
+                        <div id="jitsi-container" class="flex-1 w-full" style="min-height: 400px;"></div>
 
-                    {{-- Claim Host button: API-based promotion --}}
-                    @if ($session->status === 'in_progress' && $session->webex_meeting_id)
-                        <div class="mt-2">
-                            @if ($claimHostStatus === 'success')
-                                <div class="badge badge-success gap-1 py-3">
-                                    <x-mary-icon name="o-check-circle" class="w-4 h-4" />
-                                    Host role claimed
-                                </div>
-                            @else
-                                <x-mary-button
-                                    label="Claim Host Role"
-                                    icon="o-shield-check"
-                                    class="btn-sm btn-warning"
-                                    wire:click="claimHost"
-                                    spinner="claimHost"
-                                />
-                                <p class="text-gray-500 text-[10px] mt-1">Click after joining Webex to get host controls</p>
-                            @endif
+                        {{-- Fallback link --}}
+                        <div class="text-center py-2 bg-gray-900">
+                            <a href="{{ $jitsiMeetingLink }}" target="_blank" rel="noopener"
+                                class="text-xs text-gray-400 hover:text-white transition">
+                                Open in new tab &rarr;
+                            </a>
                         </div>
-                    @endif
+                    </div>
 
-                    <div class="text-xs text-gray-500 mt-4 space-y-1">
-                        @if ($session->webex_meeting_number)
-                            <p>Meeting Number: {{ $session->webex_meeting_number }}</p>
-                        @endif
-                        @if ($sipAddress)
-                            <p>SIP: {{ $sipAddress }}</p>
-                        @endif
-                        @if ($hostKey)
-                            <div class="mt-3 p-2 bg-gray-800 rounded-lg inline-block" x-data>
-                                <p class="text-yellow-400 font-semibold">
-                                    Host Key: {{ $hostKey }}
-                                    <button class="btn btn-xs btn-ghost text-gray-400 ml-1"
-                                        x-on:click="navigator.clipboard.writeText('{{ $hostKey }}')">
-                                        <x-mary-icon name="o-clipboard-document" class="w-3 h-3" />
-                                    </button>
-                                </p>
-                                <p class="text-gray-500 text-[10px]">Fallback: In Webex, go to Participants > ... > Claim Host Role</p>
+                    @push('scripts')
+                    <script src="https://{{ $jitsiServerDomain }}/external_api.js"></script>
+                    <script>
+                        function jitsiMeet() {
+                            return {
+                                api: null,
+                                init() {
+                                    if (typeof JitsiMeetExternalAPI === 'undefined') {
+                                        console.error('Jitsi Meet API not loaded');
+                                        return;
+                                    }
+                                    this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', {
+                                        roomName: '{{ $jitsiRoomName }}',
+                                        parentNode: document.getElementById('jitsi-container'),
+                                        width: '100%',
+                                        height: '100%',
+                                        userInfo: {
+                                            displayName: '{{ auth()->user()->name ?? "Doctor" }}'
+                                        },
+                                        configOverrides: {
+                                            startWithAudioMuted: true,
+                                            startWithVideoMuted: false,
+                                            prejoinPageEnabled: false,
+                                            disableDeepLinking: true,
+                                        },
+                                        interfaceConfigOverrides: {
+                                            TOOLBAR_BUTTONS: [
+                                                'microphone', 'camera', 'desktop', 'chat',
+                                                'raisehand', 'participants-pane', 'tileview',
+                                                'select-background', 'fullscreen', 'hangup'
+                                            ],
+                                            SHOW_JITSI_WATERMARK: false,
+                                            SHOW_WATERMARK_FOR_GUESTS: false,
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    </script>
+                    @endpush
+                @else
+                    <div class="text-white text-center">
+                        <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p class="text-lg">No Jitsi meeting configured</p>
+                        <p class="text-sm text-gray-400">Meeting will appear here once the session is created.</p>
+                    </div>
+                @endif
+
+            @elseif ($platform === 'livekit')
+                {{-- ===== LIVEKIT EMBEDDED ===== --}}
+                @if ($livekitRoomName && $livekitToken)
+                    <div class="w-full h-full flex flex-col" x-data="livekitRoom()" x-init="init()">
+                        <div id="livekit-container" class="flex-1 w-full relative" style="min-height: 400px;">
+                            {{-- Remote video --}}
+                            <div id="livekit-remote" class="absolute inset-0 flex items-center justify-center">
+                                <div id="livekit-waiting" class="text-white text-center">
+                                    <x-mary-icon name="o-signal" class="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
+                                    <p class="text-lg">Waiting for patient to join...</p>
+                                </div>
+                            </div>
+                            {{-- Local video (picture-in-picture) --}}
+                            <div id="livekit-local" class="absolute bottom-4 right-4 w-48 h-36 rounded-lg overflow-hidden border-2 border-gray-600 bg-gray-900 z-10"></div>
+                        </div>
+
+                        {{-- Controls --}}
+                        <div class="flex items-center justify-center gap-3 py-3 bg-gray-900">
+                            <button x-on:click="toggleAudio()" class="btn btn-circle btn-sm"
+                                :class="audioMuted ? 'btn-error' : 'btn-ghost text-white'">
+                                <x-mary-icon x-show="!audioMuted" name="o-microphone" class="w-5 h-5" />
+                                <x-mary-icon x-show="audioMuted" name="o-microphone" class="w-5 h-5 line-through" />
+                            </button>
+                            <button x-on:click="toggleVideo()" class="btn btn-circle btn-sm"
+                                :class="videoMuted ? 'btn-error' : 'btn-ghost text-white'">
+                                <x-mary-icon x-show="!videoMuted" name="o-video-camera" class="w-5 h-5" />
+                                <x-mary-icon x-show="videoMuted" name="o-video-camera" class="w-5 h-5 line-through" />
+                            </button>
+                            <button x-on:click="toggleScreenShare()" class="btn btn-circle btn-sm btn-ghost text-white">
+                                <x-mary-icon name="o-computer-desktop" class="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    @push('scripts')
+                    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+                    <script>
+                        function livekitRoom() {
+                            return {
+                                room: null,
+                                audioMuted: false,
+                                videoMuted: false,
+                                async init() {
+                                    if (typeof LivekitClient === 'undefined') {
+                                        console.error('LiveKit client SDK not loaded');
+                                        return;
+                                    }
+                                    try {
+                                        this.room = new LivekitClient.Room({
+                                            adaptiveStream: true,
+                                            dynacast: true,
+                                        });
+
+                                        // Handle remote tracks
+                                        this.room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, pub, participant) => {
+                                            const el = track.attach();
+                                            el.style.width = '100%';
+                                            el.style.height = '100%';
+                                            el.style.objectFit = 'cover';
+                                            const container = document.getElementById('livekit-remote');
+                                            const waiting = document.getElementById('livekit-waiting');
+                                            if (waiting) waiting.style.display = 'none';
+                                            container.appendChild(el);
+                                        });
+
+                                        this.room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+                                            track.detach().forEach(el => el.remove());
+                                        });
+
+                                        this.room.on(LivekitClient.RoomEvent.ParticipantDisconnected, () => {
+                                            const waiting = document.getElementById('livekit-waiting');
+                                            if (waiting) waiting.style.display = 'block';
+                                        });
+
+                                        // Connect
+                                        await this.room.connect('{{ $livekitWsUrl }}', '{{ $livekitToken }}');
+
+                                        // Publish local tracks
+                                        await this.room.localParticipant.enableCameraAndMicrophone();
+
+                                        // Attach local video
+                                        const localContainer = document.getElementById('livekit-local');
+                                        this.room.localParticipant.videoTrackPublications.forEach((pub) => {
+                                            if (pub.track) {
+                                                const el = pub.track.attach();
+                                                el.style.width = '100%';
+                                                el.style.height = '100%';
+                                                el.style.objectFit = 'cover';
+                                                el.style.transform = 'scaleX(-1)';
+                                                localContainer.appendChild(el);
+                                            }
+                                        });
+                                    } catch (e) {
+                                        console.error('LiveKit connection error:', e);
+                                    }
+                                },
+                                toggleAudio() {
+                                    if (!this.room) return;
+                                    this.audioMuted = !this.audioMuted;
+                                    this.room.localParticipant.setMicrophoneEnabled(!this.audioMuted);
+                                },
+                                toggleVideo() {
+                                    if (!this.room) return;
+                                    this.videoMuted = !this.videoMuted;
+                                    this.room.localParticipant.setCameraEnabled(!this.videoMuted);
+                                },
+                                async toggleScreenShare() {
+                                    if (!this.room) return;
+                                    const enabled = this.room.localParticipant.isScreenShareEnabled;
+                                    await this.room.localParticipant.setScreenShareEnabled(!enabled);
+                                }
+                            }
+                        }
+                    </script>
+                    @endpush
+                @else
+                    <div class="text-white text-center">
+                        <x-mary-icon name="o-signal" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p class="text-lg">No LiveKit room configured</p>
+                        <p class="text-sm text-gray-400">Room will appear here once the session is created.</p>
+                    </div>
+                @endif
+
+            @else
+                {{-- ===== WEBEX MEETING ===== --}}
+                @if ($meetingLink)
+                    <div class="text-white text-center space-y-4">
+                        <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
+                        <p class="text-xl font-semibold">Webex Meeting Ready</p>
+                        <p class="text-sm text-gray-400">Click below to join. Host key will be copied to your clipboard automatically.</p>
+
+                        {{-- Join button: copies host key to clipboard then opens Webex --}}
+                        <a href="{{ $meetingLink }}" target="_blank" rel="noopener"
+                            class="btn btn-primary btn-lg gap-2"
+                            @if ($hostKey)
+                                x-data
+                                x-on:click="
+                                    navigator.clipboard.writeText('{{ $hostKey }}');
+                                    $dispatch('notify', { message: 'Host key copied to clipboard!', type: 'info' });
+                                "
+                            @endif
+                        >
+                            <x-mary-icon name="o-video-camera" class="w-5 h-5" />
+                            Join Webex Meeting
+                        </a>
+
+                        {{-- Claim Host button: API-based promotion --}}
+                        @if ($session->status === 'in_progress' && $session->webex_meeting_id)
+                            <div class="mt-2">
+                                @if ($claimHostStatus === 'success')
+                                    <div class="badge badge-success gap-1 py-3">
+                                        <x-mary-icon name="o-check-circle" class="w-4 h-4" />
+                                        Host role claimed
+                                    </div>
+                                @else
+                                    <x-mary-button
+                                        label="Claim Host Role"
+                                        icon="o-shield-check"
+                                        class="btn-sm btn-warning"
+                                        wire:click="claimHost"
+                                        spinner="claimHost"
+                                    />
+                                    <p class="text-gray-500 text-[10px] mt-1">Click after joining Webex to get host controls</p>
+                                @endif
                             </div>
                         @endif
+
+                        <div class="text-xs text-gray-500 mt-4 space-y-1">
+                            @if ($session->webex_meeting_number)
+                                <p>Meeting Number: {{ $session->webex_meeting_number }}</p>
+                            @endif
+                            @if ($sipAddress)
+                                <p>SIP: {{ $sipAddress }}</p>
+                            @endif
+                            @if ($hostKey)
+                                <div class="mt-3 p-2 bg-gray-800 rounded-lg inline-block" x-data>
+                                    <p class="text-yellow-400 font-semibold">
+                                        Host Key: {{ $hostKey }}
+                                        <button class="btn btn-xs btn-ghost text-gray-400 ml-1"
+                                            x-on:click="navigator.clipboard.writeText('{{ $hostKey }}')">
+                                            <x-mary-icon name="o-clipboard-document" class="w-3 h-3" />
+                                        </button>
+                                    </p>
+                                    <p class="text-gray-500 text-[10px]">Fallback: In Webex, go to Participants > ... > Claim Host Role</p>
+                                </div>
+                            @endif
+                        </div>
                     </div>
-                </div>
-            @else
-                <div class="text-white text-center">
-                    <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p class="text-lg">No Webex meeting configured</p>
-                    <p class="text-sm text-gray-400">Meeting will appear here once the session is started.</p>
-                </div>
+                @else
+                    <div class="text-white text-center">
+                        <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p class="text-lg">No Webex meeting configured</p>
+                        <p class="text-sm text-gray-400">Meeting will appear here once the session is started.</p>
+                    </div>
+                @endif
             @endif
         </div>
 

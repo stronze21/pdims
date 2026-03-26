@@ -44,6 +44,7 @@
             ['key' => 'ref_no', 'label' => 'Ref No.'],
             ['key' => 'doctor', 'label' => 'Doctor'],
             ['key' => 'scheduled', 'label' => 'Scheduled'],
+            ['key' => 'platform', 'label' => 'Platform'],
             ['key' => 'status', 'label' => 'Status'],
             ['key' => 'actions', 'label' => 'Actions'],
         ]" :rows="$sessions" with-pagination>
@@ -85,6 +86,21 @@
                         {{ $session->scheduled_at?->format('h:i A') }}
                     </div>
                 </div>
+            @endscope
+
+            @scope('cell_platform', $session)
+                @php
+                    $p = $session->platform ?? 'webex';
+                    $platformBadge = match($p) {
+                        'jitsi' => ['badge-info', 'o-video-camera', 'Jitsi'],
+                        'livekit' => ['badge-secondary', 'o-signal', 'LiveKit'],
+                        default => ['badge-accent', 'o-globe-alt', 'Webex'],
+                    };
+                @endphp
+                <span class="badge {{ $platformBadge[0] }} badge-sm gap-1">
+                    <x-mary-icon :name="$platformBadge[1]" class="w-3 h-3" />
+                    {{ $platformBadge[2] }}
+                </span>
             @endscope
 
             @scope('cell_status', $session)
@@ -139,6 +155,15 @@
                 min-chars="2"
                 searchable
                 single />
+
+            <x-mary-select
+                label="Platform"
+                wire:model="platform"
+                :options="$this->platformOptions"
+                option-value="id"
+                option-label="name"
+                placeholder="Select video platform..."
+                icon="o-video-camera" />
 
             <div class="grid grid-cols-2 gap-4">
                 <x-mary-input label="Date" type="date" wire:model="scheduledDate" />
