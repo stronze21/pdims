@@ -113,7 +113,7 @@
                                         if (container) { container.style.display = 'none'; }
                                         return;
                                     }
-                                    this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', {
+                                    var apiOptions = {
                                         roomName: '{{ $jitsiRoomName }}',
                                         parentNode: document.getElementById('jitsi-container'),
                                         width: '100%',
@@ -126,6 +126,7 @@
                                             startWithVideoMuted: false,
                                             prejoinPageEnabled: false,
                                             disableDeepLinking: true,
+                                            deeplinking: { disabled: true },
                                         },
                                         interfaceConfigOverrides: {
                                             TOOLBAR_BUTTONS: [
@@ -135,8 +136,13 @@
                                             ],
                                             SHOW_JITSI_WATERMARK: false,
                                             SHOW_WATERMARK_FOR_GUESTS: false,
+                                            MOBILE_APP_PROMO: false,
                                         }
-                                    });
+                                    };
+                                    @if ($jitsiJwt)
+                                        apiOptions.jwt = '{{ $jitsiJwt }}';
+                                    @endif
+                                    this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', apiOptions);
                                 }
                             }
                         }
