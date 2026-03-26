@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Portal\TeleconsultSession;
+use App\Services\LiveKitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -42,11 +43,14 @@ class PortalTeleconsultController extends Controller
                 'started_at' => $session->started_at?->toISOString(),
                 'ended_at' => $session->ended_at?->toISOString(),
                 'duration_minutes' => $session->duration_minutes,
-                'meeting_link' => $session->platform === 'jitsi'
-                    ? $session->jitsi_meeting_link
-                    : $session->webex_meeting_link,
+                'meeting_link' => match($session->platform) {
+                    'jitsi' => $session->jitsi_meeting_link,
+                    'livekit' => null, // LiveKit uses token-based connection, not a URL
+                    default => $session->webex_meeting_link,
+                },
                 'webex_meeting_link' => $session->webex_meeting_link,
                 'jitsi_meeting_link' => $session->jitsi_meeting_link,
+                'livekit_room_name' => $session->livekit_room_name,
                 'is_joinable' => $session->isJoinable(),
                 'is_active' => $session->isActive(),
             ]);
@@ -86,18 +90,34 @@ class PortalTeleconsultController extends Controller
                 return response()->json(['message' => 'This teleconsult session is no longer available.'], 422);
             }
 
+            $platform = $session->platform ?? 'webex';
+
             $data = [
-                'platform' => $session->platform ?? 'webex',
-                'meeting_link' => $session->platform === 'jitsi'
-                    ? $session->jitsi_meeting_link
-                    : $session->webex_meeting_link,
+                'platform' => $platform,
+                'meeting_link' => match($platform) {
+                    'jitsi' => $session->jitsi_meeting_link,
+                    'livekit' => null,
+                    default => $session->webex_meeting_link,
+                },
             ];
 
-            if ($session->platform === 'jitsi') {
+            if ($platform === 'jitsi') {
                 $data['jitsi_room_name'] = $session->jitsi_room_name;
                 $data['jitsi_server_domain'] = config('services.jitsi.server_url')
                     ? parse_url(config('services.jitsi.server_url'), PHP_URL_HOST)
                     : null;
+            } elseif ($platform === 'livekit') {
+                $livekit = new LiveKitService();
+                $patientName = $patient->patlast
+                    ? trim(($patient->patlast ?? '') . ', ' . ($patient->patfirst ?? ''))
+                    : 'Patient';
+                $data['livekit_room_name'] = $session->livekit_room_name;
+                $data['livekit_ws_url'] = $livekit->getWsUrl();
+                $data['livekit_token'] = $livekit->generateParticipantToken(
+                    $session->livekit_room_name,
+                    $patientName,
+                    true
+                );
             } else {
                 $data['sip_address'] = $session->webex_sip_address;
                 $data['meeting_number'] = $session->webex_meeting_number;

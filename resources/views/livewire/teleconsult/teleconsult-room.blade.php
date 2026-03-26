@@ -13,8 +13,15 @@
                         {{ ucfirst(str_replace('_', ' ', $session->status)) }}
                     </span>
                     &middot;
-                    <span class="badge badge-sm {{ $platform === 'jitsi' ? 'badge-info' : 'badge-accent' }}">
-                        {{ $platform === 'jitsi' ? 'Jitsi Meet' : 'Webex' }}
+                    @php
+                        $platformLabel = match($platform) {
+                            'jitsi' => ['badge-info', 'Jitsi Meet'],
+                            'livekit' => ['badge-secondary', 'LiveKit'],
+                            default => ['badge-accent', 'Webex'],
+                        };
+                    @endphp
+                    <span class="badge badge-sm {{ $platformLabel[0] }}">
+                        {{ $platformLabel[1] }}
                     </span>
                 </p>
             </div>
@@ -103,6 +110,129 @@
                         <x-mary-icon name="o-video-camera" class="w-16 h-16 mx-auto mb-4 opacity-50" />
                         <p class="text-lg">No Jitsi meeting configured</p>
                         <p class="text-sm text-gray-400">Meeting will appear here once the session is created.</p>
+                    </div>
+                @endif
+
+            @elseif ($platform === 'livekit')
+                {{-- ===== LIVEKIT EMBEDDED ===== --}}
+                @if ($livekitRoomName && $livekitToken)
+                    <div class="w-full h-full flex flex-col" x-data="livekitRoom()" x-init="init()">
+                        <div id="livekit-container" class="flex-1 w-full relative" style="min-height: 400px;">
+                            {{-- Remote video --}}
+                            <div id="livekit-remote" class="absolute inset-0 flex items-center justify-center">
+                                <div id="livekit-waiting" class="text-white text-center">
+                                    <x-mary-icon name="o-signal" class="w-16 h-16 mx-auto mb-4 opacity-50 animate-pulse" />
+                                    <p class="text-lg">Waiting for patient to join...</p>
+                                </div>
+                            </div>
+                            {{-- Local video (picture-in-picture) --}}
+                            <div id="livekit-local" class="absolute bottom-4 right-4 w-48 h-36 rounded-lg overflow-hidden border-2 border-gray-600 bg-gray-900 z-10"></div>
+                        </div>
+
+                        {{-- Controls --}}
+                        <div class="flex items-center justify-center gap-3 py-3 bg-gray-900">
+                            <button x-on:click="toggleAudio()" class="btn btn-circle btn-sm"
+                                :class="audioMuted ? 'btn-error' : 'btn-ghost text-white'">
+                                <x-mary-icon x-show="!audioMuted" name="o-microphone" class="w-5 h-5" />
+                                <x-mary-icon x-show="audioMuted" name="o-microphone" class="w-5 h-5 line-through" />
+                            </button>
+                            <button x-on:click="toggleVideo()" class="btn btn-circle btn-sm"
+                                :class="videoMuted ? 'btn-error' : 'btn-ghost text-white'">
+                                <x-mary-icon x-show="!videoMuted" name="o-video-camera" class="w-5 h-5" />
+                                <x-mary-icon x-show="videoMuted" name="o-video-camera" class="w-5 h-5 line-through" />
+                            </button>
+                            <button x-on:click="toggleScreenShare()" class="btn btn-circle btn-sm btn-ghost text-white">
+                                <x-mary-icon name="o-computer-desktop" class="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    @push('scripts')
+                    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+                    <script>
+                        function livekitRoom() {
+                            return {
+                                room: null,
+                                audioMuted: false,
+                                videoMuted: false,
+                                async init() {
+                                    if (typeof LivekitClient === 'undefined') {
+                                        console.error('LiveKit client SDK not loaded');
+                                        return;
+                                    }
+                                    try {
+                                        this.room = new LivekitClient.Room({
+                                            adaptiveStream: true,
+                                            dynacast: true,
+                                        });
+
+                                        // Handle remote tracks
+                                        this.room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, pub, participant) => {
+                                            const el = track.attach();
+                                            el.style.width = '100%';
+                                            el.style.height = '100%';
+                                            el.style.objectFit = 'cover';
+                                            const container = document.getElementById('livekit-remote');
+                                            const waiting = document.getElementById('livekit-waiting');
+                                            if (waiting) waiting.style.display = 'none';
+                                            container.appendChild(el);
+                                        });
+
+                                        this.room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+                                            track.detach().forEach(el => el.remove());
+                                        });
+
+                                        this.room.on(LivekitClient.RoomEvent.ParticipantDisconnected, () => {
+                                            const waiting = document.getElementById('livekit-waiting');
+                                            if (waiting) waiting.style.display = 'block';
+                                        });
+
+                                        // Connect
+                                        await this.room.connect('{{ $livekitWsUrl }}', '{{ $livekitToken }}');
+
+                                        // Publish local tracks
+                                        await this.room.localParticipant.enableCameraAndMicrophone();
+
+                                        // Attach local video
+                                        const localContainer = document.getElementById('livekit-local');
+                                        this.room.localParticipant.videoTrackPublications.forEach((pub) => {
+                                            if (pub.track) {
+                                                const el = pub.track.attach();
+                                                el.style.width = '100%';
+                                                el.style.height = '100%';
+                                                el.style.objectFit = 'cover';
+                                                el.style.transform = 'scaleX(-1)';
+                                                localContainer.appendChild(el);
+                                            }
+                                        });
+                                    } catch (e) {
+                                        console.error('LiveKit connection error:', e);
+                                    }
+                                },
+                                toggleAudio() {
+                                    if (!this.room) return;
+                                    this.audioMuted = !this.audioMuted;
+                                    this.room.localParticipant.setMicrophoneEnabled(!this.audioMuted);
+                                },
+                                toggleVideo() {
+                                    if (!this.room) return;
+                                    this.videoMuted = !this.videoMuted;
+                                    this.room.localParticipant.setCameraEnabled(!this.videoMuted);
+                                },
+                                async toggleScreenShare() {
+                                    if (!this.room) return;
+                                    const enabled = this.room.localParticipant.isScreenShareEnabled;
+                                    await this.room.localParticipant.setScreenShareEnabled(!enabled);
+                                }
+                            }
+                        }
+                    </script>
+                    @endpush
+                @else
+                    <div class="text-white text-center">
+                        <x-mary-icon name="o-signal" class="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p class="text-lg">No LiveKit room configured</p>
+                        <p class="text-sm text-gray-400">Room will appear here once the session is created.</p>
                     </div>
                 @endif
 

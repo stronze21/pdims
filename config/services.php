@@ -46,6 +46,13 @@ return [
         'jwt_secret' => env('JITSI_JWT_SECRET'),
     ],
 
+    'livekit' => [
+        'server_url' => env('LIVEKIT_SERVER_URL', 'http://localhost:7880'),
+        'ws_url' => env('LIVEKIT_WS_URL', 'ws://localhost:7880'),
+        'api_key' => env('LIVEKIT_API_KEY'),
+        'api_secret' => env('LIVEKIT_API_SECRET'),
+    ],
+
     'teleconsult' => [
         'default_platform' => env('TELECONSULT_DEFAULT_PLATFORM', 'jitsi'),
     ],

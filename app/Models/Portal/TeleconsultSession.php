@@ -26,6 +26,8 @@ class TeleconsultSession extends Model
         'webex_host_key',
         'jitsi_room_name',
         'jitsi_meeting_link',
+        'livekit_room_name',
+        'livekit_token',
         'status',
         'scheduled_at',
         'started_at',

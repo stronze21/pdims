@@ -8,6 +8,7 @@ use App\Models\Portal\TeleconsultNote;
 use App\Models\Portal\TeleconsultSession;
 use App\Services\PushNotificationService;
 use App\Services\JitsiService;
+use App\Services\LiveKitService;
 use App\Services\WebexService;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -39,6 +40,11 @@ class TeleconsultRoom extends Component
     public $jitsiMeetingLink = '';
     public $jitsiServerDomain = '';
 
+    // LiveKit connection info
+    public $livekitRoomName = '';
+    public $livekitToken = '';
+    public $livekitWsUrl = '';
+
     // UI state
     public $showPrescriptionModal = false;
     public $showLabOrderModal = false;
@@ -63,6 +69,16 @@ class TeleconsultRoom extends Component
             $this->jitsiMeetingLink = $session->jitsi_meeting_link ?? '';
             $jitsi = new JitsiService();
             $this->jitsiServerDomain = $jitsi->getServerDomain();
+        } elseif ($this->platform === 'livekit') {
+            $this->livekitRoomName = $session->livekit_room_name ?? '';
+            $livekit = new LiveKitService();
+            $this->livekitWsUrl = $livekit->getWsUrl();
+            // Generate a fresh token for the doctor each time they enter the room
+            $this->livekitToken = $livekit->generateParticipantToken(
+                $this->livekitRoomName,
+                auth()->user()->name ?? 'Doctor',
+                true
+            ) ?? '';
         } else {
             $this->meetingLink = $session->webex_meeting_link ?? '';
             $this->sipAddress = $session->webex_sip_address ?? '';
@@ -163,10 +179,13 @@ class TeleconsultRoom extends Component
         ]);
         $this->session->refresh();
 
-        // Clean up platform meeting (only Webex needs API cleanup)
+        // Clean up platform meeting
         if ($this->session->platform === 'webex' && $this->session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($this->session->webex_meeting_id);
+        } elseif ($this->session->platform === 'livekit' && $this->session->livekit_room_name) {
+            $livekit = new LiveKitService();
+            $livekit->deleteRoom($this->session->livekit_room_name);
         }
 
         // Notify patient
@@ -185,6 +204,9 @@ class TeleconsultRoom extends Component
         if ($this->session->platform === 'webex' && $this->session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($this->session->webex_meeting_id);
+        } elseif ($this->session->platform === 'livekit' && $this->session->livekit_room_name) {
+            $livekit = new LiveKitService();
+            $livekit->deleteRoom($this->session->livekit_room_name);
         }
 
         $this->success('Session marked as no-show.');

@@ -89,14 +89,17 @@
             @endscope
 
             @scope('cell_platform', $session)
-                <span class="badge {{ ($session->platform ?? 'webex') === 'jitsi' ? 'badge-info' : 'badge-accent' }} badge-sm gap-1">
-                    @if (($session->platform ?? 'webex') === 'jitsi')
-                        <x-mary-icon name="o-video-camera" class="w-3 h-3" />
-                        Jitsi
-                    @else
-                        <x-mary-icon name="o-globe-alt" class="w-3 h-3" />
-                        Webex
-                    @endif
+                @php
+                    $p = $session->platform ?? 'webex';
+                    $platformBadge = match($p) {
+                        'jitsi' => ['badge-info', 'o-video-camera', 'Jitsi'],
+                        'livekit' => ['badge-secondary', 'o-signal', 'LiveKit'],
+                        default => ['badge-accent', 'o-globe-alt', 'Webex'],
+                    };
+                @endphp
+                <span class="badge {{ $platformBadge[0] }} badge-sm gap-1">
+                    <x-mary-icon :name="$platformBadge[1]" class="w-3 h-3" />
+                    {{ $platformBadge[2] }}
                 </span>
             @endscope
 

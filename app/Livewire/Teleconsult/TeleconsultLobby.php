@@ -4,6 +4,7 @@ namespace App\Livewire\Teleconsult;
 
 use App\Models\Portal\TeleconsultSession;
 use App\Services\JitsiService;
+use App\Services\LiveKitService;
 use App\Services\WebexService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -33,6 +34,7 @@ class TeleconsultLobby extends Component
     {
         return [
             ['id' => 'jitsi', 'name' => 'Jitsi Meet (Self-hosted)'],
+            ['id' => 'livekit', 'name' => 'LiveKit (Self-hosted)'],
             ['id' => 'webex', 'name' => 'Cisco Webex'],
         ];
     }
@@ -152,7 +154,7 @@ class TeleconsultLobby extends Component
             'appointmentId' => 'required|integer',
             'scheduledDate' => 'required|date',
             'scheduledTime' => 'required|string',
-            'platform' => 'required|in:webex,jitsi',
+            'platform' => 'required|in:webex,jitsi,livekit',
         ]);
 
         $appointment = DB::connection('portal')->table('appointments')
@@ -199,6 +201,19 @@ class TeleconsultLobby extends Component
 
             $sessionData['jitsi_room_name'] = $meeting['room_name'] ?? null;
             $sessionData['jitsi_meeting_link'] = $meeting['meeting_link'] ?? null;
+        } elseif ($this->platform === 'livekit') {
+            $livekit = new LiveKitService();
+            $meeting = $livekit->createMeeting(['title' => $title]);
+
+            $sessionData['livekit_room_name'] = $meeting['room_name'] ?? null;
+
+            // Generate doctor token immediately
+            $doctorToken = $livekit->generateParticipantToken(
+                $meeting['room_name'],
+                $user->name ?? 'Doctor',
+                true
+            );
+            $sessionData['livekit_token'] = $doctorToken;
         } else {
             $webex = new WebexService();
             $meeting = $webex->createMeeting([
@@ -237,10 +252,13 @@ class TeleconsultLobby extends Component
             return;
         }
 
-        // Clean up meeting on the platform side (only Webex needs API cleanup)
+        // Clean up meeting on the platform side
         if ($session->platform === 'webex' && $session->webex_meeting_id) {
             $webex = new WebexService();
             $webex->deleteMeeting($session->webex_meeting_id);
+        } elseif ($session->platform === 'livekit' && $session->livekit_room_name) {
+            $livekit = new LiveKitService();
+            $livekit->deleteRoom($session->livekit_room_name);
         }
 
         $session->update(['status' => 'cancelled']);
