@@ -56,6 +56,27 @@
                         {{-- Jitsi iframe container --}}
                         <div id="jitsi-container" class="flex-1 w-full" style="min-height: 400px;"></div>
 
+                        {{-- Error message (hidden by default, shown if API fails to load) --}}
+                        <div id="jitsi-load-error" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="text-white text-center space-y-4 max-w-md px-4">
+                                <x-mary-icon name="o-exclamation-triangle" class="w-16 h-16 mx-auto text-yellow-400" />
+                                <p class="text-lg font-semibold">Unable to load Jitsi Meet</p>
+                                <p class="text-sm text-gray-400">
+                                    The embedded meeting could not be loaded. This is usually caused by an untrusted SSL certificate on the Jitsi server.
+                                </p>
+                                <div class="space-y-2">
+                                    <a href="{{ $jitsiMeetingLink }}" target="_blank" rel="noopener"
+                                        class="btn btn-primary btn-md gap-2 w-full">
+                                        <x-mary-icon name="o-arrow-top-right-on-square" class="w-5 h-5" />
+                                        Open Meeting in New Tab
+                                    </a>
+                                    <p class="text-xs text-gray-500">
+                                        If prompted, accept the certificate to proceed.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Fallback link --}}
                         <div class="text-center py-2 bg-gray-900">
                             <a href="{{ $jitsiMeetingLink }}" target="_blank" rel="noopener"
@@ -66,7 +87,19 @@
                     </div>
 
                     @push('scripts')
-                    <script src="https://{{ $jitsiServerDomain }}/external_api.js"></script>
+                    <script>
+                        window.__jitsiApiLoaded = false;
+                    </script>
+                    <script src="https://{{ $jitsiServerDomain }}/external_api.js"
+                        onload="window.__jitsiApiLoaded = true;"
+                        onerror="
+                            window.__jitsiApiLoaded = false;
+                            console.error('Failed to load Jitsi external_api.js — possible SSL certificate issue with {{ $jitsiServerDomain }}');
+                            var errEl = document.getElementById('jitsi-load-error');
+                            if (errEl) { errEl.classList.remove('hidden'); }
+                            var container = document.getElementById('jitsi-container');
+                            if (container) { container.style.display = 'none'; }
+                        "></script>
                     <script>
                         function jitsiMeet() {
                             return {
@@ -74,6 +107,10 @@
                                 init() {
                                     if (typeof JitsiMeetExternalAPI === 'undefined') {
                                         console.error('Jitsi Meet API not loaded');
+                                        var errEl = document.getElementById('jitsi-load-error');
+                                        if (errEl) { errEl.classList.remove('hidden'); }
+                                        var container = document.getElementById('jitsi-container');
+                                        if (container) { container.style.display = 'none'; }
                                         return;
                                     }
                                     this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', {
