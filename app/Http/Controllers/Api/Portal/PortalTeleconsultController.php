@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Portal\TeleconsultSession;
+use App\Services\JitsiService;
 use App\Services\LiveKitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +107,25 @@ class PortalTeleconsultController extends Controller
                 $data['jitsi_server_domain'] = config('services.jitsi.server_url')
                     ? parse_url(config('services.jitsi.server_url'), PHP_URL_HOST)
                     : null;
+
+                // Generate JWT for the patient if JWT auth is configured on the Jitsi server
+                $jitsi = new JitsiService();
+                $patientName = $patient->patlast
+                    ? trim(($patient->patlast ?? '') . ', ' . ($patient->patfirst ?? ''))
+                    : 'Patient';
+                $jwt = $jitsi->generateToken(
+                    $session->jitsi_room_name,
+                    [
+                        'name' => $patientName,
+                        'email' => $account->email ?? '',
+                        'role' => 'member',
+                    ]
+                );
+                // Build the meeting link with JWT and config overrides for the iframe
+                $link = $session->jitsi_meeting_link;
+                $link .= $jwt ? '?jwt=' . $jwt : '';
+                $link .= '#config.disableDeepLinking=true&config.prejoinPageEnabled=false';
+                $data['meeting_link'] = $link;
             } elseif ($platform === 'livekit') {
                 $livekit = new LiveKitService();
                 $patientName = $patient->patlast

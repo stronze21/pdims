@@ -39,6 +39,7 @@ class TeleconsultRoom extends Component
     public $jitsiRoomName = '';
     public $jitsiMeetingLink = '';
     public $jitsiServerDomain = '';
+    public $jitsiJwt = '';
 
     // LiveKit connection info
     public $livekitRoomName = '';
@@ -69,6 +70,16 @@ class TeleconsultRoom extends Component
             $this->jitsiMeetingLink = $session->jitsi_meeting_link ?? '';
             $jitsi = new JitsiService();
             $this->jitsiServerDomain = $jitsi->getServerDomain();
+            // Generate a JWT token for the doctor (moderator) if JWT auth is configured
+            $user = auth()->user();
+            $this->jitsiJwt = $jitsi->generateToken(
+                $this->jitsiRoomName,
+                [
+                    'name' => $user->name ?? 'Doctor',
+                    'email' => $user->email ?? '',
+                    'role' => 'moderator',
+                ]
+            ) ?? '';
         } elseif ($this->platform === 'livekit') {
             $this->livekitRoomName = $session->livekit_room_name ?? '';
             $livekit = new LiveKitService();

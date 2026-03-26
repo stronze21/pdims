@@ -52,13 +52,58 @@
             @if ($platform === 'jitsi')
                 {{-- ===== JITSI MEET EMBEDDED ===== --}}
                 @if ($jitsiRoomName)
+                    @php
+                        // Build the full Jitsi URL with JWT and config for the popup/new-tab fallback
+                        $jitsiFullUrl = $jitsiMeetingLink;
+                        if ($jitsiJwt) {
+                            $jitsiFullUrl .= '?jwt=' . $jitsiJwt;
+                        }
+                        $jitsiFullUrl .= '#config.disableDeepLinking=true&config.prejoinPageEnabled=false&config.startWithAudioMuted=true&userInfo.displayName=%22' . urlencode(auth()->user()->name ?? 'Doctor') . '%22';
+                    @endphp
                     <div class="w-full h-full flex flex-col" x-data="jitsiMeet()" x-init="init()">
-                        {{-- Jitsi iframe container --}}
+                        {{-- Jitsi iframe container (used when page is HTTPS) --}}
                         <div id="jitsi-container" class="flex-1 w-full" style="min-height: 400px;"></div>
+
+                        {{-- Popup/new-tab UI (shown when page is HTTP — WebRTC requires secure context) --}}
+                        <div id="jitsi-popup-mode" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="text-white text-center space-y-4 max-w-md px-4">
+                                <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
+                                <p class="text-xl font-semibold">Jitsi Meeting Ready</p>
+                                <p class="text-sm text-gray-400">
+                                    The meeting opens in a separate window because this page is served over HTTP.
+                                    WebRTC requires a secure (HTTPS) context for camera and microphone access.
+                                </p>
+                                <a href="{{ $jitsiFullUrl }}" target="_blank" rel="noopener"
+                                    class="btn btn-primary btn-lg gap-2 w-full"
+                                    id="jitsi-open-btn">
+                                    <x-mary-icon name="o-arrow-top-right-on-square" class="w-5 h-5" />
+                                    Open Jitsi Meeting
+                                </a>
+                                <p class="text-xs text-gray-500">
+                                    The meeting will open in a new tab with full video and audio support.
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- Error message (shown if API fails to load entirely) --}}
+                        <div id="jitsi-load-error" class="hidden absolute inset-0 flex items-center justify-center">
+                            <div class="text-white text-center space-y-4 max-w-md px-4">
+                                <x-mary-icon name="o-exclamation-triangle" class="w-16 h-16 mx-auto text-yellow-400" />
+                                <p class="text-lg font-semibold">Unable to load Jitsi Meet</p>
+                                <p class="text-sm text-gray-400">
+                                    The embedded meeting could not be loaded. This is usually caused by an untrusted SSL certificate on the Jitsi server.
+                                </p>
+                                <a href="{{ $jitsiFullUrl }}" target="_blank" rel="noopener"
+                                    class="btn btn-primary btn-md gap-2 w-full">
+                                    <x-mary-icon name="o-arrow-top-right-on-square" class="w-5 h-5" />
+                                    Open Meeting in New Tab
+                                </a>
+                            </div>
+                        </div>
 
                         {{-- Fallback link --}}
                         <div class="text-center py-2 bg-gray-900">
-                            <a href="{{ $jitsiMeetingLink }}" target="_blank" rel="noopener"
+                            <a href="{{ $jitsiFullUrl }}" target="_blank" rel="noopener"
                                 class="text-xs text-gray-400 hover:text-white transition">
                                 Open in new tab &rarr;
                             </a>
@@ -66,17 +111,45 @@
                     </div>
 
                     @push('scripts')
-                    <script src="https://{{ $jitsiServerDomain }}/external_api.js"></script>
+                    <script>
+                        window.__jitsiApiLoaded = false;
+                    </script>
+                    <script src="https://{{ $jitsiServerDomain }}/external_api.js"
+                        onload="window.__jitsiApiLoaded = true;"
+                        onerror="
+                            window.__jitsiApiLoaded = false;
+                            console.error('Failed to load Jitsi external_api.js — possible SSL certificate issue with {{ $jitsiServerDomain }}');
+                            var errEl = document.getElementById('jitsi-load-error');
+                            if (errEl) { errEl.classList.remove('hidden'); }
+                            var container = document.getElementById('jitsi-container');
+                            if (container) { container.style.display = 'none'; }
+                        "></script>
                     <script>
                         function jitsiMeet() {
                             return {
                                 api: null,
                                 init() {
-                                    if (typeof JitsiMeetExternalAPI === 'undefined') {
-                                        console.error('Jitsi Meet API not loaded');
+                                    // WebRTC requires a secure context (HTTPS). If the parent page
+                                    // is HTTP, embedding Jitsi in an iframe won't work — the browser
+                                    // blocks navigator.mediaDevices. Fall back to opening in a new tab.
+                                    if (!window.isSecureContext) {
+                                        console.warn('Page is not a secure context (HTTP). Jitsi will open in a new tab for WebRTC support.');
+                                        var container = document.getElementById('jitsi-container');
+                                        if (container) { container.style.display = 'none'; }
+                                        var popup = document.getElementById('jitsi-popup-mode');
+                                        if (popup) { popup.classList.remove('hidden'); }
                                         return;
                                     }
-                                    this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', {
+
+                                    if (typeof JitsiMeetExternalAPI === 'undefined') {
+                                        console.error('Jitsi Meet API not loaded');
+                                        var errEl = document.getElementById('jitsi-load-error');
+                                        if (errEl) { errEl.classList.remove('hidden'); }
+                                        var container = document.getElementById('jitsi-container');
+                                        if (container) { container.style.display = 'none'; }
+                                        return;
+                                    }
+                                    var apiOptions = {
                                         roomName: '{{ $jitsiRoomName }}',
                                         parentNode: document.getElementById('jitsi-container'),
                                         width: '100%',
@@ -89,6 +162,7 @@
                                             startWithVideoMuted: false,
                                             prejoinPageEnabled: false,
                                             disableDeepLinking: true,
+                                            deeplinking: { disabled: true },
                                         },
                                         interfaceConfigOverrides: {
                                             TOOLBAR_BUTTONS: [
@@ -98,8 +172,13 @@
                                             ],
                                             SHOW_JITSI_WATERMARK: false,
                                             SHOW_WATERMARK_FOR_GUESTS: false,
+                                            MOBILE_APP_PROMO: false,
                                         }
-                                    });
+                                    };
+                                    @if ($jitsiJwt)
+                                        apiOptions.jwt = '{{ $jitsiJwt }}';
+                                    @endif
+                                    this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', apiOptions);
                                 }
                             }
                         }
