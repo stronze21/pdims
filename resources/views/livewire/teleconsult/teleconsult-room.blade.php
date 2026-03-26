@@ -60,12 +60,15 @@
                         }
                         $jitsiFullUrl .= '#config.disableDeepLinking=true&config.prejoinPageEnabled=false&config.startWithAudioMuted=true&userInfo.displayName=%22' . urlencode(auth()->user()->name ?? 'Doctor') . '%22';
                     @endphp
-                    <div class="w-full h-full flex flex-col" x-data="jitsiMeet()" x-init="init()">
+                    <div class="w-full h-full flex flex-col"
+                        wire:ignore
+                        x-data="jitsiMeet()"
+                        x-init="init()">
                         {{-- Jitsi iframe container (used when page is HTTPS) --}}
-                        <div id="jitsi-container" class="flex-1 w-full" style="min-height: 400px;"></div>
+                        <div id="jitsi-container" x-ref="container" class="flex-1 w-full" style="min-height: 400px;"></div>
 
                         {{-- Popup/new-tab UI (shown when page is HTTP — WebRTC requires secure context) --}}
-                        <div id="jitsi-popup-mode" class="hidden absolute inset-0 flex items-center justify-center">
+                        <div id="jitsi-popup-mode" x-ref="popupMode" class="hidden absolute inset-0 flex items-center justify-center">
                             <div class="text-white text-center space-y-4 max-w-md px-4">
                                 <x-mary-icon name="o-video-camera" class="w-20 h-20 mx-auto opacity-70" />
                                 <p class="text-xl font-semibold">Jitsi Meeting Ready</p>
@@ -86,7 +89,7 @@
                         </div>
 
                         {{-- Error message (shown if API fails to load entirely) --}}
-                        <div id="jitsi-load-error" class="hidden absolute inset-0 flex items-center justify-center">
+                        <div id="jitsi-load-error" x-ref="loadError" class="hidden absolute inset-0 flex items-center justify-center">
                             <div class="text-white text-center space-y-4 max-w-md px-4">
                                 <x-mary-icon name="o-exclamation-triangle" class="w-16 h-16 mx-auto text-yellow-400" />
                                 <p class="text-lg font-semibold">Unable to load Jitsi Meet</p>
@@ -129,29 +132,33 @@
                             return {
                                 api: null,
                                 init() {
+                                    var container = this.$refs.container;
+                                    var popup = this.$refs.popupMode;
+                                    var errEl = this.$refs.loadError;
+
+                                    if (!container || container.dataset.jitsiMounted === 'true') {
+                                        return;
+                                    }
                                     // WebRTC requires a secure context (HTTPS). If the parent page
                                     // is HTTP, embedding Jitsi in an iframe won't work — the browser
                                     // blocks navigator.mediaDevices. Fall back to opening in a new tab.
                                     if (!window.isSecureContext) {
                                         console.warn('Page is not a secure context (HTTP). Jitsi will open in a new tab for WebRTC support.');
-                                        var container = document.getElementById('jitsi-container');
                                         if (container) { container.style.display = 'none'; }
-                                        var popup = document.getElementById('jitsi-popup-mode');
                                         if (popup) { popup.classList.remove('hidden'); }
                                         return;
                                     }
 
                                     if (typeof JitsiMeetExternalAPI === 'undefined') {
                                         console.error('Jitsi Meet API not loaded');
-                                        var errEl = document.getElementById('jitsi-load-error');
                                         if (errEl) { errEl.classList.remove('hidden'); }
-                                        var container = document.getElementById('jitsi-container');
                                         if (container) { container.style.display = 'none'; }
                                         return;
                                     }
+                                    container.innerHTML = '';
                                     var apiOptions = {
                                         roomName: '{{ $jitsiRoomName }}',
-                                        parentNode: document.getElementById('jitsi-container'),
+                                        parentNode: container,
                                         width: '100%',
                                         height: '100%',
                                         userInfo: {
@@ -179,6 +186,18 @@
                                         apiOptions.jwt = '{{ $jitsiJwt }}';
                                     @endif
                                     this.api = new JitsiMeetExternalAPI('{{ $jitsiServerDomain }}', apiOptions);
+                                    container.dataset.jitsiMounted = 'true';
+                                },
+                                destroy() {
+                                    if (this.api && typeof this.api.dispose === 'function') {
+                                        this.api.dispose();
+                                    }
+
+                                    var container = this.$refs.container;
+                                    if (container) {
+                                        container.innerHTML = '';
+                                        delete container.dataset.jitsiMounted;
+                                    }
                                 }
                             }
                         }
