@@ -165,15 +165,12 @@
                 </div>
                 <div class="item-details">
                     <div><strong>Quantity:</strong> {{ $item->qty }}</div>
-                    <div><strong>Frequency:</strong> {{ $item->frequency ?: 'N/A' }}</div>
+                    <div><strong>Frequency:</strong> {{ $item->remark ?: 'N/A' }}</div>
                     <div><strong>Duration:</strong> {{ $item->duration ?: 'N/A' }}</div>
                     <div><strong>Type:</strong> {{ $item->order_type }}</div>
                 </div>
-                @if ($item->remark || $item->addtl_remarks)
+                @if ($item->addtl_remarks)
                     <div class="item-remarks">
-                        @if ($item->remark)
-                            <div>{{ $item->remark }}</div>
-                        @endif
                         @if ($item->addtl_remarks)
                             <div><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
                         @endif

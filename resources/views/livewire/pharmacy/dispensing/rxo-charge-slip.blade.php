@@ -90,11 +90,8 @@
                         @if ($item->prescription_data && ($item->prescription_data->frequency || $item->prescription_data->duration || $item->prescription_data->remark || $item->prescription_data->addtl_remarks))
                             <tr class="border-x border-black">
                                 <td colspan="{{ $view_returns ? 5 : 4 }}" class="!text-2xs italic px-2 pb-1">
-                                    @if ($item->prescription_data->frequency || $item->prescription_data->duration)
+                                    @if ($item->prescription_data->duration)
                                         <span>
-                                            @if ($item->prescription_data->frequency)
-                                                {{ $item->prescription_data->frequency }}
-                                            @endif
                                             @if ($item->prescription_data->duration)
                                                 x {{ $item->prescription_data->duration }}
                                             @endif

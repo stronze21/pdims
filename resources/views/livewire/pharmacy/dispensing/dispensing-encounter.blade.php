@@ -524,11 +524,9 @@
                                         @if ($rxo->remarks)
                                             <div class="truncate">{{ $rxo->remarks }}</div>
                                         @endif
-                                        @if ($rxo->rx_frequency || $rxo->rx_duration || $rxo->rx_remark || $rxo->rx_addtl_remarks)
+                                        @if ($rxo->rx_remark || $rxo->rx_addtl_remarks)
                                             <div class="text-[10px] text-base-content/60 italic truncate">
-                                                @if ($rxo->rx_frequency){{ $rxo->rx_frequency }}@endif
-                                                @if ($rxo->rx_duration) x {{ $rxo->rx_duration }}@endif
-                                                @if ($rxo->rx_remark) - {{ $rxo->rx_remark }}@endif
+                                                @if ($rxo->rx_remark){{ $rxo->rx_remark }}@endif
                                                 @if ($rxo->rx_addtl_remarks) ({{ $rxo->rx_addtl_remarks }})@endif
                                             </div>
                                         @endif
@@ -1758,15 +1756,12 @@
                                             <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
                                         </td>
                                         <td>{{ $pItem['qty'] }}</td>
-                                        <td>{{ $pItem['frequency'] ?? '' }}</td>
+                                        <td>{{ $pItem['remark'] ?? '' }}</td>
                                         <td>{{ $pItem['duration'] ?? '' }}</td>
                                         <td>
                                             <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>
                                         </td>
                                         <td class="text-xs">
-                                            @if ($pItem['remark'] ?? null)
-                                                <div>{{ $pItem['remark'] }}</div>
-                                            @endif
                                             @if ($pItem['addtl_remarks'] ?? null)
                                                 <div class="text-warning">{{ $pItem['addtl_remarks'] }}</div>
                                             @endif
