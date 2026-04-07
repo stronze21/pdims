@@ -19,33 +19,33 @@
         @endforeach
     </div>
 
-    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+    <div class="bg-base-100 rounded-2xl shadow-xl border border-base-300 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                <thead class="bg-base-200">
                     <tr>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Patient</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Drug / Medication</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Qty</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Status</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Requested</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase text-center">Actions</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Patient</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Drug / Medication</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Qty</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Status</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Requested</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($refills as $refill)
-                        <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100">
+                        <tr class="hover:bg-base-200/70 transition-colors border-b border-base-300">
                             <td class="py-3 px-4">
-                                <div class="font-semibold text-gray-900 text-sm">{{ $refill->patient?->fullname ?? '-' }}</div>
-                                <div class="text-xs text-gray-500 font-mono">{{ $refill->hpercode ?? 'N/A' }}</div>
+                                <div class="font-semibold text-base-content text-sm">{{ $refill->patient?->fullname ?? '-' }}</div>
+                                <div class="text-xs text-base-content/60 font-mono">{{ $refill->hpercode ?? 'N/A' }}</div>
                             </td>
                             <td class="py-3 px-4">
-                                <div class="text-sm text-gray-900">{{ $refill->drug_name }}</div>
+                                <div class="text-sm text-base-content">{{ $refill->drug_name }}</div>
                                 @if($refill->remarks)
-                                    <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ $refill->remarks }}</div>
+                                    <div class="text-xs text-base-content/60 truncate max-w-[200px]">{{ $refill->remarks }}</div>
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-sm text-gray-700 font-semibold">{{ number_format($refill->qty_requested) }}</td>
+                            <td class="py-3 px-4 text-sm text-base-content/80 font-semibold">{{ number_format($refill->qty_requested) }}</td>
                             <td class="py-3 px-4">
                                 @switch($refill->status)
                                     @case('pending')
@@ -62,7 +62,7 @@
                                         @break
                                 @endswitch
                             </td>
-                            <td class="py-3 px-4 text-xs text-gray-500">{{ $refill->created_at?->format('M d, Y h:i A') }}</td>
+                            <td class="py-3 px-4 text-xs text-base-content/60">{{ $refill->created_at?->format('M d, Y h:i A') }}</td>
                             <td class="py-3 px-4">
                                 <div class="flex justify-center gap-1">
                                     <button class="btn btn-xs btn-info" wire:click="openViewModal({{ $refill->id }})" title="View Details">
@@ -88,9 +88,9 @@
                         <tr>
                             <td colspan="6" class="py-16 text-center">
                                 <div class="flex flex-col items-center">
-                                    <x-mary-icon name="o-document-text" class="w-16 h-16 text-gray-300 mb-4" />
-                                    <span class="text-xl font-bold text-gray-400">No refill requests found</span>
-                                    <span class="text-sm text-gray-400 mt-2">Prescription refill requests from the Salun-at app will appear here</span>
+                                    <x-mary-icon name="o-document-text" class="w-16 h-16 text-base-content/30 mb-4" />
+                                    <span class="text-xl font-bold text-base-content/60">No refill requests found</span>
+                                    <span class="text-sm text-base-content/50 mt-2">Prescription refill requests from the Salun-at app will appear here</span>
                                 </div>
                             </td>
                         </tr>
@@ -105,103 +105,103 @@
     </div>
 
     {{-- View Details Modal --}}
-    <x-mary-modal wire:model="viewModal" title="Refill Request Details" class="backdrop-blur" box-class="max-w-2xl">
+    <x-mary-modal wire:model="viewModal" title="Refill Request Details" class="backdrop-blur" box-class="max-w-2xl bg-base-100 text-base-content border border-base-300">
         @if($viewRefill)
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Patient</span>
-                        <p class="font-bold text-gray-900">{{ $viewRefill->patient?->fullname ?? '-' }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Patient</span>
+                        <p class="font-bold text-base-content">{{ $viewRefill->patient?->fullname ?? '-' }}</p>
                     </div>
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">HPerson Code</span>
-                        <p class="text-gray-700 font-mono">{{ $viewRefill->hpercode ?? 'N/A' }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">HPerson Code</span>
+                        <p class="text-base-content/80 font-mono">{{ $viewRefill->hpercode ?? 'N/A' }}</p>
                     </div>
                     <div class="col-span-2">
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Drug / Medication</span>
-                        <p class="font-bold text-gray-900">{{ $viewRefill->drug_name }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Drug / Medication</span>
+                        <p class="font-bold text-base-content">{{ $viewRefill->drug_name }}</p>
                     </div>
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Quantity Requested</span>
-                        <p class="text-gray-700 font-semibold">{{ number_format($viewRefill->qty_requested) }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Quantity Requested</span>
+                        <p class="text-base-content/80 font-semibold">{{ number_format($viewRefill->qty_requested) }}</p>
                     </div>
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Status</span>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Status</span>
                         <p class="font-semibold {{ $viewRefill->status === 'approved' ? 'text-green-600' : ($viewRefill->status === 'denied' ? 'text-red-600' : ($viewRefill->status === 'completed' ? 'text-blue-600' : 'text-yellow-600')) }}">
                             {{ ucfirst($viewRefill->status) }}
                         </p>
                     </div>
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Prescription ID</span>
-                        <p class="text-gray-700 font-mono">{{ $viewRefill->prescription_id ?? 'N/A' }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Prescription ID</span>
+                        <p class="text-base-content/80 font-mono">{{ $viewRefill->prescription_id ?? 'N/A' }}</p>
                     </div>
                     <div>
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Requested At</span>
-                        <p class="text-gray-700">{{ $viewRefill->created_at?->format('M d, Y h:i A') }}</p>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Requested At</span>
+                        <p class="text-base-content/80">{{ $viewRefill->created_at?->format('M d, Y h:i A') }}</p>
                     </div>
                 </div>
 
                 {{-- Original Prescription Context from webapp --}}
                 @if($prescriptionContext)
-                    <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                        <h4 class="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                    <div class="p-4 bg-warning/10 rounded-lg border border-warning/20">
+                        <h4 class="font-semibold text-warning mb-3 flex items-center gap-2">
                             <x-mary-icon name="o-clipboard-document-list" class="w-4 h-4" />
                             Original Prescription (CDOE)
                         </h4>
                         <div class="grid grid-cols-2 gap-3 text-sm">
                             <div>
-                                <span class="text-gray-500">Prescribing Doctor:</span>
-                                <p class="font-semibold text-gray-900">Dr. {{ $prescriptionContext->doctor_name ?? 'N/A' }}</p>
+                                <span class="text-base-content/60">Prescribing Doctor:</span>
+                                <p class="font-semibold text-base-content">Dr. {{ $prescriptionContext->doctor_name ?? 'N/A' }}</p>
                             </div>
                             <div>
-                                <span class="text-gray-500">Prescribed Date:</span>
-                                <p class="text-gray-700">{{ $prescriptionContext->prescribed_at ? \Carbon\Carbon::parse($prescriptionContext->prescribed_at)->format('M d, Y') : 'N/A' }}</p>
+                                <span class="text-base-content/60">Prescribed Date:</span>
+                                <p class="text-base-content/80">{{ $prescriptionContext->prescribed_at ? \Carbon\Carbon::parse($prescriptionContext->prescribed_at)->format('M d, Y') : 'N/A' }}</p>
                             </div>
                             @if($prescriptionContext->frequency)
                                 <div>
-                                    <span class="text-gray-500">Frequency:</span>
-                                    <p class="font-semibold text-gray-900">{{ $prescriptionContext->frequency }}</p>
+                                    <span class="text-base-content/60">Frequency:</span>
+                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->frequency }}</p>
                                 </div>
                             @endif
                             @if($prescriptionContext->duration)
                                 <div>
-                                    <span class="text-gray-500">Duration:</span>
-                                    <p class="font-semibold text-gray-900">{{ $prescriptionContext->duration }}</p>
+                                    <span class="text-base-content/60">Duration:</span>
+                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->duration }}</p>
                                 </div>
                             @endif
                         </div>
                         <div class="grid grid-cols-3 gap-3 mt-3">
-                            <div class="p-2 bg-white rounded text-center">
-                                <span class="text-xs text-gray-500 block">Total Ordered</span>
-                                <span class="text-lg font-bold text-gray-900">{{ number_format($prescriptionContext->qty_ordered) }}</span>
+                            <div class="p-2 bg-base-100 rounded text-center border border-base-300">
+                                <span class="text-xs text-base-content/60 block">Total Ordered</span>
+                                <span class="text-lg font-bold text-base-content">{{ number_format($prescriptionContext->qty_ordered) }}</span>
                             </div>
-                            <div class="p-2 bg-white rounded text-center">
-                                <span class="text-xs text-green-600 block">Already Dispensed</span>
-                                <span class="text-lg font-bold text-green-700">{{ number_format($prescriptionContext->total_issued) }}</span>
+                            <div class="p-2 bg-base-100 rounded text-center border border-base-300">
+                                <span class="text-xs text-success block">Already Dispensed</span>
+                                <span class="text-lg font-bold text-success">{{ number_format($prescriptionContext->total_issued) }}</span>
                             </div>
-                            <div class="p-2 bg-white rounded text-center">
-                                <span class="text-xs text-orange-600 block">Remaining</span>
-                                <span class="text-lg font-bold text-orange-700">{{ number_format($prescriptionContext->remaining_qty) }}</span>
+                            <div class="p-2 bg-base-100 rounded text-center border border-base-300">
+                                <span class="text-xs text-warning block">Remaining</span>
+                                <span class="text-lg font-bold text-warning">{{ number_format($prescriptionContext->remaining_qty) }}</span>
                             </div>
                         </div>
                         @if($prescriptionContext->remark)
-                            <p class="text-xs text-gray-600 mt-2"><strong>Doctor's Remark:</strong> {{ $prescriptionContext->remark }}</p>
+                            <p class="text-xs text-base-content/70 mt-2"><strong>Doctor's Remark:</strong> {{ $prescriptionContext->remark }}</p>
                         @endif
                     </div>
                 @endif
 
                 @if($viewRefill->remarks)
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Patient Remarks</span>
-                        <p class="text-gray-700 text-sm mt-1">{{ $viewRefill->remarks }}</p>
+                    <div class="p-3 bg-base-200 rounded-lg border border-base-300">
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Patient Remarks</span>
+                        <p class="text-base-content/80 text-sm mt-1">{{ $viewRefill->remarks }}</p>
                     </div>
                 @endif
 
                 @if($viewRefill->admin_remarks)
-                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <span class="text-xs text-gray-500 uppercase font-semibold">Admin Remarks</span>
-                        <p class="text-gray-700 text-sm mt-1">{{ $viewRefill->admin_remarks }}</p>
-                        <p class="text-xs text-gray-400 mt-2">Processed by {{ $viewRefill->processed_by }} on {{ $viewRefill->processed_at?->format('M d, Y h:i A') }}</p>
+                    <div class="p-3 bg-info/10 rounded-lg border border-info/20">
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Admin Remarks</span>
+                        <p class="text-base-content/80 text-sm mt-1">{{ $viewRefill->admin_remarks }}</p>
+                        <p class="text-xs text-base-content/50 mt-2">Processed by {{ $viewRefill->processed_by }} on {{ $viewRefill->processed_at?->format('M d, Y h:i A') }}</p>
                     </div>
                 @endif
             </div>
@@ -215,7 +215,7 @@
     {{-- Process Modal --}}
     <x-mary-modal wire:model="processModal" title="{{ $processAction === 'approved' ? 'Approve' : 'Deny' }} Refill Request" class="backdrop-blur">
         <div class="p-4">
-            <p class="text-gray-700 mb-4">
+            <p class="text-base-content/80 mb-4">
                 Are you sure you want to <strong>{{ $processAction === 'approved' ? 'approve' : 'deny' }}</strong> this refill request?
             </p>
             <x-mary-textarea label="Remarks (optional)" wire:model="adminRemarks" placeholder="Add any notes about this decision..." rows="3" />

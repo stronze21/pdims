@@ -165,6 +165,6 @@ class ManageChatConversations extends Component
             'conversations' => $conversations,
             'openCount' => $openCount,
             'unreadCount' => $unreadCount,
-        ]);
+        ])->layout('layouts.portal');
     }
 }

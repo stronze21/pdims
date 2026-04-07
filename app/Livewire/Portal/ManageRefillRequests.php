@@ -142,6 +142,6 @@ class ManageRefillRequests extends Component
         return view('livewire.portal.manage-refill-requests', [
             'refills' => $refills,
             'pendingCount' => $pendingCount,
-        ]);
+        ])->layout('layouts.portal');
     }
 }

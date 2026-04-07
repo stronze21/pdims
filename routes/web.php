@@ -240,7 +240,17 @@ Route::middleware([
         Route::get('/summary/{sessionId}', TeleconsultSummary::class)->name('summary');
     });
 
+    Route::prefix('portal/teleconsult')->name('portal.teleconsult.')->group(function () {
+        Route::get('/', TeleconsultLobby::class)->name('lobby');
+        Route::get('/room/{sessionId}', TeleconsultRoom::class)->name('room');
+        Route::get('/summary/{sessionId}', TeleconsultSummary::class)->name('summary');
+    });
+
     Route::get('/settings/zero-billing-charges', ManageZeroBillingCharges::class)->name('settings.zero-billing');
+
+    Route::get('/portal', function () {
+        return redirect()->route('settings.portal.users');
+    })->name('portal.index');
 
     Route::get('/settings/portal/users', ManagePortalUsers::class)->name('settings.portal.users');
     Route::get('/settings/portal/refills', ManageRefillRequests::class)->name('settings.portal.refills');

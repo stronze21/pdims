@@ -81,6 +81,6 @@ class ManagePortalUsers extends Component
 
         return view('livewire.portal.manage-portal-users', [
             'accounts' => $accounts,
-        ]);
+        ])->layout('layouts.portal');
     }
 }

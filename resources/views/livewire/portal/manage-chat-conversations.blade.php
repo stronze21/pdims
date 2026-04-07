@@ -22,17 +22,17 @@
         @endif
     </div>
 
-    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+    <div class="bg-base-100 rounded-2xl shadow-xl border border-base-300 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                <thead class="bg-base-200">
                     <tr>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Patient</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Subject</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Last Message</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Status</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Updated</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase text-center">Actions</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Patient</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Subject</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Last Message</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Status</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Updated</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -40,23 +40,23 @@
                         @php
                             $unread = $conv->messages()->where('sender_type', 'patient')->whereNull('read_at')->count();
                         @endphp
-                        <tr class="hover:bg-blue-50 transition-colors border-b border-gray-100 {{ $unread > 0 ? 'bg-purple-50' : '' }}">
+                        <tr class="hover:bg-base-200/70 transition-colors border-b border-base-300 {{ $unread > 0 ? 'bg-primary/5' : '' }}">
                             <td class="py-3 px-4">
-                                <div class="font-semibold text-gray-900 text-sm">{{ $conv->patient?->fullname ?? '-' }}</div>
-                                <div class="text-xs text-gray-500 font-mono">{{ $conv->patient?->hpercode ?? 'N/A' }}</div>
+                                <div class="font-semibold text-base-content text-sm">{{ $conv->patient?->fullname ?? '-' }}</div>
+                                <div class="text-xs text-base-content/60 font-mono">{{ $conv->patient?->hpercode ?? 'N/A' }}</div>
                             </td>
                             <td class="py-3 px-4">
-                                <div class="text-sm text-gray-900 font-medium">{{ $conv->subject ?? 'General Inquiry' }}</div>
+                                <div class="text-sm text-base-content font-medium">{{ $conv->subject ?? 'General Inquiry' }}</div>
                             </td>
                             <td class="py-3 px-4">
-                                <div class="text-sm text-gray-600 truncate max-w-[250px]">
+                                <div class="text-sm text-base-content/70 truncate max-w-[250px]">
                                     @if($conv->latestMessage)
-                                        <span class="text-xs font-semibold {{ $conv->latestMessage->sender_type === 'staff' ? 'text-blue-600' : 'text-purple-600' }}">
+                                        <span class="text-xs font-semibold {{ $conv->latestMessage->sender_type === 'staff' ? 'text-info' : 'text-secondary' }}">
                                             {{ $conv->latestMessage->sender_type === 'staff' ? 'Staff' : 'Patient' }}:
                                         </span>
                                         {{ $conv->latestMessage->body }}
                                     @else
-                                        <span class="text-gray-400">No messages</span>
+                                        <span class="text-base-content/40">No messages</span>
                                     @endif
                                 </div>
                                 @if($unread > 0)
@@ -70,7 +70,7 @@
                                     <span class="badge badge-sm badge-ghost">Closed</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-4 text-xs text-gray-500">{{ $conv->last_message_at?->format('M d, Y h:i A') ?? $conv->created_at?->format('M d, Y h:i A') }}</td>
+                            <td class="py-3 px-4 text-xs text-base-content/60">{{ $conv->last_message_at?->format('M d, Y h:i A') ?? $conv->created_at?->format('M d, Y h:i A') }}</td>
                             <td class="py-3 px-4">
                                 <div class="flex justify-center gap-1">
                                     <button class="btn btn-xs btn-primary" wire:click="openChat({{ $conv->id }})" title="Open Chat">
@@ -92,9 +92,9 @@
                         <tr>
                             <td colspan="6" class="py-16 text-center">
                                 <div class="flex flex-col items-center">
-                                    <x-mary-icon name="o-chat-bubble-left-right" class="w-16 h-16 text-gray-300 mb-4" />
-                                    <span class="text-xl font-bold text-gray-400">No conversations found</span>
-                                    <span class="text-sm text-gray-400 mt-2">Patient chat conversations from the Salun-at app will appear here</span>
+                                    <x-mary-icon name="o-chat-bubble-left-right" class="w-16 h-16 text-base-content/30 mb-4" />
+                                    <span class="text-xl font-bold text-base-content/60">No conversations found</span>
+                                    <span class="text-sm text-base-content/50 mt-2">Patient chat conversations from the Salun-at app will appear here</span>
                                 </div>
                             </td>
                         </tr>
@@ -113,13 +113,13 @@
         <input type="checkbox" class="drawer-toggle" :checked="open" />
         <div class="drawer-side z-50">
             <label class="drawer-overlay" @click="open = false"></label>
-            <div class="bg-white w-[90vw] lg:w-[420px] h-full flex flex-col">
+            <div class="bg-base-100 w-[90vw] lg:w-[420px] h-full flex flex-col">
                 @if($activeConversation)
                     {{-- Header --}}
-                    <div class="px-4 py-3 border-b bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 flex items-center justify-between">
+                    <div class="px-4 py-3 border-b border-base-300 bg-base-200 flex items-center justify-between">
                         <div class="min-w-0 flex-1">
-                            <h3 class="text-base font-bold text-white truncate">{{ $activeConversation->subject ?? 'General Inquiry' }}</h3>
-                            <p class="text-xs text-slate-300">
+                            <h3 class="text-base font-bold text-base-content truncate">{{ $activeConversation->subject ?? 'General Inquiry' }}</h3>
+                            <p class="text-xs text-base-content/60">
                                 {{ $activeConversation->patient?->fullname ?? 'Unknown Patient' }}
                                 <span class="font-mono">({{ $activeConversation->patient?->hpercode ?? 'N/A' }})</span>
                             </p>
@@ -130,14 +130,14 @@
                             @else
                                 <span class="badge badge-ghost badge-sm">Closed</span>
                             @endif
-                            <button @click="open = false" class="btn btn-ghost btn-xs text-white">
+                            <button @click="open = false" class="btn btn-ghost btn-xs text-base-content">
                                 <x-mary-icon name="o-x-mark" class="w-5 h-5" />
                             </button>
                         </div>
                     </div>
 
                     {{-- Messages --}}
-                    <div class="flex-1 overflow-y-auto space-y-3 p-3 bg-gray-50" id="chat-messages-container"
+                    <div class="flex-1 overflow-y-auto space-y-3 p-3 bg-base-200/50" id="chat-messages-container"
                         x-data x-init="
                             let el = $el;
                             el.scrollTop = el.scrollHeight;
@@ -145,23 +145,23 @@
                         ">
                         @forelse($messages as $msg)
                             <div class="flex {{ $msg['sender_type'] === 'staff' ? 'justify-end' : 'justify-start' }}">
-                                <div class="max-w-[80%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900' }}">
-                                    <div class="text-xs font-semibold mb-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-100' : 'text-purple-600' }}">
+                                <div class="max-w-[80%] rounded-2xl px-4 py-2 {{ $msg['sender_type'] === 'staff' ? 'bg-primary text-primary-content' : 'bg-base-100 border border-base-300 text-base-content' }}">
+                                    <div class="text-xs font-semibold mb-1 {{ $msg['sender_type'] === 'staff' ? 'text-primary-content/80' : 'text-secondary' }}">
                                         {{ $msg['sender_name'] ?? ($msg['sender_type'] === 'staff' ? 'Staff' : 'Patient') }}
                                     </div>
                                     <div class="text-sm whitespace-pre-wrap break-words">{{ $msg['body'] }}</div>
-                                    <div class="text-xs mt-1 {{ $msg['sender_type'] === 'staff' ? 'text-blue-200' : 'text-gray-400' }}">
+                                    <div class="text-xs mt-1 {{ $msg['sender_type'] === 'staff' ? 'text-primary-content/70' : 'text-base-content/50' }}">
                                         {{ \Carbon\Carbon::parse($msg['created_at'])->format('M d, h:i A') }}
                                     </div>
                                 </div>
                             </div>
                         @empty
-                            <div class="text-center text-gray-400 py-8">No messages in this conversation.</div>
+                            <div class="text-center text-base-content/50 py-8">No messages in this conversation.</div>
                         @endforelse
                     </div>
 
                     {{-- Reply box / Actions --}}
-                    <div class="border-t bg-white p-3">
+                    <div class="border-t border-base-300 bg-base-100 p-3">
                         @if($activeConversation->status === 'open')
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
@@ -174,9 +174,9 @@
                                 <x-mary-button label="Close Conversation" wire:click="closeConversation({{ $activeConversation->id }})" class="btn-warning btn-xs" />
                             </div>
                         @else
-                            <div class="text-center text-gray-400 text-sm py-2 bg-gray-100 rounded-lg">
+                            <div class="text-center text-base-content/50 text-sm py-2 bg-base-200 rounded-lg">
                                 This conversation is closed.
-                                <button wire:click="reopenConversation({{ $activeConversation->id }})" class="text-blue-600 underline ml-1">Reopen</button>
+                                <button wire:click="reopenConversation({{ $activeConversation->id }})" class="text-primary underline ml-1">Reopen</button>
                             </div>
                         @endif
                     </div>

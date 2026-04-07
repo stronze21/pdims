@@ -18,30 +18,21 @@ class TeleconsultLobby extends Component
     public $search = '';
     public $statusFilter = 'today';
     public $selectedSession = null;
-    public $showCreateModal = false;
+    public $showCreateDrawer = false;
 
     // Create session form
     public $appointmentId = null;
     public $scheduledDate = '';
     public $scheduledTime = '';
-    public $platform = '';
+    public $selectedAppointment = [];
 
-    // Searchable appointment options
-    public $appointmentOptions = [];
-
-    // Platform options for dropdown
-    public function getPlatformOptionsProperty(): array
-    {
-        return [
-            ['id' => 'jitsi', 'name' => 'Jitsi Meet (Self-hosted)'],
-            ['id' => 'livekit', 'name' => 'LiveKit (Self-hosted)'],
-            ['id' => 'webex', 'name' => 'Cisco Webex'],
-        ];
-    }
+    // Searchable appointment rows for the drawer table
+    public $appointmentSearch = '';
+    public $appointmentRows = [];
 
     public function mount()
     {
-        $this->platform = config('services.teleconsult.default_platform', 'jitsi');
+        $this->loadAppointmentRows();
     }
 
     public function updatedSearch()
@@ -54,16 +45,43 @@ class TeleconsultLobby extends Component
         $this->resetPage();
     }
 
-    /**
-     * Server-side search for appointments by ref_no, patient name, or hpercode.
-     * Supports "Last, First" format (e.g. "Ednilao, Christian").
-     */
-    public function searchAppointments(string $value = '')
+    public function updatedAppointmentSearch()
     {
+        $this->loadAppointmentRows();
+    }
+
+    public function openCreateDrawer()
+    {
+        $this->resetCreateForm();
+        $this->appointmentSearch = '';
+        $this->showCreateDrawer = true;
+        $this->loadAppointmentRows();
+    }
+
+    public function closeCreateDrawer()
+    {
+        $this->showCreateDrawer = false;
+        $this->resetCreateForm();
+        $this->appointmentSearch = '';
+        $this->loadAppointmentRows();
+    }
+
+    protected function resetCreateForm(): void
+    {
+        $this->reset(['appointmentId', 'scheduledDate', 'scheduledTime', 'selectedAppointment']);
+    }
+
+    /**
+     * Load appointments for the drawer table, filtered by the search term.
+     */
+    public function loadAppointmentRows(): void
+    {
+        $value = trim($this->appointmentSearch);
+
         $query = DB::connection('portal')->table('appointments')
             ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
             ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
-            ->where('appointments.confirmed_by', '!=', null)
+            ->whereNotNull('appointments.confirmed_by')
             ->whereNull('appointments.deleted_at')
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
@@ -99,13 +117,14 @@ class TeleconsultLobby extends Component
             }
         }
 
-        $this->appointmentOptions = $query
+        $this->appointmentRows = $query
             ->orderBy('appointments.appointment_date')
             ->select(
                 'appointments.id',
                 'appointments.ref_no',
                 'appointments.appointment_date',
                 'appointment_types.name as type_name',
+                'appointments.doctor',
                 'patients.patlast',
                 'patients.patfirst',
                 'patients.patmiddle',
@@ -114,14 +133,14 @@ class TeleconsultLobby extends Component
             ->limit(30)
             ->get()
             ->map(function ($a) {
-                $name = trim(($a->patlast ?? '') . ', ' . ($a->patfirst ?? ''));
-                $hpercode = $a->hpercode ? " [{$a->hpercode}]" : '';
-                $type = $a->type_name ?? 'General';
-                $date = date('M d, Y h:i A', strtotime($a->appointment_date));
-
                 return [
                     'id' => $a->id,
-                    'name' => "{$a->ref_no} - {$name}{$hpercode} ({$type}) - {$date}",
+                    'ref_no' => $a->ref_no,
+                    'appointment_date' => $a->appointment_date,
+                    'patient_name' => trim(($a->patlast ?? '-') . ', ' . ($a->patfirst ?? '')),
+                    'hpercode' => $a->hpercode,
+                    'type_name' => $a->type_name ?? 'General',
+                    'doctor' => $a->doctor,
                 ];
             })
             ->toArray();
@@ -138,14 +157,74 @@ class TeleconsultLobby extends Component
             return;
         }
 
-        $appointment = DB::connection('portal')->table('appointments')
-            ->where('id', $value)
-            ->first();
+        $appointment = collect($this->appointmentRows)->firstWhere('id', (int) $value);
 
-        if ($appointment && $appointment->appointment_date) {
-            $this->scheduledDate = date('Y-m-d', strtotime($appointment->appointment_date));
-            $this->scheduledTime = date('H:i', strtotime($appointment->appointment_date));
+        if (!$appointment) {
+            $appointment = DB::connection('portal')->table('appointments')
+                ->where('id', $value)
+                ->whereNull('deleted_at')
+                ->select('id', 'appointment_date')
+                ->first();
         }
+
+        $appointmentDate = data_get($appointment, 'appointment_date');
+
+        if ($appointmentDate) {
+            $this->scheduledDate = date('Y-m-d', strtotime($appointmentDate));
+            $this->scheduledTime = date('H:i', strtotime($appointmentDate));
+        }
+    }
+
+    public function selectAppointment($appointmentId): void
+    {
+        $appointment = collect($this->appointmentRows)->firstWhere('id', (int) $appointmentId);
+
+        if (!$appointment) {
+            $appointment = DB::connection('portal')->table('appointments')
+                ->leftJoin('appointment_types', 'appointments.appointment_type', '=', 'appointment_types.id')
+                ->leftJoin('patients', 'appointments.patient_id', '=', 'patients.id')
+                ->where('appointments.id', $appointmentId)
+                ->whereNull('appointments.deleted_at')
+                ->select(
+                    'appointments.id',
+                    'appointments.ref_no',
+                    'appointments.appointment_date',
+                    'appointment_types.name as type_name',
+                    'appointments.doctor',
+                    'patients.patlast',
+                    'patients.patfirst',
+                    'patients.patmiddle',
+                    'patients.hpercode'
+                )
+                ->first();
+        }
+
+        if (!$appointment) {
+            $this->error('Appointment not found.');
+            return;
+        }
+
+        $appointmentIdValue = data_get($appointment, 'id');
+        $appointmentDate = data_get($appointment, 'appointment_date');
+
+        if (!$appointmentIdValue || !$appointmentDate) {
+            $this->error('Appointment details are incomplete.');
+            return;
+        }
+
+        $this->appointmentId = (int) $appointmentIdValue;
+        $this->scheduledDate = date('Y-m-d', strtotime($appointmentDate));
+        $this->scheduledTime = date('H:i', strtotime($appointmentDate));
+        $this->selectedAppointment = [
+            'id' => (int) $appointmentIdValue,
+            'ref_no' => data_get($appointment, 'ref_no', '-'),
+            'patient_name' => data_get($appointment, 'patient_name')
+                ?? trim((data_get($appointment, 'patlast', '-') ?? '-') . ', ' . (data_get($appointment, 'patfirst', '') ?? '')),
+            'hpercode' => data_get($appointment, 'hpercode'),
+            'appointment_date' => $appointmentDate,
+            'type_name' => data_get($appointment, 'type_name', 'General'),
+            'doctor' => data_get($appointment, 'doctor'),
+        ];
     }
 
     public function createSession()
@@ -154,7 +233,6 @@ class TeleconsultLobby extends Component
             'appointmentId' => 'required|integer',
             'scheduledDate' => 'required|date',
             'scheduledTime' => 'required|string',
-            'platform' => 'required|in:webex,jitsi,livekit',
         ]);
 
         $appointment = DB::connection('portal')->table('appointments')
@@ -190,57 +268,30 @@ class TeleconsultLobby extends Component
             'patient_id' => $appointment->patient_id,
             'doctor_employee_id' => $user->employeeid ?? $user->id,
             'doctor_name' => $user->name,
-            'platform' => $this->platform,
+            'platform' => 'jitsi',
             'status' => 'scheduled',
             'scheduled_at' => $scheduledAt,
         ];
 
-        if ($this->platform === 'jitsi') {
-            $jitsi = new JitsiService();
-            $meeting = $jitsi->createMeeting(['title' => $title]);
+        $jitsi = new JitsiService();
+        $meeting = $jitsi->createMeeting(['title' => $title]);
 
-            $sessionData['jitsi_room_name'] = $meeting['room_name'] ?? null;
-            $sessionData['jitsi_meeting_link'] = $meeting['meeting_link'] ?? null;
-        } elseif ($this->platform === 'livekit') {
-            $livekit = new LiveKitService();
-            $meeting = $livekit->createMeeting(['title' => $title]);
-
-            $sessionData['livekit_room_name'] = $meeting['room_name'] ?? null;
-
-            // Generate doctor token immediately
-            $doctorToken = $livekit->generateParticipantToken(
-                $meeting['room_name'],
-                $user->name ?? 'Doctor',
-                true
-            );
-            $sessionData['livekit_token'] = $doctorToken;
-        } else {
-            $webex = new WebexService();
-            $meeting = $webex->createMeeting([
-                'title' => $title,
-                'start' => $scheduledAt,
-                'end' => date('Y-m-d H:i:s', strtotime($scheduledAt) + 1800),
-            ]);
-
-            $sessionData['webex_meeting_id'] = $meeting['id'] ?? null;
-            $sessionData['webex_meeting_link'] = $meeting['meetingLink'] ?? $meeting['joinLink'] ?? null;
-            $sessionData['webex_sip_address'] = $meeting['sipAddress'] ?? null;
-            $sessionData['webex_meeting_number'] = $meeting['meetingNumber'] ?? null;
-            $sessionData['webex_meeting_password'] = $meeting['password'] ?? null;
-            $sessionData['webex_host_key'] = $meeting['hostKey'] ?? null;
-        }
+        $sessionData['jitsi_room_name'] = $meeting['room_name'] ?? null;
+        $sessionData['jitsi_meeting_link'] = $meeting['meeting_link'] ?? null;
 
         $session = TeleconsultSession::create($sessionData);
 
-        $this->showCreateModal = false;
-        $this->reset(['appointmentId', 'scheduledDate', 'scheduledTime', 'appointmentOptions']);
-        $this->platform = config('services.teleconsult.default_platform', 'jitsi');
+        $this->closeCreateDrawer();
+        $this->appointmentSearch = '';
+        $this->loadAppointmentRows();
         $this->success('Teleconsult session created for ' . ($appointment->ref_no ?? 'Appointment #' . $appointment->id) . '.');
     }
 
     public function startSession($sessionId)
     {
-        return redirect()->route('teleconsult.room', ['sessionId' => $sessionId]);
+        $routeName = request()->routeIs('portal.teleconsult.*') ? 'portal.teleconsult.room' : 'teleconsult.room';
+
+        return redirect()->route($routeName, ['sessionId' => $sessionId]);
     }
 
     public function cancelSession($sessionId)
@@ -308,8 +359,12 @@ class TeleconsultLobby extends Component
 
         $sessions = $query->orderBy('scheduled_at', 'desc')->paginate(15);
 
+        $layout = request()->routeIs('portal.teleconsult.*') ? 'layouts.portal' : 'layouts.app';
+
         return view('livewire.teleconsult.teleconsult-lobby', [
             'sessions' => $sessions,
+        ])->layout($layout, [
+            'title' => 'Teleconsult',
         ]);
     }
 }

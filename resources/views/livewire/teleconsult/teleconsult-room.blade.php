@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between bg-base-200 px-4 py-2 rounded-t-lg">
         <div class="flex items-center gap-3">
             <x-mary-button icon="o-arrow-left" class="btn-sm btn-ghost"
-                link="{{ route('teleconsult.lobby') }}" />
+                link="{{ request()->routeIs('portal.teleconsult.*') ? route('portal.teleconsult.lobby') : route('teleconsult.lobby') }}" />
             <div>
                 <h3 class="font-bold text-lg">Teleconsult Room</h3>
                 <p class="text-sm text-gray-500">

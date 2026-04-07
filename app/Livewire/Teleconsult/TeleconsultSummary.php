@@ -21,11 +21,14 @@ class TeleconsultSummary extends Component
 
     public function backToLobby()
     {
-        return redirect()->route('teleconsult.lobby');
+        $routeName = request()->routeIs('portal.teleconsult.*') ? 'portal.teleconsult.lobby' : 'teleconsult.lobby';
+
+        return redirect()->route($routeName);
     }
 
     public function render()
     {
-        return view('livewire.teleconsult.teleconsult-summary');
+        return view('livewire.teleconsult.teleconsult-summary')
+            ->layout(request()->routeIs('portal.teleconsult.*') ? 'layouts.portal' : 'layouts.app');
     }
 }

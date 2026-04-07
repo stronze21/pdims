@@ -202,7 +202,9 @@ class TeleconsultRoom extends Component
         // Notify patient
         broadcast(new TeleconsultEnded($this->session));
 
-        return redirect()->route('teleconsult.summary', ['sessionId' => $this->sessionId]);
+        $routeName = request()->routeIs('portal.teleconsult.*') ? 'portal.teleconsult.summary' : 'teleconsult.summary';
+
+        return redirect()->route($routeName, ['sessionId' => $this->sessionId]);
     }
 
     public function markNoShow()
@@ -222,7 +224,9 @@ class TeleconsultRoom extends Component
 
         $this->success('Session marked as no-show.');
 
-        return redirect()->route('teleconsult.lobby');
+        $routeName = request()->routeIs('portal.teleconsult.*') ? 'portal.teleconsult.lobby' : 'teleconsult.lobby';
+
+        return redirect()->route($routeName);
     }
 
     public function scheduleFollowUp()
@@ -257,6 +261,6 @@ class TeleconsultRoom extends Component
     public function render()
     {
         return view('livewire.teleconsult.teleconsult-room')
-            ->layout('layouts.app');
+            ->layout(request()->routeIs('portal.teleconsult.*') ? 'layouts.portal' : 'layouts.app');
     }
 }
