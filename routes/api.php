@@ -158,6 +158,7 @@ Route::prefix('portal')->group(function () {
         Route::get('/lab-results/encounter', [PortalLabResultController::class, 'encounterLabResults']);
 
         // Billing / payment routes
+        Route::get('/billing/pharmacy-charge-slips', [PortalBillingController::class, 'pharmacyChargeSlips']);
         Route::get('/billing/payments', [PortalBillingController::class, 'payments']);
 
         // Appointment routes
