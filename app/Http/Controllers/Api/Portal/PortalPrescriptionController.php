@@ -27,22 +27,22 @@ class PortalPrescriptionController extends Controller
                 hrxo.docointkey,
                 hrxo.enccode,
                 hrxo.hpercode,
-                hrxo.pcchrgcod AS charge_slip_code,
+                COALESCE(rxi.pcchrgcod, hrxo.pcchrgcod) AS charge_slip_code,
                 hrxo.dodate AS order_date,
                 hrxo.dotime AS order_time,
-                hrxo.dodtepost AS issued_date,
-                hrxo.dotmepost AS issued_time,
+                COALESCE(rxi.issuedte, hrxo.dodtepost) AS issued_date,
+                COALESCE(rxi.issuetme, hrxo.dotmepost) AS issued_time,
                 hrxo.pchrgqty AS quantity_ordered,
-                hrxo.qtyissued AS quantity_issued,
-                hrxo.pchrgup AS unit_price,
-                hrxo.pcchrgamt AS charge_amount,
+                COALESCE(rxi.qty, hrxo.qtyissued) AS quantity_issued,
+                COALESCE(rxi.pchrgup, hrxo.pchrgup) AS unit_price,
+                COALESCE(rxi.pchrgup, hrxo.pchrgup) * COALESCE(rxi.qty, hrxo.qtyissued) AS charge_amount,
                 hdmhdr.drug_concat AS item_name,
                 hcharge.chrgdesc AS cost_center_name,
-                hrxo.orderfrom AS cost_center_code,
+                COALESCE(rxi.issuedfrom, hrxo.orderfrom) AS cost_center_code,
                 hrxo.tx_type,
                 hrxo.remarks,
                 hrxo.estatus,
-                hrxo.prescription_data_id,
+                COALESCE(hrxo.prescription_data_id, rxi.prescription_data_id) AS prescription_data_id,
                 enctr.encdate AS encounter_date,
                 CASE
                     WHEN enctr.toecode = 'OPD' THEN 'Out-Patient'
@@ -54,22 +54,23 @@ class PortalPrescriptionController extends Controller
                     ELSE enctr.toecode
                 END AS encounter_type,
                 emp.lastname + ', ' + emp.firstname AS ordered_by
-            FROM hospital.dbo.hrxo hrxo WITH (NOLOCK)
+            FROM hospital.dbo.hrxoissue rxi WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hrxo hrxo WITH (NOLOCK)
+                ON hrxo.docointkey = rxi.docointkey
             INNER JOIN hospital.dbo.hdmhdr hdmhdr WITH (NOLOCK)
                 ON hdmhdr.dmdcomb = hrxo.dmdcomb
                 AND hdmhdr.dmdctr = hrxo.dmdctr
             LEFT JOIN hospital.dbo.hcharge hcharge WITH (NOLOCK)
-                ON hcharge.chrgcode = hrxo.orderfrom
+                ON hcharge.chrgcode = COALESCE(rxi.issuedfrom, hrxo.orderfrom)
             LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
                 ON enctr.enccode = hrxo.enccode
             LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
-                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby)
-            WHERE hrxo.hpercode = ?
-              AND hrxo.estatus = 'S'
-              AND COALESCE(hrxo.qtyissued, 0) > 0
+                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby, rxi.issuedby)
+            WHERE COALESCE(hrxo.hpercode, rxi.hpercode) = ?
+              AND COALESCE(rxi.qty, hrxo.qtyissued, 0) > 0
             ORDER BY
-                COALESCE(hrxo.dodtepost, hrxo.dodate) DESC,
-                COALESCE(hrxo.dotmepost, hrxo.dotime) DESC,
+                COALESCE(rxi.issuedte, hrxo.dodtepost, hrxo.dodate) DESC,
+                COALESCE(rxi.issuetme, hrxo.dotmepost, hrxo.dotime) DESC,
                 hrxo.docointkey DESC
         ", [$hpercode]);
 
