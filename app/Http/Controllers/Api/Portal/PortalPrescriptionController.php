@@ -22,6 +22,32 @@ class PortalPrescriptionController extends Controller
             return response()->json(['message' => 'No linked hospital record found.'], 404);
         }
 
+        $start = max((int) $request->query('start', 0), 0);
+        $count = (int) $request->query('count', 20);
+        $count = $count > 0 ? min($count, 20) : 20;
+
+        $baseQuery = "
+            FROM hospital.dbo.hrxoissue rxi WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hrxo hrxo WITH (NOLOCK)
+                ON hrxo.docointkey = rxi.docointkey
+            INNER JOIN hospital.dbo.hdmhdr hdmhdr WITH (NOLOCK)
+                ON hdmhdr.dmdcomb = hrxo.dmdcomb
+                AND hdmhdr.dmdctr = hrxo.dmdctr
+            LEFT JOIN hospital.dbo.hcharge hcharge WITH (NOLOCK)
+                ON hcharge.chrgcode = COALESCE(rxi.issuedfrom, hrxo.orderfrom)
+            LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON enctr.enccode = hrxo.enccode
+            LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
+                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby, rxi.issuedby)
+            WHERE COALESCE(hrxo.hpercode, rxi.hpercode) = ?
+              AND COALESCE(rxi.qty, hrxo.qtyissued, 0) > 0
+        ";
+
+        $total = DB::connection('hospital')->selectOne("
+            SELECT COUNT(*) AS total
+            $baseQuery
+        ", [$hpercode]);
+
         $issuedMedications = DB::connection('hospital')->select("
             SELECT
                 hrxo.docointkey,
@@ -54,27 +80,20 @@ class PortalPrescriptionController extends Controller
                     ELSE enctr.toecode
                 END AS encounter_type,
                 emp.lastname + ', ' + emp.firstname AS ordered_by
-            FROM hospital.dbo.hrxoissue rxi WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hrxo hrxo WITH (NOLOCK)
-                ON hrxo.docointkey = rxi.docointkey
-            INNER JOIN hospital.dbo.hdmhdr hdmhdr WITH (NOLOCK)
-                ON hdmhdr.dmdcomb = hrxo.dmdcomb
-                AND hdmhdr.dmdctr = hrxo.dmdctr
-            LEFT JOIN hospital.dbo.hcharge hcharge WITH (NOLOCK)
-                ON hcharge.chrgcode = COALESCE(rxi.issuedfrom, hrxo.orderfrom)
-            LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
-                ON enctr.enccode = hrxo.enccode
-            LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
-                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby, rxi.issuedby)
-            WHERE COALESCE(hrxo.hpercode, rxi.hpercode) = ?
-              AND COALESCE(rxi.qty, hrxo.qtyissued, 0) > 0
+            $baseQuery
             ORDER BY
                 COALESCE(rxi.issuedte, hrxo.dodtepost, hrxo.dodate) DESC,
                 COALESCE(rxi.issuetme, hrxo.dotmepost, hrxo.dotime) DESC,
                 hrxo.docointkey DESC
-        ", [$hpercode]);
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+        ", [$hpercode, $start, $count]);
 
-        return response()->json($issuedMedications);
+        return response()->json([
+            'items' => $issuedMedications,
+            'total' => (int) ($total->total ?? 0),
+            'start' => $start,
+            'count' => $count,
+        ]);
     }
 
     /**
