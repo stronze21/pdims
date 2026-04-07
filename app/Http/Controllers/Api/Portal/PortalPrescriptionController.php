@@ -10,6 +10,73 @@ use Illuminate\Support\Facades\DB;
 class PortalPrescriptionController extends Controller
 {
     /**
+     * Get issued medications from hrxo, including walk-in / non-prescription issues.
+     */
+    public function issuedMedications(Request $request)
+    {
+        $account = $request->user();
+        $account->load('patient');
+        $hpercode = $account->patient?->hpercode;
+
+        if (!$hpercode) {
+            return response()->json(['message' => 'No linked hospital record found.'], 404);
+        }
+
+        $issuedMedications = DB::connection('hospital')->select("
+            SELECT
+                hrxo.docointkey,
+                hrxo.enccode,
+                hrxo.hpercode,
+                hrxo.pcchrgcod AS charge_slip_code,
+                hrxo.dodate AS order_date,
+                hrxo.dotime AS order_time,
+                hrxo.dodtepost AS issued_date,
+                hrxo.dotmepost AS issued_time,
+                hrxo.pchrgqty AS quantity_ordered,
+                hrxo.qtyissued AS quantity_issued,
+                hrxo.pchrgup AS unit_price,
+                hrxo.pcchrgamt AS charge_amount,
+                hdmhdr.drug_concat AS item_name,
+                hcharge.chrgdesc AS cost_center_name,
+                hrxo.orderfrom AS cost_center_code,
+                hrxo.tx_type,
+                hrxo.remarks,
+                hrxo.estatus,
+                hrxo.prescription_data_id,
+                enctr.encdate AS encounter_date,
+                CASE
+                    WHEN enctr.toecode = 'OPD' THEN 'Out-Patient'
+                    WHEN enctr.toecode = 'ER' THEN 'Emergency Room'
+                    WHEN enctr.toecode = 'ADM' THEN 'Admission'
+                    WHEN enctr.toecode = 'ERADM' THEN 'ER to Admission'
+                    WHEN enctr.toecode = 'OPDAD' THEN 'OPD to Admission'
+                    WHEN enctr.toecode = 'WALKN' THEN 'Walk-In'
+                    ELSE enctr.toecode
+                END AS encounter_type,
+                emp.lastname + ', ' + emp.firstname AS ordered_by
+            FROM hospital.dbo.hrxo hrxo WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hdmhdr hdmhdr WITH (NOLOCK)
+                ON hdmhdr.dmdcomb = hrxo.dmdcomb
+                AND hdmhdr.dmdctr = hrxo.dmdctr
+            LEFT JOIN hospital.dbo.hcharge hcharge WITH (NOLOCK)
+                ON hcharge.chrgcode = hrxo.orderfrom
+            LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON enctr.enccode = hrxo.enccode
+            LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
+                ON emp.employeeid = COALESCE(hrxo.order_by, hrxo.entryby)
+            WHERE hrxo.hpercode = ?
+              AND hrxo.estatus = 'S'
+              AND COALESCE(hrxo.qtyissued, 0) > 0
+            ORDER BY
+                COALESCE(hrxo.dodtepost, hrxo.dodate) DESC,
+                COALESCE(hrxo.dotmepost, hrxo.dotime) DESC,
+                hrxo.docointkey DESC
+        ", [$hpercode]);
+
+        return response()->json($issuedMedications);
+    }
+
+    /**
      * Get patient's prescriptions from the webapp database.
      * Returns all prescriptions (active and inactive) with status indicators.
      */
