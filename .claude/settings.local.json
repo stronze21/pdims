@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/laragon/www/pdims -name *.cs)"
+    ]
+  }
+}
