@@ -63,7 +63,7 @@ class PortalPrescriptionController extends Controller
             LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
                 ON enctr.enccode = hrxo.enccode
             LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
-                ON emp.employeeid = COALESCE(hrxo.order_by, hrxo.entryby)
+                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby)
             WHERE hrxo.hpercode = ?
               AND hrxo.estatus = 'S'
               AND COALESCE(hrxo.qtyissued, 0) > 0
