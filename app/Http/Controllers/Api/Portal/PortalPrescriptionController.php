@@ -23,8 +23,8 @@ class PortalPrescriptionController extends Controller
         }
 
         $start = max((int) $request->query('start', 0), 0);
-        $count = (int) $request->query('count', 20);
-        $count = $count > 0 ? min($count, 20) : 20;
+        $count = (int) $request->query('count', 12);
+        $count = $count > 0 ? min($count, 12) : 12;
 
         $baseQuery = "
             FROM hospital.dbo.hrxoissue rxi WITH (NOLOCK)
