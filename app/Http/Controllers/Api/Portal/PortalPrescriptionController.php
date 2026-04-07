@@ -10,6 +10,93 @@ use Illuminate\Support\Facades\DB;
 class PortalPrescriptionController extends Controller
 {
     /**
+     * Get issued medications from hrxo, including walk-in / non-prescription issues.
+     */
+    public function issuedMedications(Request $request)
+    {
+        $account = $request->user();
+        $account->load('patient');
+        $hpercode = $account->patient?->hpercode;
+
+        if (!$hpercode) {
+            return response()->json(['message' => 'No linked hospital record found.'], 404);
+        }
+
+        $start = max((int) $request->query('start', 0), 0);
+        $count = (int) $request->query('count', 12);
+        $count = $count > 0 ? min($count, 12) : 12;
+
+        $baseQuery = "
+            FROM hospital.dbo.hrxoissue rxi WITH (NOLOCK)
+            INNER JOIN hospital.dbo.hrxo hrxo WITH (NOLOCK)
+                ON hrxo.docointkey = rxi.docointkey
+            INNER JOIN hospital.dbo.hdmhdr hdmhdr WITH (NOLOCK)
+                ON hdmhdr.dmdcomb = hrxo.dmdcomb
+                AND hdmhdr.dmdctr = hrxo.dmdctr
+            LEFT JOIN hospital.dbo.hcharge hcharge WITH (NOLOCK)
+                ON hcharge.chrgcode = COALESCE(rxi.issuedfrom, hrxo.orderfrom)
+            LEFT JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
+                ON enctr.enccode = hrxo.enccode
+            LEFT JOIN hospital.dbo.hpersonal emp WITH (NOLOCK)
+                ON emp.employeeid = COALESCE(hrxo.prescribed_by, hrxo.entryby, rxi.issuedby)
+            WHERE COALESCE(hrxo.hpercode, rxi.hpercode) = ?
+              AND COALESCE(rxi.qty, hrxo.qtyissued, 0) > 0
+        ";
+
+        $total = DB::connection('hospital')->selectOne("
+            SELECT COUNT(*) AS total
+            $baseQuery
+        ", [$hpercode]);
+
+        $issuedMedications = DB::connection('hospital')->select("
+            SELECT
+                hrxo.docointkey,
+                hrxo.enccode,
+                hrxo.hpercode,
+                COALESCE(rxi.pcchrgcod, hrxo.pcchrgcod) AS charge_slip_code,
+                hrxo.dodate AS order_date,
+                hrxo.dotime AS order_time,
+                COALESCE(rxi.issuedte, hrxo.dodtepost) AS issued_date,
+                COALESCE(rxi.issuetme, hrxo.dotmepost) AS issued_time,
+                hrxo.pchrgqty AS quantity_ordered,
+                COALESCE(rxi.qty, hrxo.qtyissued) AS quantity_issued,
+                COALESCE(rxi.pchrgup, hrxo.pchrgup) AS unit_price,
+                COALESCE(rxi.pchrgup, hrxo.pchrgup) * COALESCE(rxi.qty, hrxo.qtyissued) AS charge_amount,
+                hdmhdr.drug_concat AS item_name,
+                hcharge.chrgdesc AS cost_center_name,
+                COALESCE(rxi.issuedfrom, hrxo.orderfrom) AS cost_center_code,
+                hrxo.tx_type,
+                hrxo.remarks,
+                hrxo.estatus,
+                COALESCE(hrxo.prescription_data_id, rxi.prescription_data_id) AS prescription_data_id,
+                enctr.encdate AS encounter_date,
+                CASE
+                    WHEN enctr.toecode = 'OPD' THEN 'Out-Patient'
+                    WHEN enctr.toecode = 'ER' THEN 'Emergency Room'
+                    WHEN enctr.toecode = 'ADM' THEN 'Admission'
+                    WHEN enctr.toecode = 'ERADM' THEN 'ER to Admission'
+                    WHEN enctr.toecode = 'OPDAD' THEN 'OPD to Admission'
+                    WHEN enctr.toecode = 'WALKN' THEN 'Walk-In'
+                    ELSE enctr.toecode
+                END AS encounter_type,
+                emp.lastname + ', ' + emp.firstname AS ordered_by
+            $baseQuery
+            ORDER BY
+                COALESCE(rxi.issuedte, hrxo.dodtepost, hrxo.dodate) DESC,
+                COALESCE(rxi.issuetme, hrxo.dotmepost, hrxo.dotime) DESC,
+                hrxo.docointkey DESC
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+        ", [$hpercode, $start, $count]);
+
+        return response()->json([
+            'items' => $issuedMedications,
+            'total' => (int) ($total->total ?? 0),
+            'start' => $start,
+            'count' => $count,
+        ]);
+    }
+
+    /**
      * Get patient's prescriptions from the webapp database.
      * Returns all prescriptions (active and inactive) with status indicators.
      */
