@@ -93,6 +93,15 @@
                         </div>
                     </a>
 
+                    <a href="{{ route('settings.portal.manual') }}"
+                        class="mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 transition {{ request()->routeIs('settings.portal.manual') ? 'bg-primary text-primary-content shadow-lg shadow-primary/20' : 'text-base-content/70 hover:bg-base-200' }}">
+                        <x-mary-icon name="o-book-open" class="h-5 w-5" />
+                        <div class="min-w-0">
+                            <div class="font-semibold">User Manual</div>
+                            <div class="text-xs opacity-70">Guided walkthrough and tips</div>
+                        </div>
+                    </a>
+
                     <div class="mt-6 rounded-3xl border border-base-300 bg-base-200/50 p-4">
                         <div class="text-xs font-semibold uppercase tracking-[0.25em] text-base-content/40">Workspace</div>
                         <p class="mt-2 text-sm text-base-content/70">
@@ -131,11 +140,16 @@
                                     <li><a href="{{ route('settings.portal.refills') }}">Refill Requests</a></li>
                                     <li><a href="{{ route('settings.portal.chat') }}">Chat Conversations</a></li>
                                     <li><a href="{{ route('portal.teleconsult.lobby') }}">Teleconsult</a></li>
+                                    <li><a href="{{ route('settings.portal.manual') }}">User Manual</a></li>
                                     <li class="mt-1 border-t border-base-300 pt-1"><a href="{{ route('dashboard') }}">Back to Main App</a></li>
                                 </ul>
                             </div>
 
                             <x-mary-theme-toggle class="btn btn-circle btn-ghost" />
+                            <a href="{{ route('settings.portal.manual') }}" class="btn btn-ghost btn-sm hidden sm:inline-flex">
+                                <x-mary-icon name="o-book-open" class="h-4 w-4" />
+                                Manual
+                            </a>
                             <a href="{{ route('dashboard') }}" class="btn btn-ghost btn-sm hidden sm:inline-flex">
                                 <x-mary-icon name="o-arrow-left" class="h-4 w-4" />
                                 Main App
