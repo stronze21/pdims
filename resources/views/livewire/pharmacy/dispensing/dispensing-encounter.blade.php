@@ -722,7 +722,7 @@
                                         @else
                                             <button class="btn btn-xs btn-ghost tooltip tooltip-left"
                                                 data-tip="Search in Stocks"
-                                                wire:click="searchGenericItem({{ $presc_data->id }},'{{ explode(',', $presc_data->dm->drug_concat())[0] }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
+                                                wire:click="searchGenericItem({{ $presc_data->id }},'{{ $presc_data->dm->drug_concat }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
                                                 <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                             </button>
                                         @endif
@@ -1761,7 +1761,7 @@
                                             <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
                                         </td>
                                         <td>{{ $pItem['qty'] }}</td>
-                                        <td>{{ $pItem['remark'] ?? '' }}</td>
+                                        <td>{{ $pItem['frequency'] ?? '' }} {{ $pItem['remark'] ?? '' }}</td>
                                         <td>{{ $pItem['duration'] ?? '' }}</td>
                                         <td>
                                             <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>

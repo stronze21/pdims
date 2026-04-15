@@ -93,7 +93,7 @@
                                     @if ($item->prescription_data->duration)
                                         <span>
                                             @if ($item->prescription_data->duration)
-                                                x {{ $item->prescription_data->duration }}
+                                                {{ $item->prescription_data->frequency }} {{ $item->prescription_data->duration }}
                                             @endif
                                         </span>
                                     @endif

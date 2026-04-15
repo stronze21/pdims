@@ -165,7 +165,7 @@
                 </div>
                 <div class="item-details">
                     <div><strong>Quantity:</strong> {{ $item->qty }}</div>
-                    <div><strong>Frequency:</strong> {{ $item->remark ?: 'N/A' }}</div>
+                    <div><strong>Frequency:</strong> {{ $item->frequency ?: '' }} {{ $item->remark ?: 'N/A' }}</div>
                     <div><strong>Duration:</strong> {{ $item->duration ?: 'N/A' }}</div>
                     <div><strong>Type:</strong> {{ $item->order_type }}</div>
                 </div>
