@@ -19,6 +19,16 @@
         @endforeach
     </div>
 
+    @unless($refillTableAvailable)
+        <div class="alert mb-4 border border-warning/30 bg-warning/10 text-warning-content">
+            <x-mary-icon name="o-exclamation-triangle" class="h-5 w-5 shrink-0" />
+            <span>
+                Prescription refill requests are implemented, but the `prescription_refill_requests` table is not present yet on the shared Portal database.
+                Run the Portal refill migration to activate this module.
+            </span>
+        </div>
+    @endunless
+
     <div class="bg-base-100 rounded-2xl shadow-xl border border-base-300 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm">

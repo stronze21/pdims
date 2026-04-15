@@ -71,6 +71,9 @@ class DispensingEncounter extends Component
     public $diagtext, $wardname, $rmname, $billstat;
     public $location_id;
     public $hasEncounter = false;
+    public $can_add_items = false;
+    public $is_walkin_linked_encounter = false;
+    public $resolved_walkin_enccode = null;
     protected $encounter = [];
 
     // Drug Search & Filter
@@ -220,6 +223,9 @@ class DispensingEncounter extends Component
         $this->wardname = $encounter->wardname;
         $this->rmname = $encounter->rmname;
         $this->billstat = $encounter->billstat;
+        $this->can_add_items = true;
+        $this->is_walkin_linked_encounter = $this->shouldUseWalkInLinkedProcess($decrypted, $encounter->toecode, $encounter->billstat);
+        $this->resolved_walkin_enccode = $this->is_walkin_linked_encounter ? $this->getLatestWalkInEncounter() : null;
     }
 
     #[Layout('layouts.dispensing')]
@@ -244,7 +250,7 @@ class DispensingEncounter extends Component
             SELECT drug_concat, SUM(qtyissued) qty_issued, MAX(dodtepost) last_issue
                 FROM hrxo
             JOIN hdmhdr ON hrxo.dmdcomb = hdmhdr.dmdcomb AND hrxo.dmdctr = hdmhdr.dmdctr
-                WHERE enccode = '" . $enccode . "' AND estatus = 'S'
+                WHERE (enccode = '" . $enccode . "' OR original_enccode = '" . $enccode . "') AND estatus = 'S'
             GROUP BY drug_concat
         ");
 
@@ -574,17 +580,19 @@ class DispensingEncounter extends Component
         $this->type = $this->resolveTransactionType();
 
         if ($this->is_ris || $available >= $this->order_qty) {
-            $enccode = $this->decryptEnccode();
+            $originalEnccode = $this->decryptEnccode();
+            $targetEnccode = $this->is_walkin_linked_encounter ? $this->resolveLatestWalkInEncounter() : $originalEnccode;
+            $originalLinkEnccode = $targetEnccode !== $originalEnccode ? $originalEnccode : null;
             $docointkey = '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $chrgcode . $dmdcomb . $dmdctr;
 
             DB::insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
                             rxolock, rxoupsw, rxoconfd, dmdctr, estatus, entryby, ordcon, orderupd, locacode, orderfrom, issuetype,
-                            has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by )
-                        VALUES ( '" . $docointkey . "', '" . $enccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
+                            has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by, original_enccode )
+                        VALUES ( '" . $docointkey . "', '" . $targetEnccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
                             'N', 'N', 'N', '" . $dmdctr . "', 'U', '" . auth()->user()->employeeid . "', 'NEWOR', 'ACTIV', 'PHARM', '" . $chrgcode . "', 'c',
                             '" . ($this->type ? true : false) . "', '" . $this->type . "', '" . ($this->is_ris ? true : false) . "', '" . $this->order_qty . "', '" . $this->unit_price . "',
                             '" . $this->order_qty * $this->unit_price . "', '" . now() . "', '" . now() . "', '" . now() . "', '" . now() . "', '" . $dmdprdte . "', '" . $exp_date . "',
-                            '" . $loc_code . "', '" . $id . "', '" . ($this->remarks ?? '') . "', '" . $rx_id . "', '" . $empid . "' )");
+                            '" . $loc_code . "', '" . $id . "', '" . ($this->remarks ?? '') . "', '" . $rx_id . "', '" . $empid . "', " . ($originalLinkEnccode ? "'" . $originalLinkEnccode . "'" : "NULL") . " )");
 
             if ($with_rx) {
                 DB::connection('webapp')->table('webapp.dbo.prescription_data')
@@ -657,11 +665,13 @@ class DispensingEncounter extends Component
             ->first();
 
         if ($dm) {
-            $enccode = $this->decryptEnccode();
+            $originalEnccode = $this->decryptEnccode();
+            $targetEnccode = $this->is_walkin_linked_encounter ? $this->resolveLatestWalkInEncounter() : $originalEnccode;
+            $originalLinkEnccode = $targetEnccode !== $originalEnccode ? $originalEnccode : null;
 
             DrugOrder::create([
                 'docointkey' => '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $dm->chrgcode . $dm->dmdcomb . $dm->dmdctr,
-                'enccode' => $enccode,
+                'enccode' => $targetEnccode,
                 'hpercode' => $this->hpercode,
                 'rxooccid' => '1',
                 'rxoref' => '1',
@@ -696,6 +706,7 @@ class DispensingEncounter extends Component
                 'remarks' => $this->remarks,
                 'prescription_data_id' => $rx_id,
                 'prescribed_by' => $empid,
+                'original_enccode' => $originalLinkEnccode,
             ]);
 
             DB::connection('webapp')->table('webapp.dbo.prescription_data')
@@ -1352,6 +1363,57 @@ class DispensingEncounter extends Component
         return in_array($this->toecode, ['ADM', 'OPDAD', 'ERADM']);
     }
 
+    private function shouldUseWalkInLinkedProcess(string $enccode, string $toecode, ?string $billstat): bool
+    {
+        if (!in_array($toecode, ['ADM', 'OPDAD', 'ERADM'])) {
+            return false;
+        }
+
+        return $billstat == '02' || $billstat == '03';
+    }
+
+    private function getLatestWalkInEncounter(): ?string
+    {
+        $walkIn = EncounterLog::where('encstat', 'W')
+            ->where('toecode', 'WALKN')
+            ->where('hpercode', $this->hpercode)
+            ->latest('encdate')
+            ->first();
+
+        return $walkIn?->enccode;
+    }
+
+    private function resolveLatestWalkInEncounter(): string
+    {
+        if ($this->resolved_walkin_enccode) {
+            return $this->resolved_walkin_enccode;
+        }
+
+        $existingWalkIn = $this->getLatestWalkInEncounter();
+        if ($existingWalkIn) {
+            $this->resolved_walkin_enccode = $existingWalkIn;
+            return $existingWalkIn;
+        }
+
+        $newEnccode = '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now()));
+
+        EncounterLog::create([
+            'enccode' => $newEnccode,
+            'fhud' => '0000040',
+            'hpercode' => $this->hpercode,
+            'encdate' => now(),
+            'enctime' => now(),
+            'toecode' => 'WALKN',
+            'sopcode1' => 'SELPA',
+            'encstat' => 'W',
+            'confdl' => 'N',
+        ]);
+
+        $this->resolved_walkin_enccode = $newEnccode;
+
+        return $newEnccode;
+    }
+
     private function resolveTransactionType(): string
     {
         if ($this->isAdmittedEncounter()) {
@@ -1429,7 +1491,7 @@ class DispensingEncounter extends Component
     private function fetchOrders(string $enccode): array
     {
         if ($this->toecode == 'WALKN') {
-            return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal,
+            return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                                 pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                                 FROM henctr enctr
                                 INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
@@ -1441,7 +1503,7 @@ class DispensingEncounter extends Component
                                 ORDER BY dodate DESC");
         }
 
-        return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal,
+        return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                             pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                             FROM hospital.dbo.hrxo
                             INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
@@ -1449,6 +1511,7 @@ class DispensingEncounter extends Component
                             LEFT JOIN hpatmss ON hrxo.enccode = hpatmss.enccode
                             LEFT JOIN webapp.dbo.prescription_data pd WITH (NOLOCK) ON hrxo.prescription_data_id = pd.id
                             WHERE hrxo.enccode = '" . $enccode . "'
+                                OR hrxo.original_enccode = '" . $enccode . "'
                             ORDER BY dodate DESC");
     }
 

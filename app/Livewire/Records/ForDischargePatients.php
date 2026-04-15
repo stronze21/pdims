@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
-#[Title('For Discharge Patients')]
+#[Title('May Go Home')]
 class ForDischargePatients extends Component
 {
     public $date_from;
@@ -96,7 +96,33 @@ class ForDischargePatients extends Component
                 mss.mssikey,
                 serv.tsdesc,
                 adm.condcode,
-                adm.disdate
+                (
+                    SELECT COUNT(data.qty)
+                    FROM webapp.dbo.prescription rx WITH (NOLOCK)
+                    INNER JOIN webapp.dbo.prescription_data data WITH (NOLOCK) ON rx.id = data.presc_id
+                    WHERE rx.enccode = enctr.enccode
+                        AND rx.stat = 'A'
+                        AND data.stat = 'A'
+                        AND (data.order_type = '' OR data.order_type IS NULL)
+                ) AS basic,
+                (
+                    SELECT COUNT(data.qty)
+                    FROM webapp.dbo.prescription rx WITH (NOLOCK)
+                    INNER JOIN webapp.dbo.prescription_data data WITH (NOLOCK) ON rx.id = data.presc_id
+                    WHERE rx.enccode = enctr.enccode
+                        AND rx.stat = 'A'
+                        AND data.stat = 'A'
+                        AND data.order_type = 'G24'
+                ) AS g24,
+                (
+                    SELECT COUNT(data.qty)
+                    FROM webapp.dbo.prescription rx WITH (NOLOCK)
+                    INNER JOIN webapp.dbo.prescription_data data WITH (NOLOCK) ON rx.id = data.presc_id
+                    WHERE rx.enccode = enctr.enccode
+                        AND rx.stat = 'A'
+                        AND data.stat = 'A'
+                        AND data.order_type = 'OR'
+                ) AS or_count
             FROM henctr enctr WITH (NOLOCK)
                 LEFT JOIN hadmlog adm WITH (NOLOCK) ON enctr.enccode = adm.enccode
                 RIGHT JOIN hpatroom pat_room WITH (NOLOCK) ON enctr.enccode = pat_room.enccode

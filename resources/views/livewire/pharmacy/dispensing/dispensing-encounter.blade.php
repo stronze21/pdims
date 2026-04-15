@@ -38,8 +38,8 @@
     {{-- Queue Controller Bar (always visible) --}}
     <div class="border-b border-primary/20">
         {{-- Queue Header Bar --}}
-        <div class="px-4 py-2 flex items-center justify-between bg-primary/5">
-            <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-primary/5">
+            <div class="flex flex-wrap items-center gap-3 min-w-0">
                 @if ($queueId)
                     <div class="badge badge-primary badge-lg font-mono font-bold gap-1">
                         <x-heroicon-o-queue-list class="w-4 h-4" />
@@ -83,7 +83,7 @@
                     </div>
                 @endif
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center justify-start gap-2 w-full sm:w-auto sm:justify-end">
                 @if ($queueId)
                     @if ($currentQueueStatus !== 'dispensed')
                         <x-mary-button label="Complete & Next" icon="o-forward" class="btn-sm btn-success"
@@ -302,13 +302,13 @@
         {{-- Patient Info Bar --}}
         <div class="border-b bg-base-100 border-base-200">
             <div class="px-4 py-2">
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="flex items-center flex-1 min-w-0 gap-4">
                         <div
                             class="flex items-center justify-center flex-shrink-0 w-12 h-12 rounded-full bg-primary/10">
                             <x-heroicon-o-user class="w-6 h-6 text-primary" />
                         </div>
-                        <div>
+                        <div class="min-w-0">
                             <h2 class="text-lg font-bold">{{ $patlast }}, {{ $patfirst }}
                                 {{ $patmiddle }}
                             </h2>
@@ -331,7 +331,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 pr-5">
+                    <div class="flex flex-wrap items-center justify-start gap-2 w-full pr-0 lg:w-auto lg:justify-end lg:pr-5">
                         @if ($billstat == '02' || $billstat == '03')
                             <div class="badge badge-error gap-1">
                                 <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
@@ -348,12 +348,12 @@
         </div>
 
         {{-- Main Content --}}
-        <div class="flex flex-1 overflow-hidden">
+        <div class="flex flex-1 min-w-0 overflow-hidden">
             {{-- Left: Orders Table --}}
-            <div class="flex flex-col flex-1 overflow-hidden border-r border-base-200">
+            <div class="flex flex-col flex-1 min-w-0 overflow-hidden border-r border-base-200">
                 {{-- Action Bar --}}
                 <div class="border-b bg-base-200/50 border-base-200">
-                    <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
 
                         <!-- TOOLS DROPDOWN -->
                         <div class="dropdown dropdown-start">
@@ -397,8 +397,8 @@
                         </div>
 
                         <!-- PRIMARY ACTIONS -->
-                        @if ($billstat != '02' && $billstat != '03')
-                        <div class="flex items-center gap-2">
+                        @if ($can_add_items)
+                        <div class="flex flex-wrap items-center gap-2">
 
                             <x-mary-button label="Select All Pending"
                                 icon="o-check-circle"
@@ -496,13 +496,18 @@
                                         @endif
                                     </td>
                                     <td class="text-xs">
-                                        {{ \Carbon\Carbon::parse($rxo->dodate)->format('M d, H:i') }}
+                                        {{ \Carbon\Carbon::parse($rxo->dodate)->format('M d, Y g:i A') }}
                                     </td>
                                     <td class="text-xs font-medium max-w-xs truncate"
                                         title="{{ $rxo->drug_concat }}">
                                         {{ $rxo->drug_concat }}
                                         @if ($rxo->prescription_data_id)
                                             <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
+                                        @endif
+                                        @if (!empty($rxo->original_enccode))
+                                            <span class="badge badge-xs badge-success align-middle ml-1" title="Take Home">
+                                                <x-heroicon-o-home class="w-3 h-3" />
+                                            </span>
                                         @endif
                                         <br>
                                         <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
@@ -587,7 +592,7 @@
             </div>
 
             {{-- Right Sidebar: Stocks & Prescriptions --}}
-            <div class="flex flex-col w-[420px] overflow-hidden bg-base-100" x-data="{ stockCount: @entangle('stocksDisplayCount') }">
+            <div class="flex flex-col w-full max-w-full xl:w-[420px] xl:min-w-[420px] overflow-hidden bg-base-100" x-data="{ stockCount: @entangle('stocksDisplayCount') }">
 
                 {{-- Search & Filter --}}
                 <div class="p-2 space-y-2 border-b border-base-200">
@@ -616,7 +621,7 @@
                                 @forelse ($stocks as $stock)
                                     <tr class="cursor-pointer hover"
                                         wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
-                                        @if ($billstat != '02' && $billstat != '03') wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
+                                        @if ($can_add_items) wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
                                         '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
                                         '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}', '{{ addslashes($stock->drug_concat) }}')" @endif>
                                         <td class="text-xs">
@@ -707,7 +712,7 @@
                                             @endif
                                         </div>
                                     </div>
-                                    @if ($billstat != '02' && $billstat != '03')
+                                    @if ($can_add_items)
                                         @if ($toecode == 'OPD' || $toecode == 'WALKN')
                                             <button class="btn btn-xs btn-primary tooltip tooltip-left"
                                                 data-tip="Add Prescribed Item"
@@ -753,7 +758,7 @@
                                                 <span>Qty: {{ $extra_data->qty }}</span>
                                             </div>
                                         </div>
-                                        @if ($billstat != '02' && $billstat != '03')
+                                        @if ($can_add_items)
                                             <button class="btn btn-xs btn-ghost tooltip tooltip-left"
                                                 data-tip="Search in Stocks"
                                                 wire:click="searchExtraGeneric({{ $extra_data->id }},'{{ explode(',', $extra_data->dm->drug_concat())[0] }}','{{ $extra_data->dmdcomb }}','{{ $extra_data->dmdctr }}','{{ $extra->empid }}')">
@@ -1366,7 +1371,7 @@
                                                                     class="badge badge-xs badge-primary">Active</span>
                                                             </td>
                                                             <td>
-                                                                @if ($hasEncounter && $billstat != '02' && $billstat != '03')
+                                                                @if ($hasEncounter && $can_add_items)
                                                                     <button
                                                                         class="btn btn-xs btn-primary tooltip tooltip-left"
                                                                         data-tip="Add to Current Encounter"

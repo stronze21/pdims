@@ -70,7 +70,8 @@ class DrugOrder extends Model
         'prescribed_by',
         'deptcode',
         'qtybal',
-        'order_by'
+        'order_by',
+        'original_enccode'
 
     ];
 

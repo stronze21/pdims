@@ -1,7 +1,7 @@
 <div class="py-5 mx-3">
     {{-- Header --}}
     <div class="mb-6">
-        <x-mary-header title="Discharged Patients" separator>
+        <x-mary-header title="May Go Home" separator>
             <x-slot:middle class="!justify-end">
                 <x-mary-icon name="o-map-pin" label="{{ session('pharm_location_name') }}" />
             </x-slot:middle>
@@ -35,9 +35,9 @@
                         <th class="w-64">Patient Name</th>
                         <th class="w-48">Ward/Room</th>
                         <th class="w-48">Department</th>
-                        <th class="w-32">Date Discharged</th>
                         <th class="w-40">Condition/Status</th>
                         <th class="w-24">MSS Class</th>
+                        <th class="w-40">Order Type</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,9 +69,6 @@
                                 <span class="text-sm">{{ $patient->tsdesc }}</span>
                             </td>
                             <td>
-                                {{ \Carbon\Carbon::parse($patient->disdate)->format('m/d/Y') }}
-                            </td>
-                            <td>
                                 @php
                                     $status = $this->getConditionStatus($patient->condcode);
                                     $badgeClass = match ($patient->condcode) {
@@ -97,6 +94,22 @@
                                 <span
                                     class="badge {{ $mssStyle }} badge-sm whitespace-nowrap">{{ $mssClass }}</span>
                             </td>
+                            <td>
+                                <div class="flex gap-1 flex-wrap">
+                                    @if ($patient->basic)
+                                        <span class="badge badge-accent badge-xs">Basic {{ $patient->basic }}</span>
+                                    @endif
+                                    @if ($patient->g24)
+                                        <span class="badge badge-error badge-xs">G24 {{ $patient->g24 }}</span>
+                                    @endif
+                                    @if ($patient->or_count)
+                                        <span class="badge badge-secondary badge-xs">OR {{ $patient->or_count }}</span>
+                                    @endif
+                                    @if (!$patient->basic && !$patient->g24 && !$patient->or_count)
+                                        <span class="badge badge-ghost badge-xs">No Rx Tag</span>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -107,7 +120,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                     </svg>
-                                    <span>No discharged patients found for the selected date range</span>
+                                    <span>No May Go Home patients found</span>
                                 </div>
                             </td>
                         </tr>

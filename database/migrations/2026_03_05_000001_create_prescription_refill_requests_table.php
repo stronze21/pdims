@@ -10,6 +10,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::connection('portal')->hasTable('prescription_refill_requests')) {
+            return;
+        }
+
         Schema::connection('portal')->create('prescription_refill_requests', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('patient_id');

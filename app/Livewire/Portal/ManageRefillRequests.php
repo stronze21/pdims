@@ -3,7 +3,9 @@
 namespace App\Livewire\Portal;
 
 use App\Models\Portal\PortalPrescriptionRefill;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Mary\Traits\Toast;
@@ -25,6 +27,12 @@ class ManageRefillRequests extends Component
     public $selectedRefillId = null;
     public $processAction = '';
     public $adminRemarks = '';
+    public bool $refillTableAvailable = true;
+
+    public function mount()
+    {
+        $this->refillTableAvailable = Schema::connection('portal')->hasTable('prescription_refill_requests');
+    }
 
     public function updatedSearch()
     {
@@ -38,6 +46,11 @@ class ManageRefillRequests extends Component
 
     public function openViewModal($refillId)
     {
+        if (! $this->refillTableAvailable) {
+            $this->warning('Prescription refill requests table is missing. Run the Portal migration first.');
+            return;
+        }
+
         $this->viewRefill = PortalPrescriptionRefill::with('patient')->find($refillId);
         $this->prescriptionContext = null;
 
@@ -75,6 +88,11 @@ class ManageRefillRequests extends Component
 
     public function openProcessModal($refillId, $action)
     {
+        if (! $this->refillTableAvailable) {
+            $this->warning('Prescription refill requests table is missing. Run the Portal migration first.');
+            return;
+        }
+
         $this->selectedRefillId = $refillId;
         $this->processAction = $action;
         $this->adminRemarks = '';
@@ -83,6 +101,12 @@ class ManageRefillRequests extends Component
 
     public function processRefill()
     {
+        if (! $this->refillTableAvailable) {
+            $this->warning('Prescription refill requests table is missing. Run the Portal migration first.');
+            $this->processModal = false;
+            return;
+        }
+
         $refill = PortalPrescriptionRefill::find($this->selectedRefillId);
 
         if (!$refill || $refill->status !== 'pending') {
@@ -106,6 +130,11 @@ class ManageRefillRequests extends Component
 
     public function markCompleted($refillId)
     {
+        if (! $this->refillTableAvailable) {
+            $this->warning('Prescription refill requests table is missing. Run the Portal migration first.');
+            return;
+        }
+
         $refill = PortalPrescriptionRefill::find($refillId);
 
         if ($refill && $refill->status === 'approved') {
@@ -120,6 +149,19 @@ class ManageRefillRequests extends Component
 
     public function render()
     {
+        if (! $this->refillTableAvailable) {
+            return view('livewire.portal.manage-refill-requests', [
+                'refills' => new LengthAwarePaginator(
+                    items: collect(),
+                    total: 0,
+                    perPage: 15,
+                    currentPage: 1,
+                    options: ['path' => request()->url(), 'pageName' => 'page']
+                ),
+                'pendingCount' => 0,
+            ])->layout('layouts.portal');
+        }
+
         $refills = PortalPrescriptionRefill::with('patient')
             ->when($this->statusFilter !== 'all', function ($query) {
                 $query->where('status', $this->statusFilter);

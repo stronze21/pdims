@@ -97,7 +97,7 @@
                         @can('view-patients')
                             <x-mary-menu-sub title="Records" icon="o-document-text">
                                 <x-mary-menu-item title="Patients" icon="o-users" link="{{ route('records.patients.index') }}" />
-                                <x-mary-menu-item title="For Discharge Patients" icon="o-user-group"
+                                <x-mary-menu-item title="May Go Home" icon="o-user-group"
                                     link="{{ route('records.for-discharge-patients') }}" />
                                 <x-mary-menu-item title="Discharged Patients" icon="o-user-group"
                                     link="{{ route('records.discharged-patients') }}" />
