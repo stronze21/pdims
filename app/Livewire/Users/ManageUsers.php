@@ -120,6 +120,7 @@ class ManageUsers extends Component
             'email' => 'required|email|unique:hospital.dbo.pharm_users,email,' . $this->userId,
             'pharm_location_id' => 'required|exists:hospital.dbo.pharm_locations,id',
             'selectedRoles' => 'array',
+            'selectedRoles.*' => 'integer',
         ];
 
         if ($this->userId) {
@@ -151,7 +152,7 @@ class ManageUsers extends Component
         }
 
         // Sync roles
-        $user->syncRoles($this->selectedRoles);
+        $user->syncRoles($this->resolveRoleModels($this->selectedRoles));
 
         $this->success($message);
         $this->resetForm();
@@ -167,13 +168,13 @@ class ManageUsers extends Component
 
     public function saveRoles()
     {
-
         $this->validate([
             'userRoles' => 'array',
+            'userRoles.*' => 'integer',
         ]);
 
         $user = User::findOrFail($this->roleUserId);
-        $user->syncRoles($this->userRoles);
+        $user->syncRoles($this->resolveRoleModels($this->userRoles));
 
         $this->success('Roles updated successfully');
         $this->roleModal = false;
@@ -215,5 +216,13 @@ class ManageUsers extends Component
             'locations' => $this->locations,
             'roles' => $this->roles,
         ]);
+    }
+
+    protected function resolveRoleModels(array $roleIds)
+    {
+        return Role::query()
+            ->whereIn('id', array_map('intval', $roleIds))
+            ->where('guard_name', 'web')
+            ->get();
     }
 }

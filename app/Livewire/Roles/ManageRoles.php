@@ -106,13 +106,18 @@ class ManageRoles extends Component
 
     public function savePermissions()
     {
-
         $this->validate([
             'selectedPermissions' => 'array',
+            'selectedPermissions.*' => 'integer',
         ]);
 
         $role = Role::findOrFail($this->permissionRoleId);
-        $role->syncPermissions($this->selectedPermissions);
+        $permissionModels = Permission::query()
+            ->whereIn('id', array_map('intval', $this->selectedPermissions))
+            ->where('guard_name', $role->guard_name)
+            ->get();
+
+        $role->syncPermissions($permissionModels);
 
         $this->success('Permissions updated successfully');
         $this->permissionModal = false;
