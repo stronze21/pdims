@@ -50,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
                 'DRUMAL',
                 'DRUMAM',
                 'DRUMAN',
+                'DRUMAO',
             );
         });
 
