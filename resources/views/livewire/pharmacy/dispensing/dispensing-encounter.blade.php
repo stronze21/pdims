@@ -713,17 +713,17 @@
                                         </div>
                                     </div>
                                     @if ($can_add_items)
+                                        <button class="btn btn-xs btn-ghost tooltip tooltip-left"
+                                            data-tip="Search in Stocks"
+                                            wire:click="searchGenericItem({{ $presc_data->id }},'{{ $presc_data->dm->drug_concat }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
+                                            <x-heroicon-o-magnifying-glass class="w-3 h-3" />
+                                        </button>
+
                                         @if ($toecode == 'OPD' || $toecode == 'WALKN')
                                             <button class="btn btn-xs btn-primary tooltip tooltip-left"
                                                 data-tip="Add Prescribed Item"
                                                 wire:click="openPrescribedItemModal({{ $presc_data->id }},'{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}','{{ $presc_data->qty }}')">
                                                 <x-heroicon-o-plus class="w-3 h-3" />
-                                            </button>
-                                        @else
-                                            <button class="btn btn-xs btn-ghost tooltip tooltip-left"
-                                                data-tip="Search in Stocks"
-                                                wire:click="searchGenericItem({{ $presc_data->id }},'{{ $presc_data->dm->drug_concat }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
-                                                <x-heroicon-o-magnifying-glass class="w-3 h-3" />
                                             </button>
                                         @endif
 
@@ -787,6 +787,59 @@
                         <span>{{ $item_drug_concat }}</span>
                     </div>
                 @endif
+                @if (count($matched_prescription_data) > 0)
+                    <div class="rounded-lg border border-info/30 bg-info/5 p-3">
+                        <div class="mb-2 text-sm font-semibold text-info">Matching prescription data found</div>
+                        <div class="space-y-2">
+                            @foreach ($matched_prescription_data as $rxMatch)
+                                <div class="rounded border border-base-300 bg-base-100 p-2 text-sm">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="font-medium">{{ $rxMatch['source'] }}</div>
+                                        <div class="flex items-center gap-2">
+                                            @if ($rxMatch['order_type'] === 'G24')
+                                                <span class="badge badge-xs badge-error">G24</span>
+                                            @elseif($rxMatch['order_type'] === 'OR')
+                                                <span class="badge badge-xs badge-secondary">OR</span>
+                                            @else
+                                                <span class="badge badge-xs badge-accent">Basic</span>
+                                            @endif
+                                            <span class="badge badge-xs badge-outline">Rx #{{ $rxMatch['id'] }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-1 text-xs text-base-content/70">
+                                        Qty: {{ $rxMatch['qty'] }}
+                                        @if ($rxMatch['frequency'])
+                                            | Frequency: {{ $rxMatch['frequency'] }}
+                                        @endif
+                                        @if ($rxMatch['duration'])
+                                            | Duration: {{ $rxMatch['duration'] }}
+                                        @endif
+                                    </div>
+                                    @if ($rxMatch['remark'] || $rxMatch['addtl_remarks'])
+                                        <div class="mt-1 text-xs text-base-content/70">
+                                            @if ($rxMatch['remark'])
+                                                <span>{{ $rxMatch['remark'] }}</span>
+                                            @endif
+                                            @if ($rxMatch['addtl_remarks'])
+                                                <span>{{ $rxMatch['remark'] ? ' | ' : '' }}{{ $rxMatch['addtl_remarks'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                    @if ($rxMatch['prescribed_by'] || $rxMatch['updated_at'])
+                                        <div class="mt-1 text-xs text-base-content/50">
+                                            @if ($rxMatch['prescribed_by'])
+                                                <span>By: {{ $rxMatch['prescribed_by'] }}</span>
+                                            @endif
+                                            @if ($rxMatch['updated_at'])
+                                                <span>{{ $rxMatch['prescribed_by'] ? ' | ' : '' }}Updated: {{ $rxMatch['updated_at'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <div class="grid grid-cols-3 gap-4">
                     <div class="col-span-2">
                         <x-mary-input label="Quantity" wire:model.live="order_qty" type="number" min="1"
@@ -815,6 +868,55 @@
         <x-mary-modal wire:model="showPrescribedItemModal" title="Add Prescribed Item" class="backdrop-blur">
             <div class="space-y-4">
                 <div class="grid grid-cols-1 gap-4">
+                    @if ($selected_prescription_data)
+                        <div class="rounded-lg border border-info/30 bg-info/5 p-3">
+                            <div class="mb-2 text-sm font-semibold text-info">Selected prescription</div>
+                            <div class="rounded border border-base-300 bg-base-100 p-2 text-sm">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="font-medium">{{ $selected_prescription_data['source'] }}</div>
+                                    <div class="flex items-center gap-2">
+                                        @if ($selected_prescription_data['order_type'] === 'G24')
+                                            <span class="badge badge-xs badge-error">G24</span>
+                                        @elseif($selected_prescription_data['order_type'] === 'OR')
+                                            <span class="badge badge-xs badge-secondary">OR</span>
+                                        @else
+                                            <span class="badge badge-xs badge-accent">Basic</span>
+                                        @endif
+                                        <span class="badge badge-xs badge-outline">Rx #{{ $selected_prescription_data['id'] }}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-1 text-xs text-base-content/70">
+                                    Qty: {{ $selected_prescription_data['qty'] }}
+                                    @if ($selected_prescription_data['frequency'])
+                                        | Frequency: {{ $selected_prescription_data['frequency'] }}
+                                    @endif
+                                    @if ($selected_prescription_data['duration'])
+                                        | Duration: {{ $selected_prescription_data['duration'] }}
+                                    @endif
+                                </div>
+                                @if ($selected_prescription_data['remark'] || $selected_prescription_data['addtl_remarks'])
+                                    <div class="mt-1 text-xs text-base-content/70">
+                                        @if ($selected_prescription_data['remark'])
+                                            <span>{{ $selected_prescription_data['remark'] }}</span>
+                                        @endif
+                                        @if ($selected_prescription_data['addtl_remarks'])
+                                            <span>{{ $selected_prescription_data['remark'] ? ' | ' : '' }}{{ $selected_prescription_data['addtl_remarks'] }}</span>
+                                        @endif
+                                    </div>
+                                @endif
+                                @if ($selected_prescription_data['prescribed_by'] || $selected_prescription_data['updated_at'])
+                                    <div class="mt-1 text-xs text-base-content/50">
+                                        @if ($selected_prescription_data['prescribed_by'])
+                                            <span>By: {{ $selected_prescription_data['prescribed_by'] }}</span>
+                                        @endif
+                                        @if ($selected_prescription_data['updated_at'])
+                                            <span>{{ $selected_prescription_data['prescribed_by'] ? ' | ' : '' }}Updated: {{ $selected_prescription_data['updated_at'] }}</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                     <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
                         class="input-lg text-4xl text-center font-bold" autofocus />
                     <div>
@@ -1372,6 +1474,12 @@
                                                             </td>
                                                             <td>
                                                                 @if ($hasEncounter && $can_add_items)
+                                                                    <button
+                                                                        class="btn btn-xs btn-ghost tooltip tooltip-left"
+                                                                        data-tip="Search in Stocks"
+                                                                        wire:click="searchGenericItem({{ $selData->id }},'{{ $selData->dm->drug_concat }}','{{ $selData->dmdcomb }}','{{ $selData->dmdctr }}','{{ $selPresc->empid }}')">
+                                                                        <x-heroicon-o-magnifying-glass class="w-3 h-3" />
+                                                                    </button>
                                                                     <button
                                                                         class="btn btn-xs btn-primary tooltip tooltip-left"
                                                                         data-tip="Add to Current Encounter"

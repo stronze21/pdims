@@ -104,6 +104,8 @@ class DispensingEncounter extends Component
     public $active_prescription_all = [], $extra_prescriptions_all = [];
     public $rx_id, $rx_dmdcomb, $rx_dmdctr, $empid, $rx_charge_code;
     public $rx_available_charges = [];
+    public $matched_prescription_data = [];
+    public $selected_prescription_data = null;
 
     // Remarks Edit
     public $selected_remarks, $new_remarks;
@@ -276,6 +278,7 @@ class DispensingEncounter extends Component
         $this->item_stock_bal = $stock_bal;
         $this->unit_price = $unit_price;
         $this->item_drug_concat = $drug_concat;
+        $this->matched_prescription_data = $this->findMatchingPrescriptionData($dmdcomb, $dmdctr, $drug_concat);
 
         $this->showAddItemModal = true;
     }
@@ -308,6 +311,7 @@ class DispensingEncounter extends Component
         $this->rx_dmdctr = $dmdctr;
         $this->empid = $empid;
         $this->order_qty = $qty;
+        $this->selected_prescription_data = $this->findPrescriptionDataById($rxId);
 
         $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
@@ -344,6 +348,7 @@ class DispensingEncounter extends Component
         $this->rx_dmdctr = $dmdctr;
         $this->empid = $empid;
         $this->order_qty = $qty;
+        $this->selected_prescription_data = $this->findPrescriptionDataById($rxId);
 
         $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
@@ -656,13 +661,7 @@ class DispensingEncounter extends Component
 
         $this->type = $this->resolveTransactionType();
 
-        $dm = DrugStock::where('dmdcomb', $dmdcomb)
-            ->where('dmdctr', $dmdctr)
-            ->where('chrgcode', $this->rx_charge_code)
-            ->where('loc_code', $this->location_id)
-            ->where('stock_bal', '>', '0')
-            ->orderBy('exp_date', 'ASC')
-            ->first();
+        $dm = $this->findVariantStock($dmdcomb, $dmdctr, $this->rx_charge_code);
 
         if ($dm) {
             $originalEnccode = $this->decryptEnccode();
@@ -1336,6 +1335,7 @@ class DispensingEncounter extends Component
     private function loadAvailableCharges(string $dmdcomb, string $dmdctr): void
     {
         $this->rx_charge_code = null;
+        $drugName = $this->resolveDrugNameFromCodes($dmdcomb, $dmdctr);
 
         $this->rx_available_charges = DB::select("
             SELECT
@@ -1344,13 +1344,15 @@ class DispensingEncounter extends Component
                 SUM(pharm_drug_stocks.stock_bal) AS stock_bal
             FROM hospital.dbo.pharm_drug_stocks WITH (NOLOCK)
             INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
-            WHERE pharm_drug_stocks.dmdcomb = ?
-                AND pharm_drug_stocks.dmdctr = ?
+            WHERE (
+                    (pharm_drug_stocks.dmdcomb = ? AND pharm_drug_stocks.dmdctr = ?)
+                    OR REPLACE(LTRIM(RTRIM(pharm_drug_stocks.drug_concat)), '_,', ' ') = ?
+                )
                 AND pharm_drug_stocks.loc_code = ?
                 AND pharm_drug_stocks.stock_bal > 0
             GROUP BY pharm_drug_stocks.chrgcode, hcharge.chrgdesc
             ORDER BY hcharge.chrgdesc
-        ", [$dmdcomb, $dmdctr, $this->location_id]);
+        ", [$dmdcomb, $dmdctr, $drugName, $this->location_id]);
     }
 
     private function decryptEnccode(): string
@@ -1488,6 +1490,156 @@ class DispensingEncounter extends Component
         }
     }
 
+    private function findMatchingPrescriptionData(string $dmdcomb, string $dmdctr, string $drugConcat): array
+    {
+        $matches = [];
+        $selectedDrugName = $this->normalizeDrugName($drugConcat);
+
+        foreach ($this->active_prescription as $prescription) {
+            foreach (($prescription->data_active ?? []) as $data) {
+                $prescriptionDrugName = $this->normalizeDrugName($data->dm?->drug_concat());
+
+                if (
+                    ($data->dmdcomb !== $dmdcomb || $data->dmdctr !== $dmdctr)
+                    && (!$selectedDrugName || !$prescriptionDrugName || $prescriptionDrugName !== $selectedDrugName)
+                ) {
+                    continue;
+                }
+
+                $matches[] = $this->formatPrescriptionMatch($data, $prescription, 'Current Encounter');
+            }
+        }
+
+        foreach ($this->extra_prescriptions as $prescription) {
+            foreach (($prescription->data_active ?? []) as $data) {
+                $prescriptionDrugName = $this->normalizeDrugName($data->dm?->drug_concat());
+
+                if (
+                    ($data->dmdcomb !== $dmdcomb || $data->dmdctr !== $dmdctr)
+                    && (!$selectedDrugName || !$prescriptionDrugName || $prescriptionDrugName !== $selectedDrugName)
+                ) {
+                    continue;
+                }
+
+                $matches[] = $this->formatPrescriptionMatch($data, $prescription, 'Previous Encounter');
+            }
+        }
+
+        return collect($matches)
+            ->unique('id')
+            ->values()
+            ->all();
+    }
+
+    private function findPrescriptionDataById(int|string $rxId): ?array
+    {
+        return $this->findPrescriptionDataByIdFromSet($this->active_prescription, $rxId, 'Current Encounter')
+            ?? $this->findPrescriptionDataByIdFromSet($this->extra_prescriptions, $rxId, 'Previous Encounter')
+            ?? $this->findPrescriptionDataByIdFromSet($this->active_prescription_all, $rxId, 'Current Encounter')
+            ?? $this->findPrescriptionDataByIdFromSet($this->extra_prescriptions_all, $rxId, 'Previous Encounter');
+    }
+
+    private function findPrescriptionDataByIdFromSet(iterable $prescriptions, int|string $rxId, string $source): ?array
+    {
+        foreach ($prescriptions as $prescription) {
+            foreach (($prescription->data_active ?? $prescription->data ?? []) as $data) {
+                if ((string) $data->id === (string) $rxId) {
+                    return $this->formatPrescriptionMatch($data, $prescription, $source);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function formatPrescriptionMatch($data, $prescription, string $source): array
+    {
+        return [
+            'id' => $data->id,
+            'source' => $source,
+            'qty' => $data->qty,
+            'frequency' => $data->frequency,
+            'duration' => $data->duration,
+            'remark' => $data->remark,
+            'addtl_remarks' => $data->addtl_remarks,
+            'order_type' => strtoupper((string) ($data->order_type ?? '')),
+            'prescribed_by' => $data->employee?->fullname ?? $prescription->employee?->fullname ?? null,
+            'updated_at' => $data->updated_at?->format('M d, Y h:i A'),
+        ];
+    }
+
+    private function normalizeDrugName(?string $drugName): string
+    {
+        if (!$drugName) {
+            return '';
+        }
+
+        $normalized = str_replace('_,', ' ', $drugName);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        return strtolower(trim($normalized));
+    }
+
+    private function resolveDrugNameFromCodes(string $dmdcomb, string $dmdctr): string
+    {
+        $drug = Drug::select('drug_concat')
+            ->where('dmdcomb', $dmdcomb)
+            ->where('dmdctr', $dmdctr)
+            ->first();
+
+        return str_replace('_,', ' ', $drug?->drug_concat ?? '');
+    }
+
+    private function findVariantStock(string $dmdcomb, string $dmdctr, string $chargeCode): ?DrugStock
+    {
+        $drugName = $this->resolveDrugNameFromCodes($dmdcomb, $dmdctr);
+
+        $stocks = DrugStock::query()
+            ->where('chrgcode', $chargeCode)
+            ->where('loc_code', $this->location_id)
+            ->where('stock_bal', '>', '0')
+            ->orderBy('exp_date', 'ASC')
+            ->get();
+
+        if ($stocks->isEmpty()) {
+            return null;
+        }
+
+        $exact = $stocks->first(function ($stock) use ($dmdcomb, $dmdctr) {
+            return $stock->dmdcomb === $dmdcomb && $stock->dmdctr === $dmdctr;
+        });
+        if ($exact) {
+            return $exact;
+        }
+
+        $normalizedDrugName = $this->normalizeDrugName($drugName);
+
+        return $stocks->first(function ($stock) use ($normalizedDrugName) {
+            return $this->normalizeDrugName($stock->drug_concat) === $normalizedDrugName;
+        });
+    }
+
+    private function findActivePrescriptionDataMatch(string $enccode, string $dmdcomb, string $dmdctr): ?PrescriptionData
+    {
+        $targetDrugName = $this->normalizeDrugName($this->resolveDrugNameFromCodes($dmdcomb, $dmdctr));
+        $prescriptions = Prescription::where('enccode', $enccode)->with('data_active.dm')->get();
+
+        foreach ($prescriptions as $prescription) {
+            foreach (($prescription->data_active ?? []) as $rxData) {
+                if ($rxData->dmdcomb === $dmdcomb && $rxData->dmdctr === $dmdctr) {
+                    return $rxData;
+                }
+
+                $rxDrugName = $this->normalizeDrugName($rxData->dm?->drug_concat());
+                if ($targetDrugName && $rxDrugName === $targetDrugName) {
+                    return $rxData;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function fetchOrders(string $enccode): array
     {
         if ($this->toecode == 'WALKN') {
@@ -1573,26 +1725,22 @@ class DispensingEncounter extends Component
         } else {
             $rx_header = Prescription::where('enccode', $enccode)->with('data_active')->get();
             if ($rx_header) {
-                foreach ($rx_header as $rxh) {
-                    $rx_data = $rxh->data_active()
-                        ->where('dmdcomb', $dmdcomb)
-                        ->where('dmdctr', $dmdctr)
-                        ->first();
-                    if ($rx_data) {
-                        PrescriptionDataIssued::create([
-                            'presc_data_id' => $rx_data->id,
-                            'docointkey' => $docointkey,
-                            'qtyissued' => $pchrgqty,
-                        ]);
+                $rx_data = $this->findActivePrescriptionDataMatch($enccode, $dmdcomb, $dmdctr);
 
-                        DB::update(
-                            "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
-                            [$rx_data->id, $rx_data->entry_by, $docointkey]
-                        );
+                if ($rx_data) {
+                    PrescriptionDataIssued::create([
+                        'presc_data_id' => $rx_data->id,
+                        'docointkey' => $docointkey,
+                        'qtyissued' => $pchrgqty,
+                    ]);
 
-                        $rx_data->stat = 'I';
-                        $rx_data->save();
-                    }
+                    DB::update(
+                        "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
+                        [$rx_data->id, $rx_data->entry_by, $docointkey]
+                    );
+
+                    $rx_data->stat = 'I';
+                    $rx_data->save();
                 }
             }
         }

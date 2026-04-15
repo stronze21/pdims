@@ -22,6 +22,11 @@
 </head>
 
 <body class="font-sans antialiased bg-base-50">
+    @php
+        $dispensingLocation = auth()->user()?->pharm_location?->description
+            ?? auth()->user()?->location?->description
+            ?? 'Pharmacy';
+    @endphp
     <!-- Minimal Top Bar -->
     <div class="border-b shadow-sm bg-base border-base-200">
         <div class="px-4 sm:px-6 lg:px-8">
@@ -30,7 +35,7 @@
                 <div class="flex items-center">
                     <div class="flex items-center flex-shrink-0">
                         <x-heroicon-o-computer-desktop class="w-8 h-8 text-primary" />
-                        <span class="ml-2 text-xl font-semibold text-base-900">MMMH & MC - Pharmacy Dispensing</span>
+                        <span class="ml-2 text-xl font-semibold text-base-900">{{ $dispensingLocation }} (Dispensing)</span>
                     </div>
                 </div>
 
