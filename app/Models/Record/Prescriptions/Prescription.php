@@ -26,7 +26,7 @@ class Prescription extends Model
 
     public function data_active()
     {
-        return $this->hasMany(PrescriptionData::class, 'presc_id', 'id')->with('dm')->with('employee')->where('stat', 'A');
+        return $this->hasMany(PrescriptionData::class, 'presc_id', 'id')->with('dm')->with('employee')->where('stat', 'A')->whereNull('archive');
     }
 
     public function active_g24()

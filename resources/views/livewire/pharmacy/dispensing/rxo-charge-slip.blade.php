@@ -87,21 +87,18 @@
                             <td class="text-right">{{ number_format($item->pchrgup, 2) }}</td>
                             <td class="text-right">{{ number_format($amount, 2) }}</td>
                         </tr>
-                        @if ($item->prescription_data && ($item->prescription_data->frequency || $item->prescription_data->duration || $item->prescription_data->remark || $item->prescription_data->addtl_remarks))
+                        @if (($item->cdoe_prescription ?? null) && ($item->cdoe_prescription->schedule_text || $item->cdoe_prescription->days_to_cover || $item->cdoe_prescription->addtl_remarks))
                             <tr class="border-x border-black">
                                 <td colspan="{{ $view_returns ? 5 : 4 }}" class="!text-2xs italic px-2 pb-1">
-                                    @if ($item->prescription_data->duration)
-                                        <span>
-                                            @if ($item->prescription_data->duration)
-                                                {{ $item->prescription_data->frequency }} {{ $item->prescription_data->duration }}
-                                            @endif
-                                        </span>
+                                    <span>{{ $item->cdoe_prescription->qty_per_administration }} per administration</span>
+                                    @if ($item->cdoe_prescription->schedule_text)
+                                        <span>- {{ $item->cdoe_prescription->schedule_text }}</span>
                                     @endif
-                                    @if ($item->prescription_data->remark)
-                                        <span>- {{ $item->prescription_data->remark }}</span>
+                                    @if ($item->cdoe_prescription->days_to_cover)
+                                        <span>- for {{ $item->cdoe_prescription->days_to_cover }} day(s)</span>
                                     @endif
-                                    @if ($item->prescription_data->addtl_remarks)
-                                        <span>({{ $item->prescription_data->addtl_remarks }})</span>
+                                    @if ($item->cdoe_prescription->addtl_remarks)
+                                        <span>({{ $item->cdoe_prescription->addtl_remarks }})</span>
                                     @endif
                                 </td>
                             </tr>

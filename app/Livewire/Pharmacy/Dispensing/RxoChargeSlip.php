@@ -7,6 +7,7 @@ use App\Models\Hospital\Room;
 use App\Models\Hospital\Ward;
 use App\Models\Pharmacy\Dispensing\DrugOrder;
 use App\Models\Pharmacy\Dispensing\DrugOrderReturn;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use Illuminate\Support\Facades\DB;
 
 class RxoChargeSlip extends Component
@@ -50,6 +51,15 @@ class RxoChargeSlip extends Component
             $this->wardname = Ward::select('wardname')->where('wardcode', $patient_room->wardcode)->first();
             $this->room_name = Room::select('rmname')->where('rmintkey', $patient_room->rmintkey)->first();
         }
+
+        $service = app(PrescriptionReactivationService::class);
+        $rxo = $rxo->map(function ($item) use ($service) {
+            if ($item->prescription_data) {
+                $item->cdoe_prescription = (object) $service->enrichItem($item->prescription_data->toArray());
+            }
+
+            return $item;
+        });
 
         return view('livewire.pharmacy.dispensing.rxo-charge-slip', [
             'rxo_header' => $rxo_header,

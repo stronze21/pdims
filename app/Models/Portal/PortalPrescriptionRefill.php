@@ -23,6 +23,7 @@ class PortalPrescriptionRefill extends Model
         'drug_name',
         'qty_requested',
         'remarks',
+        'request_source',
         'status',
         'admin_remarks',
         'processed_by',

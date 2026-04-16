@@ -370,9 +370,9 @@
                                 <thead>
                                     <tr>
                                         <th>Drug</th>
-                                        <th>Qty</th>
-                                        <th>Freq</th>
-                                        <th>Duration</th>
+                                        <th>Qty/Admin</th>
+                                        <th>Schedule</th>
+                                        <th>Days</th>
                                         <th>Type</th>
                                     </tr>
                                 </thead>
@@ -380,9 +380,9 @@
                                     @foreach ($selectedQueue->prescription_items as $item)
                                         <tr>
                                             <td>{{ $item->drug_concat }}</td>
-                                            <td>{{ $item->qty }}</td>
-                                            <td>{{ $item->frequency }}</td>
-                                            <td>{{ $item->duration }}</td>
+                                            <td>{{ $item->qty_per_administration }}</td>
+                                            <td>{{ $item->schedule_text ?? 'N/A' }}</td>
+                                            <td>{{ $item->days_to_cover ?? 'N/A' }}</td>
                                             <td>
                                                 <div class="badge badge-xs">{{ $item->order_type }}</div>
                                             </td>
@@ -420,6 +420,15 @@
                     @endif
                 </div>
 
+                <div class="flex items-center justify-between">
+                    <div class="font-semibold">Print Options</div>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                            wire:model.live="printIncludeInactive">
+                        <span>Include inactive items</span>
+                    </label>
+                </div>
+
                 @if (count($printItems) > 0)
                     <div>
                         <div class="flex justify-between items-center mb-3">
@@ -444,9 +453,9 @@
                                                 wire:click="selectAllItems">
                                         </th>
                                         <th>Drug</th>
-                                        <th>Qty</th>
-                                        <th>Frequency</th>
-                                        <th>Duration</th>
+                                        <th>Qty/Admin</th>
+                                        <th>Schedule</th>
+                                        <th>Days</th>
                                         <th>Type</th>
                                         <th>Remarks</th>
                                     </tr>
@@ -461,10 +470,13 @@
                                             </td>
                                             <td>
                                                 <div class="text-sm font-medium">{{ $item['drug_concat'] }}</div>
+                                                @if (($item['stat'] ?? 'A') !== 'A')
+                                                    <div class="text-xs text-warning">Inactive</div>
+                                                @endif
                                             </td>
-                                            <td>{{ $item['qty'] }}</td>
-                                            <td>{{ $item['frequency'] }}</td>
-                                            <td>{{ $item['duration'] }}</td>
+                                            <td>{{ $item['qty_per_administration'] }}</td>
+                                            <td>{{ $item['schedule_text'] ?? 'N/A' }}</td>
+                                            <td>{{ $item['days_to_cover'] ?? 'N/A' }}</td>
                                             <td>
                                                 <div class="badge badge-xs">{{ $item['order_type'] }}</div>
                                             </td>

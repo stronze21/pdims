@@ -9,6 +9,7 @@ use Livewire\Attributes\Locked;
 use Livewire\Attributes\Layout;
 use Mary\Traits\Toast;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\PharmLocation;
@@ -263,7 +264,8 @@ class PrescriptionQueueManagementTablet extends Component
                 ORDER BY pd.created_at ASC
             ", [$this->selectedQueue->prescription_id]));
 
-            $this->selectedQueue->prescription_items = $prescriptionItems;
+            $this->selectedQueue->prescription_items = app(PrescriptionReactivationService::class)
+                ->enrichItemObjects($prescriptionItems);
         }
 
         $this->showDetailsModal = true;

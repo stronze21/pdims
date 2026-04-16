@@ -5,6 +5,7 @@ namespace App\Livewire\Pharmacy\Prescriptions\Queueing;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueDisplaySetting;
 use App\Models\PharmLocation;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,7 @@ class PrescriptionQueueController extends Component
     public $printQueue = null;
     public $printItems = [];
     public $selectedItems = [];
+    public $printIncludeInactive = false;
 
 
     public function boot(PrescriptionQueueService $queueService)
@@ -802,7 +804,8 @@ class PrescriptionQueueController extends Component
                 ORDER BY pd.created_at ASC
             ", [$this->selectedQueue->prescription_id]));
 
-            $this->selectedQueue->prescription_items = $prescriptionItems;
+            $this->selectedQueue->prescription_items = app(PrescriptionReactivationService::class)
+                ->enrichItemObjects($prescriptionItems);
         }
 
         $this->showDetailsModal = true;
@@ -811,31 +814,20 @@ class PrescriptionQueueController extends Component
     public function openPrintModal($queueId)
     {
         $this->printQueueId = $queueId;
+        $this->printIncludeInactive = false;
         $this->printQueue = PrescriptionQueue::with(['patient', 'prescription'])
             ->find($queueId);
 
-        if ($this->printQueue && $this->printQueue->prescription_id) {
-            $prescriptionItems = DB::connection('webapp')->select("
-                SELECT
-                    pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
-                    pd.remark, pd.addtl_remarks, pd.tkehome,
-                    pd.frequency, pd.duration, dm.drug_concat
-                FROM prescription_data pd
-                INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
-                WHERE pd.presc_id = ? AND pd.stat = 'A'
-                ORDER BY pd.created_at ASC
-            ", [$this->printQueue->prescription_id]);
-
-            // Store items as array to persist through Livewire updates
-            $this->printItems = array_map(function ($item) {
-                return (array) $item;
-            }, $prescriptionItems);
-
-            // Select all items by default
-            $this->selectedItems = array_column($this->printItems, 'id');
-        }
+        $this->loadPrintItems();
 
         $this->showPrintModal = true;
+    }
+
+    public function updatedPrintIncludeInactive()
+    {
+        if ($this->showPrintModal) {
+            $this->loadPrintItems();
+        }
     }
 
     public function toggleItemSelection($itemId)
@@ -872,7 +864,8 @@ class PrescriptionQueueController extends Component
         // Store selected items in session for print page
         session([
             'print_queue_id' => $this->printQueueId,
-            'print_items' => $this->selectedItems
+            'print_items' => $this->selectedItems,
+            'print_include_inactive' => $this->printIncludeInactive,
         ]);
 
         // Dispatch event to open print window - route should be defined in web.php
@@ -893,5 +886,35 @@ class PrescriptionQueueController extends Component
             'stats' => $this->stats,
             'locations' => $this->locations,
         ]);
+    }
+
+    private function loadPrintItems(): void
+    {
+        $this->printItems = [];
+        $this->selectedItems = [];
+
+        if (!$this->printQueue || !$this->printQueue->prescription_id) {
+            return;
+        }
+
+        $statusFilter = $this->printIncludeInactive ? '' : "AND pd.stat = 'A'";
+
+        $prescriptionItems = DB::connection('webapp')->select("
+            SELECT
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.remark, pd.addtl_remarks, pd.tkehome,
+                pd.frequency, pd.duration, pd.stat, dm.drug_concat
+            FROM prescription_data pd
+            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            WHERE pd.presc_id = ? {$statusFilter}
+            ORDER BY pd.created_at ASC
+        ", [$this->printQueue->prescription_id]);
+
+        $this->printItems = app(PrescriptionReactivationService::class)
+            ->enrichItems($prescriptionItems)
+            ->values()
+            ->all();
+
+        $this->selectedItems = array_column($this->printItems, 'id');
     }
 }

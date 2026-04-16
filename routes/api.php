@@ -146,6 +146,8 @@ Route::prefix('portal')->group(function () {
         // Prescription refill routes
         Route::get('/prescriptions', [PortalPrescriptionController::class, 'prescriptions']);
         Route::get('/prescriptions/issued-medications', [PortalPrescriptionController::class, 'issuedMedications']);
+        Route::get('/prescriptions/reactivated-today', [PortalPrescriptionController::class, 'reactivatedToday']);
+        Route::get('/prescriptions/reactivates-tomorrow', [PortalPrescriptionController::class, 'reactivatesTomorrow']);
         Route::get('/prescriptions/{id}/items', [PortalPrescriptionController::class, 'prescriptionItems']);
         Route::post('/prescriptions/refill', [PortalPrescriptionController::class, 'requestRefill']);
         Route::get('/prescriptions/refills', [PortalPrescriptionController::class, 'refillHistory']);

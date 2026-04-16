@@ -33,6 +33,8 @@ use App\Livewire\Pharmacy\Purchases\PimsRisList;
 use App\Livewire\Pharmacy\Purchases\ShowRis;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatedToday;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatesTomorrow;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueController;
@@ -41,6 +43,7 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagement;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTablet;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
+use App\Livewire\Pharmacy\Settings\PrescriptionReorderSettings;
 use App\Livewire\Portal\ManageChatConversations;
 use App\Livewire\Portal\ManagePortalManual;
 use App\Livewire\Portal\ManagePortalUsers;
@@ -53,6 +56,7 @@ use App\Livewire\Records\ForDischargePatients;
 use App\Livewire\Records\PatientsList;
 use App\Livewire\Roles\ManageRoles;
 use App\Livewire\Users\ManageUsers;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -132,10 +136,15 @@ Route::middleware([
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
         ->name('pharmacy.non-pnf-drugs');
 
+    Route::get('/settings/prescription-reorder', PrescriptionReorderSettings::class)
+        ->name('settings.prescription-reorder');
+
     Route::prefix('rx')->name('rx.')->group(function () {
         Route::get('/opd', PrescriptionOpd::class)->name('opd');
         Route::get('/ward', PrescriptionWard::class)->name('ward');
         Route::get('/er', PrescriptionEr::class)->name('er');
+        Route::get('/reactivated-today', PrescriptionReactivatedToday::class)->name('reactivated-today');
+        Route::get('/reactivates-tomorrow', PrescriptionReactivatesTomorrow::class)->name('reactivates-tomorrow');
     });
 
     // Prescription Queue Management Routes
@@ -151,6 +160,7 @@ Route::middleware([
 
     Route::get('/prescriptions/queue/print/{queueId}', function ($queueId) {
         $printItems = session('print_items', []);
+        $includeInactive = (bool) session('print_include_inactive', false);
 
         if (empty($printItems)) {
             return redirect()->back()->with('error', 'No items selected for printing');
@@ -163,16 +173,20 @@ Route::middleware([
             return redirect()->back()->with('error', 'Queue not found');
         }
 
+        $statusFilter = $includeInactive ? '' : "AND pd.stat = 'A'";
+
         $items = collect(DB::connection('webapp')->select("
         SELECT
             pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
-            pd.remark, pd.addtl_remarks, pd.tkehome,
+            pd.remark, pd.addtl_remarks, pd.tkehome, pd.stat,
             pd.frequency, pd.duration, dm.drug_concat
         FROM prescription_data pd
         INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
-        WHERE pd.presc_id = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
+        WHERE pd.presc_id = ? {$statusFilter} AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
         ORDER BY pd.created_at ASC
     ", array_merge([$queue->prescription_id], $printItems)));
+
+        $items = app(PrescriptionReactivationService::class)->enrichItemObjects($items);
 
         return view('pharmacy.prescriptions.print', [
             'queue' => $queue,
@@ -182,6 +196,7 @@ Route::middleware([
 
     Route::get('/dispensing/prescription/print/{enccode?}', function ($enccode = null) {
         $printItems = session('print_encounter_items', []);
+        $includeInactive = (bool) session('print_encounter_include_inactive', false);
         $enccode ??= request()->query('enccode');
 
         if (empty($enccode)) {
@@ -204,17 +219,21 @@ Route::middleware([
             return redirect()->back()->with('error', 'Encounter not found');
         }
 
+        $statusFilter = $includeInactive ? '' : "AND pd.stat = 'A'";
+
         $items = collect(DB::connection('webapp')->select("
             SELECT
                 pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
-                pd.remark, pd.addtl_remarks,
+                pd.remark, pd.addtl_remarks, pd.stat,
                 pd.frequency, pd.duration, dm.drug_concat
             FROM prescription_data pd
             INNER JOIN prescription rx ON pd.presc_id = rx.id
             INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
-            WHERE rx.enccode = ? AND pd.stat = 'A' AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
+            WHERE rx.enccode = ? {$statusFilter} AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
             ORDER BY pd.created_at ASC
         ", array_merge([$enccode], $printItems)));
+
+        $items = app(PrescriptionReactivationService::class)->enrichItemObjects($items);
 
         return view('pharmacy.dispensing.print-prescription', [
             'encounter' => $encounter,

@@ -1,8 +1,14 @@
 <div class="flex flex-col px-5 py-5 mx-auto max-w-screen">
     <x-mary-header title="Prescription Refill Requests" subtitle="Manage prescription refill requests from Salun-at portal" separator progress-indicator>
         <x-slot:middle class="!justify-end">
-            <x-mary-input placeholder="Search drug, patient, hpercode..." wire:model.live.debounce.300ms="search"
-                icon="o-magnifying-glass" clearable class="w-72" />
+            <div class="flex items-center gap-2">
+                <x-mary-input placeholder="Search drug, patient, hpercode..." wire:model.live.debounce.300ms="search"
+                    icon="o-magnifying-glass" clearable class="w-72" />
+                <button class="btn btn-primary" wire:click="openManualRefillModal">
+                    <x-mary-icon name="o-plus" class="w-4 h-4" />
+                    Record Manual Refill
+                </button>
+            </div>
         </x-slot:middle>
     </x-mary-header>
 
@@ -37,6 +43,7 @@
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Patient</th>
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Drug / Medication</th>
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Qty</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Source</th>
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Status</th>
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Requested</th>
                         <th class="py-4 px-4 text-base-content text-xs font-bold uppercase text-center">Actions</th>
@@ -56,6 +63,11 @@
                                 @endif
                             </td>
                             <td class="py-3 px-4 text-sm text-base-content/80 font-semibold">{{ number_format($refill->qty_requested) }}</td>
+                            <td class="py-3 px-4">
+                                <span class="badge badge-sm badge-outline">
+                                    {{ ($refill->request_source ?? 'patient') === 'pharmacy_manual' ? 'Pharmacy Manual' : 'Patient Request' }}
+                                </span>
+                            </td>
                             <td class="py-3 px-4">
                                 @switch($refill->status)
                                     @case('pending')
@@ -96,7 +108,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-16 text-center">
+                            <td colspan="7" class="py-16 text-center">
                                 <div class="flex flex-col items-center">
                                     <x-mary-icon name="o-document-text" class="w-16 h-16 text-base-content/30 mb-4" />
                                     <span class="text-xl font-bold text-base-content/60">No refill requests found</span>
@@ -136,6 +148,12 @@
                         <p class="text-base-content/80 font-semibold">{{ number_format($viewRefill->qty_requested) }}</p>
                     </div>
                     <div>
+                        <span class="text-xs text-base-content/60 uppercase font-semibold">Source</span>
+                        <p class="text-base-content/80">
+                            {{ ($viewRefill->request_source ?? 'patient') === 'pharmacy_manual' ? 'Pharmacy Manual' : 'Patient Request' }}
+                        </p>
+                    </div>
+                    <div>
                         <span class="text-xs text-base-content/60 uppercase font-semibold">Status</span>
                         <p class="font-semibold {{ $viewRefill->status === 'approved' ? 'text-green-600' : ($viewRefill->status === 'denied' ? 'text-red-600' : ($viewRefill->status === 'completed' ? 'text-blue-600' : 'text-yellow-600')) }}">
                             {{ ucfirst($viewRefill->status) }}
@@ -167,33 +185,42 @@
                                 <span class="text-base-content/60">Prescribed Date:</span>
                                 <p class="text-base-content/80">{{ $prescriptionContext->prescribed_at ? \Carbon\Carbon::parse($prescriptionContext->prescribed_at)->format('M d, Y') : 'N/A' }}</p>
                             </div>
-                            @if($prescriptionContext->frequency)
+                            @if($prescriptionContext->schedule_text)
                                 <div>
-                                    <span class="text-base-content/60">Frequency:</span>
-                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->frequency }}</p>
+                                    <span class="text-base-content/60">Schedule:</span>
+                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->schedule_text }}</p>
                                 </div>
                             @endif
-                            @if($prescriptionContext->duration)
+                            @if($prescriptionContext->days_to_cover)
                                 <div>
-                                    <span class="text-base-content/60">Duration:</span>
-                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->duration }}</p>
+                                    <span class="text-base-content/60">Days to Cover:</span>
+                                    <p class="font-semibold text-base-content">{{ $prescriptionContext->days_to_cover }}</p>
                                 </div>
                             @endif
                         </div>
                         <div class="grid grid-cols-3 gap-3 mt-3">
                             <div class="p-2 bg-base-100 rounded text-center border border-base-300">
-                                <span class="text-xs text-base-content/60 block">Total Ordered</span>
-                                <span class="text-lg font-bold text-base-content">{{ number_format($prescriptionContext->qty_ordered) }}</span>
+                                <span class="text-xs text-base-content/60 block">Qty per Administration</span>
+                                <span class="text-lg font-bold text-base-content">{{ number_format($prescriptionContext->qty_per_administration) }}</span>
                             </div>
                             <div class="p-2 bg-base-100 rounded text-center border border-base-300">
                                 <span class="text-xs text-success block">Already Dispensed</span>
-                                <span class="text-lg font-bold text-success">{{ number_format($prescriptionContext->total_issued) }}</span>
+                                <span class="text-lg font-bold text-success">{{ number_format($prescriptionContext->qty_issued) }}</span>
                             </div>
                             <div class="p-2 bg-base-100 rounded text-center border border-base-300">
                                 <span class="text-xs text-warning block">Remaining</span>
-                                <span class="text-lg font-bold text-warning">{{ number_format($prescriptionContext->remaining_qty) }}</span>
+                                <span class="text-lg font-bold text-warning">{{ number_format($prescriptionContext->computed_remaining_qty ?? 0) }}</span>
                             </div>
                         </div>
+                        @if($prescriptionContext->computed_total_qty !== null)
+                            <p class="text-xs text-base-content/70 mt-2"><strong>Computed Total Qty:</strong> {{ number_format($prescriptionContext->computed_total_qty) }}</p>
+                        @endif
+                        @if($prescriptionContext->single_allowable_dispense_qty !== null)
+                            <p class="text-xs text-base-content/70 mt-1"><strong>Single Allowable Dispense:</strong> {{ number_format($prescriptionContext->single_allowable_dispense_qty) }} @if(($prescriptionContext->days_to_cover ?? 0) > 30)<span class="text-warning">(30-day cap applied)</span>@endif</p>
+                        @endif
+                        @if(($prescriptionContext->refill_after_30_days_qty ?? 0) > 0)
+                            <p class="text-xs text-base-content/70 mt-1"><strong>For Later Refill:</strong> {{ number_format($prescriptionContext->refill_after_30_days_qty) }}</p>
+                        @endif
                         @if($prescriptionContext->remark)
                             <p class="text-xs text-base-content/70 mt-2"><strong>Doctor's Remark:</strong> {{ $prescriptionContext->remark }}</p>
                         @endif
@@ -238,6 +265,83 @@
                 wire:click="processRefill"
                 class="{{ $processAction === 'approved' ? 'btn-success' : 'btn-error' }}"
                 spinner="processRefill" />
+        </x-slot:actions>
+    </x-mary-modal>
+
+    <x-mary-modal wire:model="manualRefillModal" title="Record Manual Refill" class="backdrop-blur" box-class="max-w-3xl bg-base-100 text-base-content border border-base-300">
+        <div class="space-y-4">
+            <div>
+                <label class="label"><span class="label-text">Find Patient</span></label>
+                <x-mary-input
+                    wire:model.live.debounce.300ms="manualPatientSearch"
+                    placeholder="Search by patient name or hpercode..."
+                    icon="o-magnifying-glass" />
+
+                @if (!empty($manualPatientResults))
+                    <div class="mt-2 rounded-xl border border-base-300 bg-base-200 overflow-hidden">
+                        @foreach ($manualPatientResults as $patient)
+                            <button
+                                type="button"
+                                wire:click="selectManualPatient({{ $patient['id'] }})"
+                                class="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-base-300 transition">
+                                <span class="font-medium">{{ $patient['fullname'] }}</span>
+                                <span class="text-xs font-mono text-base-content/60">{{ $patient['hpercode'] }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            @if ($manualPatient)
+                <div class="rounded-xl border border-base-300 bg-base-200 p-4">
+                    <div class="font-semibold">{{ $manualPatient->fullname }}</div>
+                    <div class="text-xs font-mono text-base-content/60">{{ $manualPatient->hpercode }}</div>
+                </div>
+
+                <div>
+                    <label class="label"><span class="label-text">Prescription Item</span></label>
+                    <select class="select select-bordered w-full" wire:model.live="manualPrescriptionDataId">
+                        <option value="">Select refillable medication</option>
+                        @foreach ($manualPrescriptionItems as $item)
+                            <option value="{{ $item['id'] }}">
+                                {{ $item['drug_name'] ?: str_replace('_,', ' ', $item['drug_concat'] ?? 'Medication') }}
+                                | Remaining {{ number_format($item['computed_remaining_qty']) }}
+                                | Allowable {{ number_format($item['allowable_request_qty']) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                @php
+                    $selectedManualItem = collect($manualPrescriptionItems)->firstWhere('id', (int) $manualPrescriptionDataId);
+                @endphp
+
+                @if ($selectedManualItem)
+                    <div class="rounded-xl border border-warning/20 bg-warning/10 p-4 text-sm">
+                        <div class="font-semibold text-warning mb-2">{{ $selectedManualItem['drug_name'] ?: str_replace('_,', ' ', $selectedManualItem['drug_concat'] ?? 'Medication') }}</div>
+                        <div>Schedule: {{ $selectedManualItem['schedule_text'] ?? 'N/A' }}</div>
+                        <div>Days: {{ $selectedManualItem['days_to_cover'] ?? 'N/A' }}</div>
+                        <div>Remaining: {{ number_format($selectedManualItem['computed_remaining_qty']) }}</div>
+                        <div>Allowable Now: {{ number_format($selectedManualItem['allowable_request_qty']) }}</div>
+                    </div>
+                @endif
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label"><span class="label-text">Quantity to Record</span></label>
+                        <x-mary-input type="number" min="1" step="1" wire:model="manualQtyRequested" />
+                    </div>
+                    <div>
+                        <label class="label"><span class="label-text">Remarks</span></label>
+                        <x-mary-input wire:model="manualRemarks" placeholder="Optional notes for this manual refill" />
+                    </div>
+                </div>
+            @endif
+        </div>
+
+        <x-slot:actions>
+            <x-mary-button label="Cancel" wire:click="$set('manualRefillModal', false)" />
+            <x-mary-button label="Save Manual Refill" wire:click="createManualRefill" class="btn-primary" spinner="createManualRefill" />
         </x-slot:actions>
     </x-mary-modal>
 </div>

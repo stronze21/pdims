@@ -408,19 +408,19 @@
 
                                     <div class="grid grid-cols-3 gap-3 mb-2 text-sm">
                                         <div>
-                                            <span class="opacity-70">Qty:</span>
-                                            <span class="font-semibold">{{ $item->qty }}</span>
+                                            <span class="opacity-70">Qty/Admin:</span>
+                                            <span class="font-semibold">{{ $item->qty_per_administration }}</span>
                                         </div>
-                                        @if ($item->frequency)
+                                        @if ($item->schedule_text)
                                             <div>
-                                                <span class="opacity-70">Frequency:</span>
-                                                <span class="font-semibold">{{ $item->frequency }}</span>
+                                                <span class="opacity-70">Schedule:</span>
+                                                <span class="font-semibold">{{ $item->schedule_text }}</span>
                                             </div>
                                         @endif
-                                        @if ($item->duration)
+                                        @if ($item->days_to_cover)
                                             <div>
-                                                <span class="opacity-70">Duration:</span>
-                                                <span class="font-semibold">{{ $item->duration }}</span>
+                                                <span class="opacity-70">Days:</span>
+                                                <span class="font-semibold">{{ $item->days_to_cover }}</span>
                                             </div>
                                         @endif
                                     </div>

@@ -26,6 +26,7 @@ use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use App\Services\Pharmacy\PrescriptionQueueService;
 
 class DispensingEncounter extends Component
@@ -117,6 +118,7 @@ class DispensingEncounter extends Component
     public $showPrintModal = false;
     public $printItems = [];
     public $printSelectedItems = [];
+    public $printIncludeInactive = false;
 
     // Modal States
     public $showAddItemModal = false;
@@ -934,9 +936,23 @@ class DispensingEncounter extends Component
     {
         $data = PrescriptionData::find($rxId);
         if ($data) {
+            if (!app(PrescriptionReactivationService::class)->hasActiveEncounter((int) $data->id)) {
+                $this->warning('Only prescription items from active admitted encounters can be reordered.');
+                return;
+            }
+
+            $reorderedAt = now('Asia/Manila');
             $data->stat = 'A';
+            $data->active_date = $reorderedAt;
             $data->save();
-            $this->success('Prescription reactivated!');
+            app(PrescriptionReactivationService::class)->logReorder(
+                (int) $data->id,
+                'manual',
+                $reorderedAt,
+                'Manual reorder from dispensing encounter',
+                auth()->user()?->name ?? (string) auth()->id()
+            );
+            $this->success('Prescription reordered manually!');
         }
     }
 
@@ -1554,14 +1570,21 @@ class DispensingEncounter extends Component
 
     private function formatPrescriptionMatch($data, $prescription, string $source): array
     {
+        $enriched = app(PrescriptionReactivationService::class)->enrichItem($data);
+
         return [
             'id' => $data->id,
             'source' => $source,
-            'qty' => $data->qty,
+            'qty' => $enriched['qty_per_administration'],
             'frequency' => $data->frequency,
             'duration' => $data->duration,
             'remark' => $data->remark,
             'addtl_remarks' => $data->addtl_remarks,
+            'schedule_text' => $enriched['schedule_text'],
+            'days_to_cover' => $enriched['days_to_cover'],
+            'computed_total_qty' => $enriched['computed_total_qty'],
+            'computed_remaining_qty' => $enriched['computed_remaining_qty'],
+            'cdoe_summary' => $enriched['cdoe_summary'],
             'order_type' => strtoupper((string) ($data->order_type ?? '')),
             'prescribed_by' => $data->employee?->fullname ?? $prescription->employee?->fullname ?? null,
             'updated_at' => $data->updated_at?->format('M d, Y h:i A'),
@@ -2081,27 +2104,16 @@ class DispensingEncounter extends Component
             return;
         }
 
-        $enccode = $this->decryptEnccode();
-
-        $prescriptionItems = DB::connection('webapp')->select("
-            SELECT
-                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
-                pd.remark, pd.addtl_remarks,
-                pd.frequency, pd.duration, dm.drug_concat
-            FROM prescription_data pd
-            INNER JOIN prescription rx ON pd.presc_id = rx.id
-            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
-            WHERE rx.enccode = ? AND pd.stat = 'A'
-            ORDER BY pd.created_at ASC
-        ", [$enccode]);
-
-        $this->printItems = array_map(function ($item) {
-            return (array) $item;
-        }, $prescriptionItems);
-
-        // Select all by default
-        $this->printSelectedItems = array_column($this->printItems, 'id');
+        $this->printIncludeInactive = false;
+        $this->loadEncounterPrintItems();
         $this->showPrintModal = true;
+    }
+
+    public function updatedPrintIncludeInactive()
+    {
+        if ($this->showPrintModal) {
+            $this->loadEncounterPrintItems();
+        }
     }
 
     public function togglePrintItemSelection($itemId): void
@@ -2134,9 +2146,35 @@ class DispensingEncounter extends Component
         session([
             'print_encounter_enccode' => $enccode,
             'print_encounter_items' => $this->printSelectedItems,
+            'print_encounter_include_inactive' => $this->printIncludeInactive,
         ]);
 
         $this->dispatch('open-print-window', url: url('/dispensing/prescription/print?enccode=' . urlencode($enccode)));
+    }
+
+    private function loadEncounterPrintItems(): void
+    {
+        $enccode = $this->decryptEnccode();
+        $statusFilter = $this->printIncludeInactive ? '' : "AND pd.stat = 'A'";
+
+        $prescriptionItems = DB::connection('webapp')->select("
+            SELECT
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.remark, pd.addtl_remarks,
+                pd.frequency, pd.duration, pd.stat, dm.drug_concat
+            FROM prescription_data pd
+            INNER JOIN prescription rx ON pd.presc_id = rx.id
+            INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            WHERE rx.enccode = ? {$statusFilter}
+            ORDER BY pd.created_at ASC
+        ", [$enccode]);
+
+        $this->printItems = app(PrescriptionReactivationService::class)
+            ->enrichItems($prescriptionItems)
+            ->values()
+            ->all();
+
+        $this->printSelectedItems = array_column($this->printItems, 'id');
     }
 
     private function logStockIssue($stock_id, $docointkey, $dmdcomb, $dmdctr, $loc_code, $chrgcode, $exp_date, $trans_qty, $unit_price, $pcchrgamt, $user_id, $hpercode, $enccode, $toecode, $pcchrgcod, $tag, $ris, $dmdprdte, $retail_price, $concat, $stock_date, $date, $active_consumption = null, $unit_cost = 0): void

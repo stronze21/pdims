@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Portal\PortalPrescriptionRefill;
+use App\Services\Pharmacy\PrescriptionReactivationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PortalPrescriptionController extends Controller
 {
+    public function __construct(private readonly PrescriptionReactivationService $reactivationService)
+    {
+    }
+
     /**
      * Get issued medications from hrxo, including walk-in / non-prescription issues.
      */
@@ -126,15 +131,7 @@ class PortalPrescriptionController extends Controller
                 (SELECT COUNT(*)
                  FROM webapp.dbo.prescription_data pd_active WITH (NOLOCK)
                  WHERE pd_active.presc_id = rx.id AND pd_active.stat = 'A') AS active_item_count,
-                (SELECT COUNT(*)
-                 FROM webapp.dbo.prescription_data pd2 WITH (NOLOCK)
-                 LEFT JOIN (
-                     SELECT presc_data_id, SUM(qtyissued) as total_issued
-                     FROM webapp.dbo.prescription_data_issued WITH (NOLOCK)
-                     GROUP BY presc_data_id
-                 ) pdi ON pd2.id = pdi.presc_data_id
-                 WHERE pd2.presc_id = rx.id AND pd2.stat = 'A'
-                 AND (pd2.qty - COALESCE(pdi.total_issued, 0)) > 0) AS refillable_count
+                0 AS refillable_count
             FROM webapp.dbo.prescription rx WITH (NOLOCK)
             INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
                 ON rx.enccode = enctr.enccode
@@ -144,7 +141,49 @@ class PortalPrescriptionController extends Controller
             ORDER BY rx.created_at DESC
         ", [$hpercode]);
 
-        return response()->json($prescriptions);
+        $prescriptionIds = collect($prescriptions)->pluck('id')->filter()->values();
+
+        if ($prescriptionIds->isEmpty()) {
+            return response()->json($prescriptions);
+        }
+
+        $placeholders = implode(',', array_fill(0, $prescriptionIds->count(), '?'));
+        $prescriptionItems = DB::connection('hospital')->select("
+            SELECT
+                pd.id,
+                pd.presc_id,
+                pd.qty,
+                pd.frequency,
+                pd.duration,
+                pd.remark,
+                pd.addtl_remarks,
+                pd.stat,
+                pd.archive,
+                COALESCE(pdi.total_issued, 0) AS total_issued
+            FROM webapp.dbo.prescription_data pd WITH (NOLOCK)
+            LEFT JOIN (
+                SELECT presc_data_id, SUM(qtyissued) AS total_issued
+                FROM webapp.dbo.prescription_data_issued WITH (NOLOCK)
+                GROUP BY presc_data_id
+            ) pdi ON pd.id = pdi.presc_data_id
+            WHERE pd.presc_id IN ({$placeholders})
+                AND pd.stat = 'A'
+        ", $prescriptionIds->all());
+
+        $refillableCounts = $this->reactivationService
+            ->enrichItems($prescriptionItems)
+            ->filter(fn (array $item) => !($item['needs_manual_review'] ?? false) && (float) ($item['computed_remaining_qty'] ?? 0) > 0)
+            ->groupBy('presc_id')
+            ->map->count();
+
+        $processed = collect($prescriptions)->map(function ($prescription) use ($refillableCounts) {
+            $row = (array) $prescription;
+            $row['refillable_count'] = (int) ($refillableCounts[$prescription->id] ?? 0);
+
+            return $row;
+        });
+
+        return response()->json($processed);
     }
 
     /**
@@ -185,8 +224,7 @@ class PortalPrescriptionController extends Controller
                 pd.frequency,
                 pd.duration,
                 dm.drug_concat,
-                COALESCE(pdi.total_issued, 0) as total_issued,
-                (pd.qty - COALESCE(pdi.total_issued, 0)) as remaining_qty
+                COALESCE(pdi.total_issued, 0) as total_issued
             FROM webapp.dbo.prescription_data pd WITH (NOLOCK)
             INNER JOIN hospital.dbo.hdmhdr dm WITH (NOLOCK)
                 ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
@@ -206,34 +244,77 @@ class PortalPrescriptionController extends Controller
             ->pluck('prescription_data_id')
             ->toArray();
 
-        $processedItems = collect($items)->map(function ($item) use ($pendingRefillIds) {
-            $parts = explode('_,', $item->drug_concat ?? '');
-            $remaining = (float) ($item->remaining_qty ?? 0);
-            $isActive = ($item->stat ?? '') === 'A';
+        $processedItems = $this->reactivationService->enrichItems($items)->map(function (array $item) use ($pendingRefillIds) {
+            $parts = explode('_,', $item['drug_concat'] ?? '');
+            $remaining = (float) ($item['computed_remaining_qty'] ?? 0);
+            $isActive = ($item['stat'] ?? '') === 'A';
 
             return [
-                'id' => (int) $item->id,
-                'dmdcomb' => (string) ($item->dmdcomb ?? ''),
-                'dmdctr' => (string) ($item->dmdctr ?? ''),
+                'id' => (int) $item['id'],
+                'dmdcomb' => (string) ($item['dmdcomb'] ?? ''),
+                'dmdctr' => (string) ($item['dmdctr'] ?? ''),
                 'generic' => $parts[0] ?? 'N/A',
                 'brand' => $parts[1] ?? '',
                 'drug_name' => trim(($parts[0] ?? '') . ' ' . ($parts[1] ?? '')),
-                'qty_ordered' => (float) ($item->qty ?? 0),
-                'qty_issued' => (float) ($item->total_issued ?? 0),
+                'qty_per_administration' => (float) ($item['qty_per_administration'] ?? 0),
+                'administrations_per_day' => $item['administrations_per_day'],
+                'duration_days' => $item['duration_days'],
+                'computed_total_qty' => $item['computed_total_qty'],
+                'single_allowable_dispense_qty' => $item['single_allowable_dispense_qty'],
+                'allowable_request_qty' => $item['allowable_request_qty'],
+                'refill_after_30_days_qty' => $item['refill_after_30_days_qty'],
+                'qty_issued' => (float) ($item['qty_issued'] ?? 0),
                 'qty_remaining' => $remaining,
-                'order_type' => (string) ($item->order_type ?? ''),
-                'stat' => (string) ($item->stat ?? ''),
+                'order_type' => (string) ($item['order_type'] ?? ''),
+                'stat' => (string) ($item['stat'] ?? ''),
                 'is_active' => $isActive,
-                'remark' => (string) ($item->remark ?? ''),
-                'addtl_remarks' => (string) ($item->addtl_remarks ?? ''),
-                'frequency' => (string) ($item->frequency ?? ''),
-                'duration' => (string) ($item->duration ?? ''),
+                'remark' => (string) ($item['remark'] ?? ''),
+                'addtl_remarks' => (string) ($item['addtl_remarks'] ?? ''),
+                'frequency' => (string) ($item['frequency'] ?? ''),
+                'duration' => (string) ($item['duration'] ?? ''),
                 'has_remaining' => $isActive && $remaining > 0,
-                'has_pending_refill' => in_array($item->id, $pendingRefillIds),
+                'has_pending_refill' => in_array($item['id'], $pendingRefillIds),
+                'can_auto_reactivate' => (bool) ($item['can_auto_reactivate'] ?? false),
+                'needs_manual_review' => (bool) ($item['needs_manual_review'] ?? false),
+                'calculation_notes' => $item['calculation_notes'] ?? null,
             ];
         });
 
         return response()->json($processedItems);
+    }
+
+    public function reactivatedToday(Request $request)
+    {
+        $account = $request->user();
+        $account->load('patient');
+        $hpercode = $account->patient?->hpercode;
+
+        if (!$hpercode) {
+            return response()->json(['message' => 'No linked hospital record found.'], 404);
+        }
+
+        $items = $this->reactivationService->reactivatedToday(now('Asia/Manila'), $hpercode)
+            ->values()
+            ->all();
+
+        return response()->json($items);
+    }
+
+    public function reactivatesTomorrow(Request $request)
+    {
+        $account = $request->user();
+        $account->load('patient');
+        $hpercode = $account->patient?->hpercode;
+
+        if (!$hpercode) {
+            return response()->json(['message' => 'No linked hospital record found.'], 404);
+        }
+
+        $items = $this->reactivationService->reactivatesTomorrow(now('Asia/Manila'), $hpercode)
+            ->values()
+            ->all();
+
+        return response()->json($items);
     }
 
     /**
@@ -277,8 +358,13 @@ class PortalPrescriptionController extends Controller
         $prescData = DB::connection('hospital')->selectOne("
             SELECT
                 pd.qty,
+                pd.frequency,
+                pd.duration,
+                pd.remark,
+                pd.addtl_remarks,
+                pd.archive,
+                pd.stat,
                 COALESCE(pdi.total_issued, 0) as total_issued,
-                (pd.qty - COALESCE(pdi.total_issued, 0)) as remaining_qty
             FROM webapp.dbo.prescription_data pd WITH (NOLOCK)
             LEFT JOIN (
                 SELECT presc_data_id, SUM(qtyissued) as total_issued
@@ -292,15 +378,25 @@ class PortalPrescriptionController extends Controller
             return response()->json(['message' => 'Prescription item not found or inactive.'], 404);
         }
 
-        if ((float) $prescData->remaining_qty <= 0) {
+        $enrichedItem = $this->reactivationService->enrichItem($prescData);
+        $remainingQty = (float) ($enrichedItem['computed_remaining_qty'] ?? 0);
+        $allowableRequestQty = (float) ($enrichedItem['allowable_request_qty'] ?? $remainingQty);
+
+        if ($enrichedItem['needs_manual_review'] ?? false) {
+            return response()->json([
+                'message' => 'This medication needs manual review before refill because the original CDOE schedule could not be computed automatically.',
+            ], 422);
+        }
+
+        if ($remainingQty <= 0) {
             return response()->json([
                 'message' => 'This medication has been fully dispensed. Please consult your doctor for a new prescription.',
             ], 422);
         }
 
-        if ($request->qty_requested > (float) $prescData->remaining_qty) {
+        if ($request->qty_requested > $allowableRequestQty) {
             return response()->json([
-                'message' => "Requested quantity exceeds remaining balance ({$prescData->remaining_qty}). You can request up to {$prescData->remaining_qty}.",
+                'message' => "Requested quantity exceeds the current allowable release ({$allowableRequestQty}). A single dispense/request is limited to 30 days, with the remaining balance to be refilled later.",
             ], 422);
         }
 
@@ -327,6 +423,7 @@ class PortalPrescriptionController extends Controller
             'drug_name' => $request->drug_name,
             'qty_requested' => $request->qty_requested,
             'remarks' => $request->remarks,
+            'request_source' => 'patient',
         ]);
 
         return response()->json([

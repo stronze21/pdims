@@ -220,7 +220,9 @@
                                 <thead>
                                     <tr>
                                         <th>Drug</th>
-                                        <th>Qty</th>
+                                        <th>Qty/Admin</th>
+                                        <th>Schedule</th>
+                                        <th>Days</th>
                                         <th>Type</th>
                                     </tr>
                                 </thead>
@@ -228,7 +230,9 @@
                                     @foreach ($selectedQueue->prescription_items as $item)
                                         <tr>
                                             <td>{{ $item->drug_concat }}</td>
-                                            <td>{{ $item->qty }}</td>
+                                            <td>{{ $item->qty_per_administration }}</td>
+                                            <td>{{ $item->schedule_text ?? 'N/A' }}</td>
+                                            <td>{{ $item->days_to_cover ?? 'N/A' }}</td>
                                             <td>
                                                 <div class="badge badge-xs">{{ $item->order_type }}</div>
                                             </td>

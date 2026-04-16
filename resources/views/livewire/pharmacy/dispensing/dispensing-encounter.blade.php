@@ -796,23 +796,23 @@
                                     <div class="flex items-center justify-between gap-2">
                                         <div class="font-medium">{{ $rxMatch['source'] }}</div>
                                         <div class="flex items-center gap-2">
-                                            @if ($rxMatch['order_type'] === 'G24')
-                                                <span class="badge badge-xs badge-error">G24</span>
-                                            @elseif($rxMatch['order_type'] === 'OR')
-                                                <span class="badge badge-xs badge-secondary">OR</span>
-                                            @else
-                                                <span class="badge badge-xs badge-accent">Basic</span>
+                                        @if (($rxMatch['order_type'] ?? '') === 'G24')
+                                            <span class="badge badge-xs badge-error">G24</span>
+                                        @elseif(($rxMatch['order_type'] ?? '') === 'OR')
+                                            <span class="badge badge-xs badge-secondary">OR</span>
+                                        @else
+                                            <span class="badge badge-xs badge-accent">Basic</span>
                                             @endif
                                             <span class="badge badge-xs badge-outline">Rx #{{ $rxMatch['id'] }}</span>
                                         </div>
                                     </div>
                                     <div class="mt-1 text-xs text-base-content/70">
-                                        Qty: {{ $rxMatch['qty'] }}
-                                        @if ($rxMatch['frequency'])
-                                            | Frequency: {{ $rxMatch['frequency'] }}
+                                        Qty/Admin: {{ $rxMatch['qty'] }}
+                                        @if ($rxMatch['schedule_text'])
+                                            | Schedule: {{ $rxMatch['schedule_text'] }}
                                         @endif
-                                        @if ($rxMatch['duration'])
-                                            | Duration: {{ $rxMatch['duration'] }}
+                                        @if ($rxMatch['days_to_cover'])
+                                            | Days: {{ $rxMatch['days_to_cover'] }}
                                         @endif
                                     </div>
                                     @if ($rxMatch['remark'] || $rxMatch['addtl_remarks'])
@@ -875,9 +875,9 @@
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="font-medium">{{ $selected_prescription_data['source'] }}</div>
                                     <div class="flex items-center gap-2">
-                                        @if ($selected_prescription_data['order_type'] === 'G24')
+                                        @if (($selected_prescription_data['order_type'] ?? '') === 'G24')
                                             <span class="badge badge-xs badge-error">G24</span>
-                                        @elseif($selected_prescription_data['order_type'] === 'OR')
+                                        @elseif(($selected_prescription_data['order_type'] ?? '') === 'OR')
                                             <span class="badge badge-xs badge-secondary">OR</span>
                                         @else
                                             <span class="badge badge-xs badge-accent">Basic</span>
@@ -886,12 +886,12 @@
                                     </div>
                                 </div>
                                 <div class="mt-1 text-xs text-base-content/70">
-                                    Qty: {{ $selected_prescription_data['qty'] }}
-                                    @if ($selected_prescription_data['frequency'])
-                                        | Frequency: {{ $selected_prescription_data['frequency'] }}
+                                    Qty/Admin: {{ $selected_prescription_data['qty'] }}
+                                    @if ($selected_prescription_data['schedule_text'])
+                                        | Schedule: {{ $selected_prescription_data['schedule_text'] }}
                                     @endif
-                                    @if ($selected_prescription_data['duration'])
-                                        | Duration: {{ $selected_prescription_data['duration'] }}
+                                    @if ($selected_prescription_data['days_to_cover'])
+                                        | Days: {{ $selected_prescription_data['days_to_cover'] }}
                                     @endif
                                 </div>
                                 @if ($selected_prescription_data['remark'] || $selected_prescription_data['addtl_remarks'])
@@ -1146,25 +1146,31 @@
                                 <td class="text-xs">
                                     {{ $presc_all_data->employee ? $presc_all_data->employee->fullname : '' }}</td>
                                 <td class="text-xs text-center">
-                                    @if ($presc_all_data->stat == 'A')
+                                    @if ($presc_all_data->stat == 'A' && !$presc_all_data->archive && $presc_all_data->archive != 1)
                                         <span class="badge badge-xs badge-primary">A</span>
                                     @else
-                                        <span class="badge badge-xs badge-error">{{ $presc_all_data->stat }}</span>
+                                        @if ($presc_all_data->archive && $presc_all_data->archive == 1)
+                                            <span class="badge badge-xs badge-error uppercase">Dicontinued</span>
+                                        @else
+                                            <span class="badge badge-xs badge-warning">{{ $presc_all_data->stat }}</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td>
-                                    @if ($presc_all_data->stat == 'A')
-                                        <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
-                                            data-tip="Deactivate"
-                                            wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
-                                            <x-heroicon-o-x-mark class="w-3 h-3" />
-                                        </button>
-                                    @else
-                                        <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
-                                            data-tip="Reactivate"
-                                            wire:click="reactivate_rx({{ $presc_all_data->id }})">
-                                            <x-heroicon-o-check class="w-3 h-3" />
-                                        </button>
+                                    @if (!$presc_all_data->archive && $presc_all_data->archive != 1)
+                                        @if ($presc_all_data->stat == 'A')
+                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
+                                                data-tip="Deactivate"
+                                                wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
+                                                <x-heroicon-o-x-mark class="w-3 h-3" />
+                                            </button>
+                                        @else
+                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
+                                                        data-tip="Reorder"
+                                                        wire:click="reactivate_rx({{ $presc_all_data->id }})">
+                                                <x-heroicon-o-check class="w-3 h-3" />
+                                            </button>
+                                        @endif
                                     @endif
                                 </td>
 
@@ -1219,28 +1225,35 @@
                                     <td class="text-xs">
                                         {{ $extra_all->employee ? $extra_all->employee->fullname : '' }}</td>
                                     <td class="text-xs text-center">
-                                        <span
-                                            class="badge badge-xs {{ $extra_all_data->stat == 'A' ? 'badge-primary' : 'badge-error' }}">
-                                            {{ $extra_all_data->stat }}
-                                        </span>
+                                        @if ($extra_all_data->stat == 'A' && !$extra_all_data->archive && $extra_all_data->archive != 1)
+                                            <span class="badge badge-xs badge-primary">A</span>
+                                        @else
+                                            @if ($extra_all_data->archive && $extra_all_data->archive == 1)
+                                                <span class="badge badge-xs badge-error uppercase">Dicontinued</span>
+                                            @else
+                                                <span class="badge badge-xs badge-warning">{{ $extra_all_data->stat }}</span>
+                                            @endif
+                                        @endif
                                     </td>
                                     <td>
-                                        @if ($extra_all_data->stat == 'A')
-                                            <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
-                                                data-tip="Deactivate"
-                                                wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
-                                                            $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
-                                                            $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
-                                                            $wire.$set('empid', '{{ $extra_all->empid }}');
-                                                            $wire.$set('showDeactivateRxModal', true)">
-                                                <x-heroicon-o-x-mark class="w-3 h-3" />
-                                            </button>
-                                        @else
-                                            <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
-                                                data-tip="Reactivate"
-                                                wire:click="reactivate_rx({{ $extra_all_data->id }})">
-                                                <x-heroicon-o-check class="w-3 h-3" />
-                                            </button>
+                                        @if (!$extra_all_data->archive && $extra_all_data->archive != 1)
+                                            @if ($extra_all_data->stat == 'A')
+                                                <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
+                                                    data-tip="Deactivate"
+                                                    wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
+                                                                $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
+                                                                $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
+                                                                $wire.$set('empid', '{{ $extra_all->empid }}');
+                                                                $wire.$set('showDeactivateRxModal', true)">
+                                                    <x-heroicon-o-x-mark class="w-3 h-3" />
+                                                </button>
+                                            @else
+                                                <button class="btn btn-xs btn-ghost btn-success tooltip tooltip-left"
+                                                        data-tip="Reorder"
+                                                        wire:click="reactivate_rx({{ $extra_all_data->id }})">
+                                                    <x-heroicon-o-check class="w-3 h-3" />
+                                                </button>
+                                            @endif
                                         @endif
                                     </td>
                                 </tr>
@@ -1829,6 +1842,15 @@
                 <div class="text-xs text-base-content/60">{{ $hpercode ?? '' }}</div>
             </div>
 
+            <div class="flex items-center justify-between mb-3">
+                <div class="font-semibold">Print Options</div>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                        wire:model.live="printIncludeInactive">
+                    <span>Include inactive items</span>
+                </label>
+            </div>
+
             @if (count($printItems) > 0)
                 <div>
                     <div class="flex justify-between items-center mb-3">
@@ -1850,9 +1872,9 @@
                                             wire:click="selectAllPrintItems">
                                     </th>
                                     <th>Drug</th>
-                                    <th>Qty</th>
-                                    <th>Frequency</th>
-                                    <th>Duration</th>
+                                    <th>Qty/Admin</th>
+                                    <th>Schedule</th>
+                                    <th>Days</th>
                                     <th>Type</th>
                                     <th>Remarks</th>
                                 </tr>
@@ -1867,12 +1889,15 @@
                                         </td>
                                         <td>
                                             <div class="text-sm font-medium">{{ $pItem['drug_concat'] }}</div>
+                                            @if (($pItem['stat'] ?? 'A') !== 'A')
+                                                <div class="text-xs text-warning">Inactive</div>
+                                            @endif
                                         </td>
-                                        <td>{{ $pItem['qty'] }}</td>
-                                        <td>{{ $pItem['frequency'] ?? '' }} {{ $pItem['remark'] ?? '' }}</td>
-                                        <td>{{ $pItem['duration'] ?? '' }}</td>
+                                        <td>{{ $pItem['qty_per_administration'] ?? ($pItem['qty'] ?? '') }}</td>
+                                        <td>{{ $pItem['schedule_text'] ?? ($pItem['remark'] ?? '') }}</td>
+                                        <td>{{ $pItem['days_to_cover'] ?? '' }}</td>
                                         <td>
-                                            <div class="badge badge-xs">{{ $pItem['order_type'] ?: 'Basic' }}</div>
+                                            <div class="badge badge-xs">{{ $pItem['order_type'] ?? 'Basic' }}</div>
                                         </td>
                                         <td class="text-xs">
                                             @if ($pItem['addtl_remarks'] ?? null)
@@ -1893,7 +1918,7 @@
             @else
                 <div class="py-8 text-center text-base-content/50">
                     <x-heroicon-o-clipboard-document class="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    No active prescriptions to print
+                    No prescription items found for the current filter
                 </div>
             @endif
         </div>

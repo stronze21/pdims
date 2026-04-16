@@ -164,10 +164,10 @@
                     {{ $index + 1 }}. {{ $item->drug_concat }}
                 </div>
                 <div class="item-details">
-                    <div><strong>Quantity:</strong> {{ $item->qty }}</div>
-                    <div><strong>Frequency:</strong> {{ $item->frequency ?: '' }} {{ $item->remark ?: 'N/A' }}</div>
-                    <div><strong>Duration:</strong> {{ $item->duration ?: 'N/A' }}</div>
-                    <div><strong>Type:</strong> {{ $item->order_type }}</div>
+                    <div><strong>Qty per Administration:</strong> {{ $item->qty_per_administration }}</div>
+                    <div><strong>Schedule:</strong> {{ $item->schedule_text ?: 'N/A' }}</div>
+                    <div><strong>Days to Cover:</strong> {{ $item->days_to_cover ?: 'N/A' }}</div>
+                    <div><strong>Type:</strong> {{ $item->order_type ?? 'Basic' }}</div>
                 </div>
                 @if ($item->addtl_remarks)
                     <div class="item-remarks">

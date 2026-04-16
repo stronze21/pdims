@@ -114,6 +114,10 @@
                                     link="{{ route('rx.ward') }}" />
                                 <x-mary-menu-item title="Emergency Room" icon="o-heart"
                                     link="{{ route('rx.er') }}" />
+                                <x-mary-menu-item title="Reordered Today" icon="o-check-circle"
+                                    link="{{ route('rx.reactivated-today') }}" />
+                                <x-mary-menu-item title="Reorders Tomorrow" icon="o-clock"
+                                    link="{{ route('rx.reactivates-tomorrow') }}" />
                             </x-mary-menu-sub>
                         @endcan
 
@@ -170,6 +174,9 @@
 
                                 <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
                                     link="{{ route('settings.zero-billing') }}" />
+
+                                <x-mary-menu-item title="Prescription Reorder" icon="o-bolt"
+                                    link="{{ route('settings.prescription-reorder') }}" />
                             </x-mary-menu-sub>
                         @endcan
 
@@ -258,6 +265,16 @@
                         <a href="{{ route('rx.er') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
                             <x-heroicon-o-heart class="w-5 h-5" />
                             <span class="text-[11px] text-center leading-tight">ER</span>
+                        </a>
+
+                        <a href="{{ route('rx.reactivated-today') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-check-circle class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Reordered</span>
+                        </a>
+
+                        <a href="{{ route('rx.reactivates-tomorrow') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-clock class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Reorder Tomorrow</span>
                         </a>
                     @endcan
 
