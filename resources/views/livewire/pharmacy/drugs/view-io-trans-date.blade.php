@@ -52,7 +52,7 @@
         </div>
         <div class="flex items-center space-x-1">
             <span class="badge badge-xs bg-red-500 border-0"></span>
-            <span class="text-xs text-gray-600">Cancelled/Declined</span>
+            <span class="text-xs text-gray-600">Cancelled/Declined/Returned</span>
         </div>
     </div>
 
@@ -85,7 +85,7 @@
                                 'Requested' => 'badge-neutral',
                                 'Issued' => 'badge-info',
                                 'Received' => 'badge-success',
-                                'Cancelled', 'Declined', 'Denied' => 'badge-error',
+                                'Cancelled', 'Declined', 'Denied', 'Returned' => 'badge-error',
                                 default => 'badge-ghost',
                             };
                         @endphp
@@ -149,6 +149,14 @@
                                             <x-mary-button icon="o-x-mark" class="btn-xs btn-error"
                                                 tooltip-left="Cancel" wire:click="cancelTx({{ $tran->id }})"
                                                 wire:mary-confirm="Cancel this transaction? All issued items will be returned."
+                                                spinner />
+                                        @endif
+                                    @elseif ($tran->trans_stat == 'Received')
+                                        @if ($this->canReturnReceived($tran))
+                                            <x-mary-button icon="o-arrow-uturn-left" class="btn-xs btn-error"
+                                                tooltip-left="Return Received Item"
+                                                wire:click="returnReceived({{ $tran->id }})"
+                                                wire:mary-confirm="Return this received item to the issuing location?"
                                                 spinner />
                                         @endif
                                     @endif

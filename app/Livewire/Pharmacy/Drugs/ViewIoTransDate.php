@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pharmacy\Drugs;
 
+use App\Livewire\Pharmacy\Drugs\Concerns\HandlesIoTransactionReturns;
 use App\Models\Pharmacy\Drug;
 use App\Models\Pharmacy\DrugGroup;
 use App\Models\Pharmacy\Drugs\DrugStock;
@@ -18,6 +19,7 @@ use Mary\Traits\Toast;
 class ViewIoTransDate extends Component
 {
     use Toast;
+    use HandlesIoTransactionReturns;
 
     public $date;
     public $search = '';
@@ -231,6 +233,8 @@ class ViewIoTransDate extends Component
             ->latest('exp_date')
             ->get();
 
+        $received_qty = 0;
+
         if ($issued_items->count()) {
             foreach ($issued_items as $item) {
                 $stock = DrugStock::firstOrCreate([
@@ -253,9 +257,12 @@ class ViewIoTransDate extends Component
                 $item->save();
 
                 $this->logReceive($item, $stock, $txn->trans_no);
+                $received_qty += $item->qty;
             }
         }
 
+        $txn->received_qty = $received_qty;
+        $txn->received_by = auth()->id();
         $txn->trans_stat = 'Received';
         $txn->save();
 

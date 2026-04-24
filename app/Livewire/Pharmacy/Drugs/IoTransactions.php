@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pharmacy\Drugs;
 
+use App\Livewire\Pharmacy\Drugs\Concerns\HandlesIoTransactionReturns;
 use App\Models\Pharmacy\Drug;
 use App\Models\Pharmacy\DrugGroup;
 use App\Models\Pharmacy\Drugs\DrugStock;
@@ -20,6 +21,7 @@ class IoTransactions extends Component
 {
     use WithPagination;
     use Toast;
+    use HandlesIoTransactionReturns;
 
     // View mode: 'issuer' (warehouse) or 'requestor' (location)
     public $view_mode = 'requestor';
@@ -400,6 +402,8 @@ class IoTransactions extends Component
             ->latest('exp_date')
             ->get();
 
+        $received_qty = 0;
+
         if ($issued_items->count()) {
             foreach ($issued_items as $item) {
                 $stock = DrugStock::firstOrCreate([
@@ -422,9 +426,12 @@ class IoTransactions extends Component
                 $item->save();
 
                 $this->logReceive($item, $stock, $txn->trans_no);
+                $received_qty += $item->qty;
             }
         }
 
+        $txn->received_qty = $received_qty;
+        $txn->received_by = auth()->id();
         $txn->trans_stat = 'Received';
         $txn->save();
 

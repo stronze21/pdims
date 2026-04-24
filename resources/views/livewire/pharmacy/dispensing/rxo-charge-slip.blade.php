@@ -65,8 +65,8 @@
                 <tbody>
                     @forelse ($rxo as $item)
                         @php
-                            $amount =
-                                $item->pcchrgamt + ($view_returns ? $item->pchrgup * $item->returns->sum('qty') : 0);
+                            $returnedQty = $item->returns->sum('qty');
+                            $amount = $item->pcchrgamt;
                             $total_amt += $amount;
                             $concat = implode(',', explode('_,', $item->dm->drug_concat));
                         @endphp
@@ -78,7 +78,7 @@
                             @if ($view_returns)
                                 <td class="text-right" colspan="2">{{ number_format($item->pchrgqty, 0) }}
                                 </td>
-                                <td class="text-right">{{ number_format($item->returns->sum('qty'), 0) }}
+                                <td class="text-right">{{ number_format($returnedQty, 0) }}
                                 </td>
                             @else
                                 <td class="text-right" colspan="2">

@@ -30,7 +30,7 @@ class RxoChargeSlip extends Component
     public function render()
     {
         $rxo = DrugOrder::where('pcchrgcod', $this->pcchrgcod)
-            ->with('dm', 'patient', 'prescription_data')
+            ->with('dm', 'patient', 'prescription_data', 'returns')
             ->latest('dodate')
             ->get();
 
@@ -42,7 +42,7 @@ class RxoChargeSlip extends Component
         $this->toecode = $rxo_header->enctr ? $rxo_header->enctr->toecode : '';
 
         if ($this->view_returns) {
-            $this->returned_qty = DrugOrderReturn::where('pcchrgcod', $this->pcchrgcod)->count();
+            $this->returned_qty = (float) DrugOrderReturn::where('pcchrgcod', $this->pcchrgcod)->sum('qty');
         }
 
         $patient_room = DB::selectOne("SELECT TOP 1 * FROM hpatroom WHERE enccode = ? ORDER BY hprdate DESC", [$rxo_header->enccode]);
