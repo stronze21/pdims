@@ -332,6 +332,11 @@
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center justify-start gap-2 w-full pr-0 lg:w-auto lg:justify-end lg:pr-5">
+                        @if ($this->isMghTransaction())
+                            <div class="badge badge-warning gap-1" title="Take Home / MGH transaction">
+                                <x-heroicon-o-home class="w-3 h-3" /> TAKE HOME / MGH
+                            </div>
+                        @endif
                         @if ($billstat == '02' || $billstat == '03')
                             <div class="badge badge-error gap-1">
                                 <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
@@ -351,6 +356,15 @@
         <div class="flex flex-1 min-w-0 overflow-hidden">
             {{-- Left: Orders Table --}}
             <div class="flex flex-col flex-1 min-w-0 overflow-hidden border-r border-base-200">
+                @if ($this->isMghTransaction())
+                    <div class="flex items-start gap-2 px-4 py-2 text-sm border-b border-warning/30 bg-warning/10 text-warning-content">
+                        <x-heroicon-o-information-circle class="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <span class="font-semibold">Take Home / MGH transaction.</span>
+                            All added and issued items will be marked as MGH and recorded under Walk-In.
+                        </div>
+                    </div>
+                @endif
                 {{-- Action Bar --}}
                 <div class="border-b bg-base-200/50 border-base-200">
                     <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
@@ -505,8 +519,9 @@
                                             <x-heroicon-s-document-check class="inline w-3 h-3 text-primary" />
                                         @endif
                                         @if (!empty($rxo->original_enccode))
-                                            <span class="badge badge-xs badge-success align-middle ml-1" title="Take Home">
+                                            <span class="badge badge-xs badge-warning align-middle ml-1 gap-1" title="Take Home / MGH">
                                                 <x-heroicon-o-home class="w-3 h-3" />
+                                                MGH
                                             </span>
                                         @endif
                                         <br>
@@ -1018,7 +1033,15 @@
                     <p class="text-sm">Issue all charged items to the patient.</p>
                 </div>
 
-                @if ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
+                @if ($this->isMghTransaction())
+                    <div class="flex items-start gap-2 p-3 rounded-lg bg-warning/10 text-warning-content">
+                        <x-heroicon-o-information-circle class="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <div class="text-sm">
+                            <div class="font-semibold">Take Home / MGH</div>
+                            Selected items will be issued as MGH and recorded under Walk-In.
+                        </div>
+                    </div>
+                @elseif ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
                     {{-- Admitted patient: Basic/Non-Basic toggle --}}
                     <div class="form-control">
                         <label class="label font-bold"><span class="label-text">TAG</span></label>
@@ -1558,6 +1581,12 @@
                                                             @if ($selOrder->prescription_data_id)
                                                                 <x-heroicon-s-document-check
                                                                     class="inline w-3 h-3 text-primary" />
+                                                            @endif
+                                                            @if (!empty($selOrder->original_enccode))
+                                                                <span class="badge badge-xs badge-warning align-middle ml-1 gap-1" title="Take Home / MGH">
+                                                                    <x-heroicon-o-home class="w-3 h-3" />
+                                                                    MGH
+                                                                </span>
                                                             @endif
                                                             <br><span
                                                                 class="badge badge-xs badge-ghost">{{ $selOrder->chrgdesc }}</span>

@@ -642,6 +642,8 @@ class DispensingEncounter extends Component
                 'extra_prescriptions_all',
                 'adm',
                 'summaries',
+                'is_walkin_linked_encounter',
+                'resolved_walkin_enccode',
             );
             $this->success('Item added.');
         } else {
@@ -745,6 +747,8 @@ class DispensingEncounter extends Component
                 'extra_prescriptions_all',
                 'adm',
                 'summaries',
+                'is_walkin_linked_encounter',
+                'resolved_walkin_enccode',
             );
             $this->success('Item added.');
         } else {
@@ -1115,7 +1119,7 @@ class DispensingEncounter extends Component
             SELECT hrxo.docointkey, hrxo.pcchrgcod, hrxo.dodate, hrxo.pchrgqty, hrxo.estatus,
                    hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, hdmhdr.drug_concat,
                    hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
-                   hrxo.dmdcomb, hrxo.dmdctr
+                   hrxo.dmdcomb, hrxo.dmdctr, hrxo.original_enccode
             FROM hospital.dbo.hrxo WITH (NOLOCK)
             INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
             INNER JOIN hospital.dbo.hcharge ON hrxo.orderfrom = hcharge.chrgcode
@@ -1390,6 +1394,11 @@ class DispensingEncounter extends Component
         return $billstat == '02' || $billstat == '03';
     }
 
+    public function isMghTransaction(): bool
+    {
+        return $this->is_walkin_linked_encounter;
+    }
+
     private function getLatestWalkInEncounter(): ?string
     {
         $walkIn = EncounterLog::where('encstat', 'W')
@@ -1434,6 +1443,10 @@ class DispensingEncounter extends Component
 
     private function resolveTransactionType(): string
     {
+        if ($this->isMghTransaction()) {
+            return 'mgh';
+        }
+
         if ($this->isAdmittedEncounter()) {
             return $this->bnb ? 'pay' : 'service';
         }
