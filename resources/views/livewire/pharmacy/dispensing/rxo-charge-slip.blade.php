@@ -15,12 +15,14 @@
     <div id="print" class="bg-white text-black w-box-border">
         <div class="p-2">
             <div class="flex flex-col text-xs/4">
-                <h5 class="mb-0 text-2xl text-left"><strong class="uppercase">*{{ $pcchrgcod }}*</strong></h5>
+                <h5 class="mb-0 text-2xl text-left">
+                    <strong class="uppercase">*{{ $pcchrgcod }}{{ $is_take_home ? '/MGH' : '' }}*</strong>
+                </h5>
                 <div class="flex flex-col text-center whitespace-nowrap">
                     <div>MMMHMC-A-PHB-QP-005 Form 1 Rev 0 Charge Slip</div>
                     <div>MARIANO MARCOS MEM HOSP. MED CTR</div>
                     <div>CHARGE SLIP / TRANSACTION SLIP</div>
-                    <div class="font-bold">{{ $pcchrgcod }}</div>
+                    <div class="font-bold">{{ $pcchrgcod }}{{ $is_take_home ? '/MGH' : '' }}</div>
                 </div>
                 <div class="flex flex-col text-left whitespace-nowrap">
                     <div>Dep't./Section: <span class="font-semibold">

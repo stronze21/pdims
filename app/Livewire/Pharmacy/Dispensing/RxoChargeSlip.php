@@ -39,6 +39,7 @@ class RxoChargeSlip extends Component
         }
 
         $rxo_header = $rxo->first();
+        $is_take_home = $rxo->contains(fn($item) => !empty($item->original_enccode));
         $this->toecode = $rxo_header->enctr ? $rxo_header->enctr->toecode : '';
 
         if ($this->view_returns) {
@@ -64,6 +65,7 @@ class RxoChargeSlip extends Component
         return view('livewire.pharmacy.dispensing.rxo-charge-slip', [
             'rxo_header' => $rxo_header,
             'rxo' => $rxo,
+            'is_take_home' => $is_take_home,
         ])->layout('layouts.print');
     }
 }

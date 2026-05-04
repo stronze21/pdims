@@ -20,7 +20,8 @@ class ReturnSlip extends Component
     {
         $items = DB::select("
             SELECT rxo.pcchrgcod, rxi.issuedte, drug.drug_concat, rxi.qty total_issued,
-                   rxr.qty as total_returns, rxo.pchrgup, (rxo.pchrgup * rxi.qty) pchrgamt
+                   rxr.qty as total_returns, rxo.pchrgup, (rxo.pchrgup * rxi.qty) pchrgamt,
+                   rxo.original_enccode
             FROM hrxo rxo
             LEFT JOIN hrxoissue rxi ON rxo.docointkey = rxi.docointkey
             INNER JOIN hrxoreturn rxr ON rxo.docointkey = rxr.docointkey
