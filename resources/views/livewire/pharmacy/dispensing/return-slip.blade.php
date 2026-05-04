@@ -60,7 +60,7 @@
                         <tr class="border-b border-black border-x">
                             <td class="text-3xs text-wrap" colspan="5">
                                 <div class="flex flex-col text-3xs">
-                                    <span class="text-3xs">{{ $item->pcchrgcod }}</span>
+                                    <span class="text-3xs">{{ $item->pcchrgcod }}{{ !empty($item->original_enccode) ? '/MGH' : '' }}</span>
                                     <span class="text-3xs">{{ $concat }}</span>
                                 </div>
                             </td>
