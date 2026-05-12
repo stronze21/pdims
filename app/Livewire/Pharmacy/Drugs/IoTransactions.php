@@ -257,8 +257,7 @@ class IoTransactions extends Component
                         AND exp_date > GETDATE()
                     GROUP BY dmdcomb, dmdctr
                 ) s ON d.dmdcomb = s.dmdcomb AND d.dmdctr = s.dmdctr
-                WHERE d.dmdstat = 'A'
-                    AND d.drug_concat IS NOT NULL
+                WHERE d.drug_concat IS NOT NULL
                     AND d.grpcode IN (" . implode(',', array_fill(0, count($grpcodes), '?')) . ")
                     AND COALESCE(s.total_stock, 0) > 0
                 ORDER BY d.drug_concat
