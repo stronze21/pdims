@@ -283,6 +283,7 @@ class PrescriptionReactivationService
     public function reactivatedToday(?Carbon $date = null, ?string $hpercode = null): Collection
     {
         $date ??= now('Asia/Manila');
+
         $start = $date->copy()->startOfDay();
         $end = $date->copy()->endOfDay();
 
@@ -298,8 +299,12 @@ class PrescriptionReactivationService
         }
 
         $logMap = $logs->keyBy('prescription_data_id');
-        $ids = $logMap->keys()->all();
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $ids = $logMap->keys()->values();
+
+        $rows = collect();
+
+        foreach ($ids->chunk(1000) as $chunkedIds) {
+            $placeholders = implode(',', array_fill(0, $chunkedIds->count(), '?'));
 
         $sql = "
             SELECT
@@ -331,8 +336,6 @@ class PrescriptionReactivationService
                 ON rx.id = pd.presc_id
             INNER JOIN hospital.dbo.henctr enctr WITH (NOLOCK)
                 ON rx.enccode = enctr.enccode
-            LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK)
-                ON enctr.enccode = adm.enccode
             INNER JOIN hospital.dbo.hperson pat WITH (NOLOCK)
                 ON enctr.hpercode = pat.hpercode
             INNER JOIN hospital.dbo.hdmhdr dm WITH (NOLOCK)
@@ -348,21 +351,26 @@ class PrescriptionReactivationService
                 AND enctr.toecode IN ('ADM', 'OPDAD', 'ERADM')
         ";
 
-        $bindings = $ids;
+            $bindings = $chunkedIds->values()->all();
 
         if ($hpercode !== null) {
             $sql .= " AND enctr.hpercode = ? ";
             $bindings[] = $hpercode;
         }
 
-        $rows = collect(DB::connection('webapp')->select($sql, $bindings))
-            ->map(function ($row) use ($logMap) {
-                $log = $logMap->get($row->id);
-                $row->reorder_source = $log?->source;
-                $row->reordered_at = optional($log?->reordered_at)->toDateTimeString() ?? $log?->reordered_at;
+            $chunkRows = DB::connection('webapp')->select($sql, $bindings);
 
-                return $row;
-            });
+            $rows = $rows->merge($chunkRows);
+        }
+
+        $rows = $rows->map(function ($row) use ($logMap) {
+            $log = $logMap->get($row->id);
+
+            $row->reorder_source = $log?->source;
+            $row->reordered_at = optional($log?->reordered_at)->toDateTimeString() ?? $log?->reordered_at;
+
+            return $row;
+        });
 
         return $this->enrichItems($rows, $date)
             ->sortByDesc('reordered_at')
