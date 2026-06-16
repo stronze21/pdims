@@ -172,6 +172,9 @@
                                 <x-mary-menu-item title="Non-PNF Drugs" icon="o-beaker"
                                     link="{{ route('pharmacy.non-pnf-drugs') }}" />
 
+                                <x-mary-menu-item title="Drug & Medicine Library" icon="o-rectangle-stack"
+                                    link="{{ route('pharmacy.drug-library') }}" />
+
                                 <x-mary-menu-item title="Zero-Billing Fund Sources" icon="o-hashtag"
                                     link="{{ route('settings.zero-billing') }}" />
 
