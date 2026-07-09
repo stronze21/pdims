@@ -152,6 +152,8 @@ Route::prefix('portal')->group(function () {
         Route::delete('/fitness/goals/{id}', [PortalFitnessController::class, 'destroyGoal']);
         Route::get('/fitness/logs', [PortalFitnessController::class, 'logs']);
         Route::post('/fitness/logs', [PortalFitnessController::class, 'storeLog']);
+        Route::put('/fitness/logs/{id}', [PortalFitnessController::class, 'updateLog']);
+        Route::delete('/fitness/logs/{id}', [PortalFitnessController::class, 'destroyLog']);
         Route::get('/fitness/reminders', [PortalFitnessController::class, 'reminders']);
         Route::post('/fitness/reminders', [PortalFitnessController::class, 'storeReminder']);
         Route::put('/fitness/reminders/{id}', [PortalFitnessController::class, 'updateReminder']);

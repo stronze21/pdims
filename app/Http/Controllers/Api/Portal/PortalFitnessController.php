@@ -142,16 +142,7 @@ class PortalFitnessController extends Controller
             return response()->json(['message' => 'No linked patient record found.'], 404);
         }
 
-        $validated = $request->validate([
-            'goal_id' => 'nullable|integer',
-            'title' => 'required|string|max:255',
-            'habit_type' => 'required|string|max:50',
-            'value' => 'required|numeric|min:0.01',
-            'unit' => 'required|string|max:50',
-            'logged_at' => 'nullable|date',
-            'source_type' => 'nullable|string|max:50',
-            'notes' => 'nullable|string|max:1000',
-        ]);
+        $validated = $this->validateLogPayload($request);
 
         $goal = null;
         if (!empty($validated['goal_id'])) {
@@ -173,6 +164,58 @@ class PortalFitnessController extends Controller
         ]);
 
         return response()->json($this->formatLog($log->fresh('goal')), 201);
+    }
+
+    public function updateLog(Request $request, int $id)
+    {
+        $log = $this->resolveLog($request, $id);
+        if (!$log) {
+            return response()->json(['message' => 'Fitness log not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'goal_id' => 'nullable|integer',
+            'title' => 'sometimes|required|string|max:255',
+            'habit_type' => 'sometimes|required|string|max:50',
+            'value' => 'sometimes|required|numeric|min:0.01',
+            'unit' => 'sometimes|required|string|max:50',
+            'logged_at' => 'nullable|date',
+            'source_type' => 'sometimes|required|string|max:50',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        if (array_key_exists('goal_id', $validated)) {
+            if (!empty($validated['goal_id'])) {
+                $goal = $this->resolveGoal($request, (int) $validated['goal_id']);
+                if (!$goal) {
+                    return response()->json(['message' => 'Linked fitness goal not found.'], 404);
+                }
+
+                $validated['goal_id'] = $goal->id;
+            } else {
+                $validated['goal_id'] = null;
+            }
+        }
+
+        if (isset($validated['logged_at'])) {
+            $validated['logged_at'] = Carbon::parse($validated['logged_at']);
+        }
+
+        $log->update($validated);
+
+        return response()->json($this->formatLog($log->fresh('goal')));
+    }
+
+    public function destroyLog(Request $request, int $id)
+    {
+        $log = $this->resolveLog($request, $id);
+        if (!$log) {
+            return response()->json(['message' => 'Fitness log not found.'], 404);
+        }
+
+        $log->delete();
+
+        return response()->json(['message' => 'Fitness log deleted successfully.']);
     }
 
     public function reminders(Request $request)
@@ -307,6 +350,30 @@ class PortalFitnessController extends Controller
         }
 
         return $patient->fitnessReminders()->where('id', $reminderId)->first();
+    }
+
+    private function resolveLog(Request $request, int $logId): ?PortalFitnessLog
+    {
+        $patient = $this->getPatient($request);
+        if (!$patient) {
+            return null;
+        }
+
+        return $patient->fitnessLogs()->where('id', $logId)->first();
+    }
+
+    private function validateLogPayload(Request $request): array
+    {
+        return $request->validate([
+            'goal_id' => 'nullable|integer',
+            'title' => 'required|string|max:255',
+            'habit_type' => 'required|string|max:50',
+            'value' => 'required|numeric|min:0.01',
+            'unit' => 'required|string|max:50',
+            'logged_at' => 'nullable|date',
+            'source_type' => 'nullable|string|max:50',
+            'notes' => 'nullable|string|max:1000',
+        ]);
     }
 
     private function buildSummary(PortalPatient $patient, Collection $goals, Collection $logs): array
