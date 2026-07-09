@@ -66,6 +66,21 @@ class PortalPatient extends Model
         return $this->hasMany(PortalPatientVital::class, 'patient_id');
     }
 
+    public function fitnessGoals()
+    {
+        return $this->hasMany(PortalFitnessGoal::class, 'patient_id');
+    }
+
+    public function fitnessLogs()
+    {
+        return $this->hasMany(PortalFitnessLog::class, 'patient_id');
+    }
+
+    public function fitnessReminders()
+    {
+        return $this->hasMany(PortalFitnessReminder::class, 'patient_id');
+    }
+
     public function getFullnameAttribute(): string
     {
         $middle = $this->patmiddle ? ' ' . mb_substr($this->patmiddle, 0, 1) . '.' : '';

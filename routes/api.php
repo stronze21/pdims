@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Portal\PortalFriendsController;
 use App\Http\Controllers\Api\Portal\PortalPatientChatController;
 use App\Http\Controllers\Api\Portal\PortalServicesController;
 use App\Http\Controllers\Api\Portal\PortalEmergencyContactController;
+use App\Http\Controllers\Api\Portal\PortalFitnessController;
 use App\Http\Controllers\Api\Portal\PortalTeleconsultController;
 use App\Http\Controllers\Api\Portal\PushSubscriptionController;
 use App\Http\Controllers\Api\PrescriptionController;
@@ -142,6 +143,19 @@ Route::prefix('portal')->group(function () {
         Route::post('/profile/family', [PortalProfileController::class, 'addFamily']);
         Route::get('/profile/vitals', [PortalProfileController::class, 'vitals']);
         Route::get('/profile/medical-info', [PortalProfileController::class, 'medicalInfo']);
+
+        // Fitness routes
+        Route::get('/fitness/summary', [PortalFitnessController::class, 'summary']);
+        Route::get('/fitness/goals', [PortalFitnessController::class, 'goals']);
+        Route::post('/fitness/goals', [PortalFitnessController::class, 'storeGoal']);
+        Route::put('/fitness/goals/{id}', [PortalFitnessController::class, 'updateGoal']);
+        Route::delete('/fitness/goals/{id}', [PortalFitnessController::class, 'destroyGoal']);
+        Route::get('/fitness/logs', [PortalFitnessController::class, 'logs']);
+        Route::post('/fitness/logs', [PortalFitnessController::class, 'storeLog']);
+        Route::get('/fitness/reminders', [PortalFitnessController::class, 'reminders']);
+        Route::post('/fitness/reminders', [PortalFitnessController::class, 'storeReminder']);
+        Route::put('/fitness/reminders/{id}', [PortalFitnessController::class, 'updateReminder']);
+        Route::delete('/fitness/reminders/{id}', [PortalFitnessController::class, 'destroyReminder']);
 
         // Prescription refill routes
         Route::get('/prescriptions', [PortalPrescriptionController::class, 'prescriptions']);
