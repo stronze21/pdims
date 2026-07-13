@@ -187,7 +187,7 @@ class PrescriptionReactivationService
                 AND (pd.archive IS NULL OR pd.archive = 0)
                 AND enctr.toecode IN ('ADM', 'OPDAD', 'ERADM')
                 AND adm.admstat = 'A'
-                AND adm.admdate > '2026-07-01'
+                AND adm.admdate >= '2026-07-13'
                 AND adm.disdate IS NULL
                 AND pd.remark IS NOT NULL
                 AND LTRIM(RTRIM(pd.remark)) <> ''
