@@ -44,10 +44,10 @@ class PrescriptionReactivationService
         $isFullyIssued = $computedTotalQty === null
             ? false
             : $totalIssued >= $computedTotalQty;
-        $canAutoReactivate = !$isArchived
+        $canAutoReactivate = ! $isArchived
             && ($row->stat ?? null) === 'I'
             && $computedTotalQty !== null
-            && !$isFullyIssued;
+            && ! $isFullyIssued;
         $reorderSource = isset($row->reorder_source) ? (string) $row->reorder_source : null;
         $reorderedAt = isset($row->reordered_at) ? (string) $row->reordered_at : null;
 
@@ -60,6 +60,8 @@ class PrescriptionReactivationService
             'encounter_type' => isset($row->encounter_type) ? (string) $row->encounter_type : null,
             'encounter_type_label' => $this->encounterTypeLabel($row->encounter_type ?? null),
             'encounter_date' => isset($row->encounter_date) ? (string) $row->encounter_date : null,
+            'wardcode' => isset($row->wardcode) ? (string) $row->wardcode : null,
+            'wardname' => isset($row->wardname) ? (string) $row->wardname : null,
             'dmdcomb' => isset($row->dmdcomb) ? (string) $row->dmdcomb : null,
             'dmdctr' => isset($row->dmdctr) ? (string) $row->dmdctr : null,
             'drug_concat' => isset($row->drug_concat) ? (string) $row->drug_concat : null,
@@ -116,9 +118,10 @@ class PrescriptionReactivationService
             ->values();
     }
 
-    public function eligibleForReactivation(?Carbon $runAt = null, ?string $hpercode = null): Collection
+    public function eligibleForReactivation(?Carbon $runAt = null, ?string $hpercode = null, ?string $wardcode = null): Collection
     {
         $runAt ??= now('Asia/Manila');
+        $wardcode = $this->normaliseFilterValue($wardcode);
 
         $sql = "
             SELECT
@@ -128,6 +131,8 @@ class PrescriptionReactivationService
                 enctr.hpercode,
                 enctr.toecode AS encounter_type,
                 enctr.encdate AS encounter_date,
+                current_ward.wardcode,
+                current_ward.wardname,
                 pat.patlast,
                 pat.patfirst,
                 pat.patmiddle,
@@ -161,6 +166,17 @@ class PrescriptionReactivationService
             INNER JOIN hospital.dbo.hdmhdr dm WITH (NOLOCK)
                 ON pd.dmdcomb = dm.dmdcomb
                 AND pd.dmdctr = dm.dmdctr
+            OUTER APPLY (
+                SELECT TOP 1
+                    pat_room.wardcode,
+                    ward.wardname
+                FROM hospital.dbo.hpatroom pat_room WITH (NOLOCK)
+                INNER JOIN hospital.dbo.hward ward WITH (NOLOCK)
+                    ON pat_room.wardcode = ward.wardcode
+                WHERE pat_room.enccode = rx.enccode
+                    AND pat_room.patrmstat = 'A'
+                ORDER BY pat_room.hprdate DESC
+            ) current_ward
             LEFT JOIN (
                 SELECT presc_data_id, SUM(qtyissued) AS total_issued
                 FROM webapp.dbo.prescription_data_issued WITH (NOLOCK)
@@ -184,18 +200,25 @@ class PrescriptionReactivationService
         $bindings = [];
 
         if ($hpercode !== null) {
-            $sql .= "
+            $sql .= '
                 AND EXISTS (
                     SELECT 1
                     WHERE enctr.hpercode = ?
                 )
-            ";
+            ';
             $bindings[] = $hpercode;
         }
 
-        $sql .= "
+        if ($wardcode !== null) {
+            $sql .= '
+                AND current_ward.wardcode = ?
+            ';
+            $bindings[] = $wardcode;
+        }
+
+        $sql .= '
             ORDER BY pd.id ASC
-        ";
+        ';
 
         $rows = DB::connection('webapp')->select($sql, $bindings);
 
@@ -204,9 +227,9 @@ class PrescriptionReactivationService
             ->values();
     }
 
-    public function reactivateEligible(?Carbon $runAt = null, bool $dryRun = false): array
+    public function reactivateEligible(?Carbon $runAt = null, bool $dryRun = false, ?string $wardcode = null): array
     {
-        return $this->runReorder($runAt, $dryRun, 'auto');
+        return $this->runReorder($runAt, $dryRun, 'auto', null, null, $wardcode);
     }
 
     public function runReorder(
@@ -214,13 +237,18 @@ class PrescriptionReactivationService
         bool $dryRun = false,
         string $source = 'auto',
         ?string $performedBy = null,
-        ?string $notes = null
-    ): array
-    {
+        ?string $notes = null,
+        ?string $wardcode = null
+    ): array {
         $runAt ??= now('Asia/Manila');
+        $wardcode = $this->normaliseFilterValue($wardcode);
+        $runNotes = $this->appendWardFilterNote($notes, $wardcode);
 
-        if ($source === 'auto' && !$dryRun && $this->hasManualRunToday($runAt)) {
-            $skipNotes = $notes ?: 'Skipped automatic reorder because a manual reorder already ran on the same date.';
+        if ($source === 'auto' && ! $dryRun && $this->hasManualRunToday($runAt)) {
+            $skipNotes = $this->appendWardFilterNote(
+                $notes ?: 'Skipped automatic reorder because a manual reorder already ran on the same date.',
+                $wardcode
+            );
 
             PrescriptionReorderRunLog::query()->create([
                 'source' => $source,
@@ -240,13 +268,14 @@ class PrescriptionReactivationService
                 'source' => $source,
                 'status' => 'skipped_manual_exists',
                 'message' => 'Skipped automatic reorder because a manual reorder already ran today.',
+                'wardcode' => $wardcode,
             ];
         }
 
-        $eligibleItems = $this->eligibleForReactivation($runAt);
+        $eligibleItems = $this->eligibleForReactivation($runAt, null, $wardcode);
         $status = $eligibleItems->isNotEmpty() ? 'completed' : 'no_items';
 
-        if (!$dryRun && $eligibleItems->isNotEmpty()) {
+        if (! $dryRun && $eligibleItems->isNotEmpty()) {
             foreach ($eligibleItems as $item) {
                 DB::connection('webapp')
                     ->table('webapp.dbo.prescription_data')
@@ -257,7 +286,13 @@ class PrescriptionReactivationService
                         'updated_at' => $runAt,
                     ]);
 
-                $this->logReorder((int) $item['id'], $source, $runAt, $notes ?: 'Reordered by schedule/process', $performedBy);
+                $this->logReorder(
+                    (int) $item['id'],
+                    $source,
+                    $runAt,
+                    $this->appendWardFilterNote($notes ?: 'Reordered by schedule/process', $wardcode),
+                    $performedBy
+                );
             }
         }
 
@@ -268,7 +303,7 @@ class PrescriptionReactivationService
             'reordered_count' => $eligibleItems->count(),
             'run_at' => $runAt,
             'performed_by' => $performedBy,
-            'notes' => $notes,
+            'notes' => $runNotes,
         ]);
 
         return [
@@ -278,6 +313,7 @@ class PrescriptionReactivationService
             'dry_run' => $dryRun,
             'source' => $source,
             'status' => $status,
+            'wardcode' => $wardcode,
         ];
     }
 
@@ -307,7 +343,7 @@ class PrescriptionReactivationService
         foreach ($ids->chunk(1000) as $chunkedIds) {
             $placeholders = implode(',', array_fill(0, $chunkedIds->count(), '?'));
 
-        $sql = "
+            $sql = "
             SELECT
                 pd.id,
                 pd.presc_id,
@@ -354,10 +390,10 @@ class PrescriptionReactivationService
 
             $bindings = $chunkedIds->values()->all();
 
-        if ($hpercode !== null) {
-            $sql .= " AND enctr.hpercode = ? ";
-            $bindings[] = $hpercode;
-        }
+            if ($hpercode !== null) {
+                $sql .= ' AND enctr.hpercode = ? ';
+                $bindings[] = $hpercode;
+            }
 
             $chunkRows = DB::connection('webapp')->select($sql, $bindings);
 
@@ -411,7 +447,7 @@ class PrescriptionReactivationService
 
     public function hasActiveEncounter(int $prescriptionDataId): bool
     {
-        $row = DB::connection('webapp')->selectOne("
+        $row = DB::connection('webapp')->selectOne('
             SELECT TOP 1
                 enctr.toecode,
                 enctr.encstat,
@@ -433,9 +469,9 @@ class PrescriptionReactivationService
             LEFT JOIN hospital.dbo.hadmlog adm WITH (NOLOCK)
                 ON enctr.enccode = adm.enccode
             WHERE pd.id = ?
-        ", [$prescriptionDataId]);
+        ', [$prescriptionDataId]);
 
-        if (!$row) {
+        if (! $row) {
             return false;
         }
 
@@ -585,7 +621,7 @@ class PrescriptionReactivationService
             return null;
         }
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
 
@@ -599,10 +635,32 @@ class PrescriptionReactivationService
         return $archive !== null && (string) $archive !== '' && (string) $archive !== '0';
     }
 
+    private function normaliseFilterValue(?string $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function appendWardFilterNote(?string $notes, ?string $wardcode): ?string
+    {
+        if ($wardcode === null) {
+            return $notes;
+        }
+
+        $wardNote = "Ward filter: {$wardcode}.";
+
+        if ($notes === null || trim($notes) === '') {
+            return $wardNote;
+        }
+
+        return rtrim($notes).' '.$wardNote;
+    }
+
     private function buildNotes(float $qtyPerAdministration, ?float $administrationsPerDay, ?int $durationDays, ?string $remark): string
     {
         if ($administrationsPerDay === null) {
-            return 'Unable to auto-compute administrations per day from remark: ' . trim((string) $remark);
+            return 'Unable to auto-compute administrations per day from remark: '.trim((string) $remark);
         }
 
         if ($durationDays === null) {
@@ -651,7 +709,7 @@ class PrescriptionReactivationService
 
         $last = array_shift($parts);
 
-        return trim($last . (empty($parts) ? '' : ', ' . implode(' ', $parts)));
+        return trim($last.(empty($parts) ? '' : ', '.implode(' ', $parts)));
     }
 
     private function encounterTypeLabel(?string $type): ?string
