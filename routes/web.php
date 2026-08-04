@@ -25,6 +25,7 @@ use App\Livewire\Pharmacy\Drugs\ViewWardRisDate;
 use App\Livewire\Pharmacy\Drugs\ViewWardRisRef;
 use App\Livewire\Pharmacy\Drugs\WardRisTrans;
 use App\Livewire\Pharmacy\ManageDrugLibrary;
+use App\Livewire\Pharmacy\ManageDrugImport;
 use App\Livewire\Pharmacy\ManageNonPnfDrugs;
 use App\Livewire\Pharmacy\Purchases\DeliveryList;
 use App\Livewire\Pharmacy\Purchases\DeliveryListDonations;
@@ -139,6 +140,9 @@ Route::middleware([
 
     Route::get('/pharmacy/drug-library', ManageDrugLibrary::class)
         ->name('pharmacy.drug-library');
+
+    Route::get('/pharmacy/drug-library/import', ManageDrugImport::class)
+        ->name('pharmacy.drug-library.import');
 
     Route::get('/settings/prescription-reorder', PrescriptionReorderSettings::class)
         ->name('settings.prescription-reorder');
