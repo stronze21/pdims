@@ -489,6 +489,25 @@ class ShowRis extends Component
         try {
             DB::beginTransaction();
 
+            $invalidExpiryItem = collect($this->risDetails)->first(function ($detail) {
+                return !empty($detail->pdims_itemcode)
+                    && !empty($detail->expire_date)
+                    && empty($detail->sql_formatted_expire_date);
+            });
+
+            if ($invalidExpiryItem) {
+                DB::rollBack();
+                $itemDescription = $invalidExpiryItem->description ?? 'Unknown item';
+                $stockNumber = $invalidExpiryItem->stockno ?? 'N/A';
+                $expiryDate = $invalidExpiryItem->expire_date;
+
+                $this->error(
+                    "Cannot transfer item \"{$itemDescription}\" (Stock No. {$stockNumber}): " .
+                    "invalid expiry date \"{$expiryDate}\". Correct the expiry date in the IAR before transferring."
+                );
+                return;
+            }
+
             $itemsByInvoice = collect($this->risDetails)->groupBy(function ($detail) {
                 return $detail->invoiceno ?? 'NO_INVOICE';
             });

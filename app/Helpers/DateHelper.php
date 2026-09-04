@@ -6,6 +6,8 @@ use Carbon\Carbon;
 
 class DateHelper
 {
+    private const SQL_SERVER_DATETIME_MIN_YEAR = 1753;
+
     public static function formatDate($dateString, $format = 'Y-m-d H:i:s')
     {
         $date = new \DateTime($dateString);
@@ -26,9 +28,9 @@ class DateHelper
             $expiryDate = trim($expiryDate);
 
             if (preg_match('/^(\d{1,2})\/(\d{4})$/', $expiryDate, $matches)) {
-                $parsedDate = Carbon::createFromDate($matches[2], $matches[1], 1);
+                $parsedDate = self::createValidDate($matches[2], $matches[1], 1);
             } elseif (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $expiryDate, $matches)) {
-                $parsedDate = Carbon::createFromDate($matches[3], $matches[1], $matches[2]);
+                $parsedDate = self::createValidDate($matches[3], $matches[1], $matches[2]);
             } elseif (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $expiryDate, $matches)) {
                 if ($matches[1] > 12) {
                     $day = $matches[1];
@@ -40,11 +42,15 @@ class DateHelper
                     $day = $matches[1];
                     $month = $matches[2];
                 }
-                $parsedDate = Carbon::createFromDate($matches[3], $month, $day);
+                $parsedDate = self::createValidDate($matches[3], $month, $day);
             } elseif (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $expiryDate, $matches)) {
-                $parsedDate = Carbon::createFromDate($matches[1], $matches[2], $matches[3]);
+                $parsedDate = self::createValidDate($matches[1], $matches[2], $matches[3]);
             } else {
                 $parsedDate = Carbon::parse($expiryDate);
+            }
+
+            if ($parsedDate->year < self::SQL_SERVER_DATETIME_MIN_YEAR) {
+                throw new \InvalidArgumentException('Date is outside the SQL Server datetime range.');
             }
 
             return [
@@ -59,5 +65,18 @@ class DateHelper
                 'sql_format' => null
             ];
         }
+    }
+
+    private static function createValidDate($year, $month, $day)
+    {
+        $year = (int) $year;
+        $month = (int) $month;
+        $day = (int) $day;
+
+        if ($year < self::SQL_SERVER_DATETIME_MIN_YEAR || !checkdate($month, $day, $year)) {
+            throw new \InvalidArgumentException('Invalid or unsupported date.');
+        }
+
+        return Carbon::createFromDate($year, $month, $day);
     }
 }

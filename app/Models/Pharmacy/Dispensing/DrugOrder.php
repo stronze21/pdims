@@ -71,8 +71,12 @@ class DrugOrder extends Model
         'deptcode',
         'qtybal',
         'order_by',
-        'original_enccode'
-
+        'original_enccode',
+        'order_type',
+        'uddds_start_date',
+        'uddds_end_date',
+        'is_uddds',
+        'uddds_source_docointkey',
     ];
 
     protected $casts = [
@@ -86,6 +90,9 @@ class DrugOrder extends Model
         'pchrgup' => 'decimal:2',
         'pcchrgamt' => 'decimal:2',
         'ris' => 'boolean',
+        'is_uddds' => 'boolean',
+        'uddds_start_date' => 'date',
+        'uddds_end_date' => 'date',
     ];
 
     // Relationships

@@ -75,6 +75,15 @@
                         </div>
                     </a>
 
+                    <a href="{{ route('settings.portal.announcements') }}"
+                        class="mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 transition {{ request()->routeIs('settings.portal.announcements') ? 'bg-primary text-primary-content shadow-lg shadow-primary/20' : 'text-base-content/70 hover:bg-base-200' }}">
+                        <x-mary-icon name="o-megaphone" class="h-5 w-5" />
+                        <div class="min-w-0">
+                            <div class="font-semibold">News & Announcements</div>
+                            <div class="text-xs opacity-70">Home banner carousel</div>
+                        </div>
+                    </a>
+
                     <a href="{{ route('settings.portal.chat') }}"
                         class="mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 transition {{ request()->routeIs('settings.portal.chat') ? 'bg-primary text-primary-content shadow-lg shadow-primary/20' : 'text-base-content/70 hover:bg-base-200' }}">
                         <x-mary-icon name="o-chat-bubble-left-right" class="h-5 w-5" />
@@ -138,6 +147,7 @@
                                 <ul tabindex="0" class="menu dropdown-content z-50 mt-3 w-64 rounded-2xl border border-base-300 bg-base-100 p-2 shadow-xl">
                                     <li><a href="{{ route('settings.portal.users') }}">Portal Users</a></li>
                                     <li><a href="{{ route('settings.portal.refills') }}">Refill Requests</a></li>
+                                    <li><a href="{{ route('settings.portal.announcements') }}">News & Announcements</a></li>
                                     <li><a href="{{ route('settings.portal.chat') }}">Chat Conversations</a></li>
                                     <li><a href="{{ route('portal.teleconsult.lobby') }}">Teleconsult</a></li>
                                     <li><a href="{{ route('settings.portal.manual') }}">User Manual</a></li>

@@ -46,6 +46,7 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTabl
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Pharmacy\Settings\PrescriptionReorderSettings;
+use App\Livewire\Portal\ManageAnnouncements;
 use App\Livewire\Portal\ManageChatConversations;
 use App\Livewire\Portal\ManagePortalManual;
 use App\Livewire\Portal\ManagePortalUsers;
@@ -282,6 +283,7 @@ Route::middleware([
 
     Route::get('/settings/portal/users', ManagePortalUsers::class)->name('settings.portal.users');
     Route::get('/settings/portal/refills', ManageRefillRequests::class)->name('settings.portal.refills');
+    Route::get('/settings/portal/announcements', ManageAnnouncements::class)->name('settings.portal.announcements');
     Route::get('/settings/portal/chat', ManageChatConversations::class)->name('settings.portal.chat');
     Route::get('/settings/portal/manual', ManagePortalManual::class)->name('settings.portal.manual');
 });

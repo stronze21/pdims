@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Pharmacy\PrescriptionQueueApiController;
+use App\Http\Controllers\Api\Portal\PortalAnnouncementController;
 use App\Http\Controllers\Api\Portal\PortalAppointmentController;
 use App\Http\Controllers\Api\Portal\PortalAuthController;
 use App\Http\Controllers\Api\Portal\PortalBillingController;
@@ -125,8 +126,14 @@ Route::prefix('portal')->group(function () {
 
     // Public endpoint - no auth required (accessible from login page)
     Route::get('/emergency-contacts', [PortalEmergencyContactController::class, 'index']);
+    Route::get('/announcements', [PortalAnnouncementController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/announcements/all', [PortalAnnouncementController::class, 'all']);
+        Route::post('/announcements', [PortalAnnouncementController::class, 'store']);
+        Route::put('/announcements/{id}', [PortalAnnouncementController::class, 'update']);
+        Route::delete('/announcements/{id}', [PortalAnnouncementController::class, 'destroy']);
+
         // Emergency contacts management (CRUD)
         Route::get('/emergency-contacts/all', [PortalEmergencyContactController::class, 'all']);
         Route::post('/emergency-contacts', [PortalEmergencyContactController::class, 'store']);

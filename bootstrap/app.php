@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->command('prescription:reactivate-unfinished')
             ->dailyAt('07:00')
             ->timezone('Asia/Manila');
+        $schedule
+            ->command('uddds:generate-daily')
+            ->dailyAt('07:00')
+            ->timezone('Asia/Manila');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         //
