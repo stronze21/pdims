@@ -8,6 +8,7 @@ use App\Models\References\ChargeCode;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
+use App\Services\Pharmacy\DrugDescription;
 
 class StockSummary extends Component
 {
@@ -35,27 +36,28 @@ class StockSummary extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromStock('pds');
         $locationFilter = $this->location_id ? intval($this->location_id) : '%';
         $searchFilter = '%' . $this->search . '%';
 
         if ($this->selected_fund && $this->selected_fund != 'all') {
-            $stocks = DB::select("SELECT hcharge.chrgdesc, pds.drug_concat, pds.lot_no, pds.exp_date, SUM(pds.stock_bal) as stock_bal,
+            $stocks = DB::select("SELECT hcharge.chrgdesc, {$drugDescription} AS drug_concat, pds.lot_no, pds.exp_date, SUM(pds.stock_bal) as stock_bal,
                                 pds.dmdcomb, pds.dmdctr, pds.chrgcode
                             FROM pharm_drug_stocks as pds
                             JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
                             WHERE pds.stock_bal > 0 AND pds.chrgcode LIKE ?
                                 AND pds.loc_code LIKE ?
-                                AND pds.drug_concat LIKE ?
-                            GROUP BY pds.drug_concat, hcharge.chrgdesc, pds.dmdcomb, pds.dmdctr, pds.chrgcode, pds.lot_no, pds.exp_date
+                                AND {$drugDescription} LIKE ?
+                            GROUP BY hcharge.chrgdesc, pds.dmdcomb, pds.dmdctr, pds.chrgcode, pds.lot_no, pds.exp_date
                     ", ['%' . $this->chrgcode, $locationFilter, $searchFilter]);
         } else {
-            $stocks = DB::select("SELECT 'ALL' as chrgdesc, pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
+            $stocks = DB::select("SELECT 'ALL' as chrgdesc, {$drugDescription} AS drug_concat, SUM(pds.stock_bal) as stock_bal,
                     pds.dmdcomb, pds.dmdctr, pds.lot_no, pds.exp_date
                 FROM pharm_drug_stocks as pds
                 JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
                 WHERE pds.stock_bal > 0 AND pds.loc_code LIKE ?
-                    AND pds.drug_concat LIKE ?
-                GROUP BY pds.drug_concat, pds.dmdcomb, pds.dmdctr, pds.lot_no, pds.exp_date
+                    AND {$drugDescription} LIKE ?
+                GROUP BY pds.dmdcomb, pds.dmdctr, pds.lot_no, pds.exp_date
             ", [$locationFilter, $searchFilter]);
         }
 

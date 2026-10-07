@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
+use App\Services\Pharmacy\DrugDescription;
 
 class ReorderLevel extends Component
 {
@@ -22,6 +23,7 @@ class ReorderLevel extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromStock('pds');
         $from = Carbon::parse(now())->startOfWeek()->format('Y-m-d H:i:s');
         $to = Carbon::parse(now())->endOfWeek()->format('Y-m-d H:i:s');
         $prev_from = Carbon::parse(now())->subWeek()->startOfWeek()->format('Y-m-d H:i:s');
@@ -32,7 +34,7 @@ class ReorderLevel extends Component
         $locationId = intval($this->location_id);
         $search = '%' . $this->search . '%';
 
-        $stocks = DB::select("SELECT pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
+        $stocks = DB::select("SELECT {$drugDescription} AS drug_concat, SUM(pds.stock_bal) as stock_bal,
                             (SELECT reorder_point
                                 FROM pharm_drug_stock_reorder_levels as level
                                 WHERE pds.dmdcomb = level.dmdcomb AND pds.dmdctr = level.dmdctr AND pds.loc_code = level.loc_code) as reorder_point,
@@ -64,9 +66,9 @@ class ReorderLevel extends Component
                             FROM pharm_drug_stocks as pds
                             JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
                             WHERE pds.loc_code = ?
-                                AND pds.drug_concat LIKE ?
-                            GROUP BY pds.drug_concat, pds.loc_code, pds.dmdcomb, pds.dmdctr
-                            ORDER BY pds.drug_concat ASC
+                                AND {$drugDescription} LIKE ?
+                            GROUP BY pds.loc_code, pds.dmdcomb, pds.dmdctr
+                            ORDER BY {$drugDescription} ASC
                     ", [$ma_from, $ma_to, $this->prev_week_start, now(), $from, $to, $prev_from, $prev_to, $locationId, $search]);
 
         $locations = PharmLocation::all();
@@ -107,7 +109,8 @@ class ReorderLevel extends Component
 
     public function bulkRequest()
     {
-        $stocks = DB::select("SELECT pds.drug_concat, SUM(pds.stock_bal) as stock_bal,
+        $drugDescription = DrugDescription::fromStock('pds');
+        $stocks = DB::select("SELECT {$drugDescription} AS drug_concat, SUM(pds.stock_bal) as stock_bal,
                             (SELECT reorder_point
                                 FROM pharm_drug_stock_reorder_levels as level
                                 WHERE pds.dmdcomb = level.dmdcomb AND pds.dmdctr = level.dmdctr AND pds.loc_code = level.loc_code) as reorder_point,
@@ -115,7 +118,7 @@ class ReorderLevel extends Component
                             FROM pharm_drug_stocks as pds
                             JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
                             WHERE pds.loc_code = ?
-                            GROUP BY pds.drug_concat, pds.loc_code, pds.dmdcomb, pds.dmdctr
+                            GROUP BY pds.loc_code, pds.dmdcomb, pds.dmdctr
                     ", [auth()->user()->pharm_location_id]);
 
         $reference_no = Carbon::now()->format('y-m-') . (sprintf("%04d", InOutTransaction::count() + 1));

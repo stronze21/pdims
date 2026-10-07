@@ -4,19 +4,33 @@
 
 <div class="flex flex-col h-full" x-data="{
     selectedItems: @entangle('selected_items'),
+    orderStates: {},
+    selectionMatches(status) {
+        return this.selectedItems.length > 0 && this.selectedItems.every(key => {
+            const order = this.orderStates[key];
+            return order && order.estatus === status && (status === 'U' ? !order.pcchrgcod : !!order.pcchrgcod);
+        });
+    },
+    chargeSlipUrl(fallback) {
+        const codes = [...new Set(this.selectedItems.map(key => this.orderStates[key]?.pcchrgcod).filter(Boolean))];
+        return codes.length > 1
+            ? '{{ route('dispensing.uddds.chargeslips') }}' + '?codes=' + encodeURIComponent(codes.join(','))
+            : fallback;
+    },
     toggleItem(event, pcchrgcod) {
         const checked = event.target.checked;
+        if (!checked) {
+            this.selectedItems = this.selectedItems.filter(i => i !== event.target.value);
+            $wire.call('updateSelectedItems', this.selectedItems);
+            return;
+        }
         const groupCheckboxes = document.querySelectorAll(
             `[data-pcchrgcod='${pcchrgcod}']`
         );
         groupCheckboxes.forEach(cb => {
             const val = cb.value;
-            if (checked) {
-                if (!this.selectedItems.includes(val)) {
-                    this.selectedItems.push(val);
-                }
-            } else {
-                this.selectedItems = this.selectedItems.filter(i => i !== val);
+            if (!this.selectedItems.includes(val)) {
+                this.selectedItems.push(val);
             }
         });
         $wire.call('updateSelectedItems', this.selectedItems);
@@ -35,6 +49,7 @@
         $wire.call('updateSelectedItems', this.selectedItems);
     }
 }">
+    <span class="hidden" x-effect="orderStates = @js(collect($orders)->mapWithKeys(fn ($order) => [$order->docointkey => ['estatus' => $order->estatus, 'pcchrgcod' => $order->pcchrgcod]])->all())"></span>
     {{-- Queue Controller Bar (always visible) --}}
     <div class="border-b border-primary/20">
         {{-- Queue Header Bar --}}
@@ -427,20 +442,23 @@
                             <div class="border-l border-base-300 h-6 mx-1"></div>
 
                             <x-mary-button label="Delete"
+                                x-bind:disabled="!selectionMatches('U')"
                                 icon="o-trash"
                                 class="btn-sm btn-error btn-outline"
                                 wire:click="delete_item"
                                 wire:mary-confirm="Delete selected pending items?" />
 
                             <x-mary-button label="Charge"
+                                x-bind:disabled="!selectionMatches('U')"
                                 icon="o-credit-card"
                                 class="btn-sm btn-info btn-outline"
                                 wire:click="charge_items" />
 
                             <x-mary-button label="Issue"
+                                x-bind:disabled="!selectionMatches('P')"
                                 icon="o-paper-airplane"
                                 class="btn-sm btn-success"
-                                wire:click="$set('showIssueModal', true)" />
+                                wire:click="openIssueModal" />
 
                         </div>
                         @endif
@@ -451,7 +469,13 @@
                     <table class="table table-xs table-pin-rows">
                         <thead>
                             <tr class="bg-base-200">
-                                <th class="w-8"></th>
+                                <th class="w-8">
+                                    <input type="checkbox" id="uncheck-all" class="checkbox checkbox-xs"
+                                        aria-label="Uncheck all items" title="Uncheck all items"
+                                        :checked="selectedItems.length > 0"
+                                        :disabled="selectedItems.length === 0"
+                                        x-on:change="clearSelection()" />
+                                </th>
                                 <th class="text-center">Status</th>
                                 <th>Date Created</th>
                                 <th>Drug / Medicine</th>
@@ -486,12 +510,9 @@
                                     </td>
                                     <td class="text-center">
                                         @if ($rxo->pcchrgcod)
-                                            <a href="#"
-                                                onclick="window.open(
-                                                        '{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}',
-                                                        'chargeSlipWindow',
-                                                        'width=900,height=900'
-                                                    ); return false;"
+                                            <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}"
+                                                x-bind:href="chargeSlipUrl('{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}')"
+                                                target="_blank" rel="noopener noreferrer"
                                                 class="link link-primary text-xs">
                                                 {{ $rxo->pcchrgcod }}
                                             </a>
@@ -616,6 +637,30 @@
                     <x-mary-choices wire:model.live="charge_code_filter" :options="$charges" option-value="chrgcode"
                         option-label="chrgdesc" placeholder="Filter by fund source..." class="select-sm" multiple />
                 </div>
+
+                @if ($stockSearchMode === 'equivalence')
+                    <div class="border-b border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="font-semibold text-primary">Prescription stock search</div>
+                                <div class="mt-0.5 truncate" title="{{ $stockSearchPrescriptionLabel }}">
+                                    {{ $stockSearchPrescriptionLabel }}
+                                </div>
+                                @if ($stockSearchGroupMemberCount > 1)
+                                    <div class="mt-1 text-base-content/60">
+                                        Showing the prescribed drug and {{ $stockSearchGroupMemberCount - 1 }} approved equivalent(s).
+                                    </div>
+                                @else
+                                    <div class="mt-1 text-warning">No approved equivalents. Showing the exact prescribed drug only.</div>
+                                @endif
+                            </div>
+                            <button type="button" wire:click="clearStockPrescriptionFilter"
+                                class="btn btn-ghost btn-xs shrink-0" aria-label="Clear prescription stock filter">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                @endif
 
                 {{-- Stocks Section --}}
                 <div class="flex flex-col flex-1 min-h-0 border-b border-base-200">
@@ -994,7 +1039,13 @@
         </x-mary-modal>
 
         {{-- Return Issued Modal --}}
-        <x-mary-modal wire:model="showReturnModal" title="Return Issued Item" class="backdrop-blur">
+        <x-mary-modal wire:model="showReturnModal" wire:key="return-issued-modal"
+            title="Return Issued Item" class="backdrop-blur" persistent
+            x-on:keydown.escape.window="if (open) $wire.closeReturnModal()">
+            <button type="button" class="btn btn-circle btn-sm btn-ghost absolute end-2 top-2"
+                aria-label="Close return modal" wire:click="closeReturnModal">
+                <x-heroicon-o-x-mark class="w-5 h-5" />
+            </button>
             <div class="space-y-4">
                 <x-mary-input label="Return Quantity" wire:model="return_qty" type="number" min="1"
                     class="input-lg text-center font-bold" autofocus />
@@ -1005,7 +1056,7 @@
                 </div>
             </div>
             <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showReturnModal = false" />
+                <x-mary-button id="cancel-return-modal" label="Cancel" wire:click="closeReturnModal" />
                 <x-mary-button label="Return Item" icon="o-arrow-uturn-left" class="btn-error"
                     wire:click="return_issued('{{ $docointkey }}')" spinner />
             </x-slot:actions>
@@ -1293,9 +1344,20 @@
     @endif {{-- End: @if (!$hasEncounter) --}}
 
     {{-- Encounter / Prescription Selector Modal --}}
-    <x-mary-modal wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
+    <x-mary-drawer wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
         box-class="max-w-5xl">
-        <div class="space-y-4">
+        @php
+            $encounterBrowserLoadingTargets = 'switchSelectorMode,selectorSearchPatients,selectorSelectPatient,selectorClearPatient,selectEncounterPrescriptions,encounter_area_filter,encounter_detail_tab,setRxBrowseArea,setRxBrowseTagFilter,loadRxBrowseResults,rx_browse_search,rx_browse_date,rx_browse_wardcode';
+        @endphp
+        <div class="relative min-h-40">
+            <div wire:loading.flex wire:target="{{ $encounterBrowserLoadingTargets }}"
+                class="absolute inset-0 z-20 flex-col items-center justify-center gap-3 rounded-lg bg-base-100/90"
+                style="display: none;" role="status" aria-live="polite" aria-atomic="true">
+                <span class="loading loading-spinner loading-md text-primary motion-reduce:animate-none"
+                    aria-hidden="true"></span>
+                <span class="text-sm font-medium text-base-content">Loading encounters &amp; orders...</span>
+            </div>
+            <div class="space-y-4">
             {{-- Mode Switcher --}}
             <div class="flex items-center justify-between">
                 <div class="flex gap-1 p-1 rounded-lg bg-base-200">
@@ -1691,17 +1753,8 @@
                     </div>
                 </div>
 
-                {{-- Loading State --}}
-                <div wire:loading wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode"
-                    class="flex items-center gap-2 p-4">
-                    <span class="loading loading-spinner loading-sm"></span>
-                    <span class="text-sm">Loading prescriptions...</span>
-                </div>
-
                 {{-- Results Table --}}
-                <div wire:loading.remove
-                    wire:target="setRxBrowseArea,loadRxBrowseResults,rx_browse_date,rx_browse_wardcode"
-                    class="overflow-y-auto max-h-[400px] border rounded-lg border-base-300">
+                <div class="overflow-y-auto max-h-[400px] border rounded-lg border-base-300">
                     <table class="table table-xs table-pin-rows table-zebra">
                         <thead>
                             <tr class="bg-base-200">
@@ -1842,6 +1895,7 @@
                     </table>
                 </div>
             @endif {{-- end selector_mode --}}
+            </div>
         </div>
         <x-slot:actions>
             <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />
@@ -1849,16 +1903,14 @@
     </x-mary-modal>
 
     {{-- Inline Remarks Edit --}}
-    @if ($selected_remarks)
-        <x-mary-modal wire:model="selected_remarks" title="Edit Remarks" class="backdrop-blur">
+        <x-mary-modal wire:model="showRemarksModal" wire:key="edit-remarks-modal" title="Edit Remarks" class="backdrop-blur">
             <x-mary-input label="Remarks" wire:model="new_remarks" placeholder="Enter remarks..." />
             <x-slot:actions>
-                <x-mary-button label="Cancel" wire:click="$wire.$set('selected_remarks', null)" />
+                <x-mary-button id="cancel-remarks-modal" label="Cancel" wire:click="closeRemarksModal" />
                 <x-mary-button label="Save" icon="o-check" class="btn-primary" wire:click="update_remarks"
                     spinner />
             </x-slot:actions>
         </x-mary-modal>
-    @endif
 
     {{-- Print Prescriptions Modal --}}
     <x-mary-modal wire:model="showPrintModal" title="Print Prescriptions" class="backdrop-blur"
@@ -1975,7 +2027,7 @@
                 // Ctrl+I - Open Issue modal
                 if (e.ctrlKey && e.key === 'i') {
                     e.preventDefault();
-                    $wire.set('showIssueModal', true);
+                    $wire.openIssueModal();
                 }
                 // Ctrl+A - Select all pending (only outside inputs)
                 if (e.ctrlKey && e.key === 'a' && !isInput) {
@@ -2033,11 +2085,10 @@
             $wire.on('open-charge-slip', ({
                 pcchrgcod
             }) => {
-                // window.open('{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod, '_blank');
-                const chargeWindow = window.open(
+                window.open(
                     '{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod,
-                    'chargeSlipWindow',
-                    'width=900,height=900'
+                    '_blank',
+                    'noopener,noreferrer'
                 );
             });
 

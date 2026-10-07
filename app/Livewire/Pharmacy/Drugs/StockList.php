@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
+use App\Services\Pharmacy\DrugDescription;
 
 class StockList extends Component
 {
@@ -53,13 +54,12 @@ class StockList extends Component
             ->join('hdruggrp', 'hdruggrp.grpcode', '=', 'hdmhdr.grpcode')
             ->join('hgen', 'hgen.gencode', '=', 'hdruggrp.gencode')
             ->where('hdmhdr.dmdstat', 'A')
-            ->whereNotNull('hdmhdr.drug_concat')
-            ->orderBy('hdmhdr.drug_concat')
             ->select([
                 'hdmhdr.dmdcomb',
                 'hdmhdr.dmdctr',
-                'hdmhdr.drug_concat as drug_name',
             ])
+            ->selectRaw(DrugDescription::fromMaster('hdmhdr').' AS drug_name')
+            ->orderBy('drug_name')
             ->distinct()
             ->get();
     }

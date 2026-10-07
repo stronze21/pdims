@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Mary\Traits\Toast;
+use App\Services\Pharmacy\DrugDescription;
 
 class WardRisTrans extends Component
 {
@@ -48,11 +49,12 @@ class WardRisTrans extends Component
 
         $drugs = [];
         if ($this->chrgcode && $this->search_drug) {
-            $drugs = DB::select("SELECT TOP 20 hcharge.chrgdesc, pds.drug_concat, SUM(pds.stock_bal) as stock_bal, pds.dmdcomb, pds.dmdctr
+            $drugDescription = DrugDescription::fromStock('pds');
+            $drugs = DB::select("SELECT TOP 20 hcharge.chrgdesc, {$drugDescription} AS drug_concat, SUM(pds.stock_bal) as stock_bal, pds.dmdcomb, pds.dmdctr
                                 FROM pharm_drug_stocks as pds
                                 JOIN hcharge ON pds.chrgcode = hcharge.chrgcode
-                                WHERE pds.loc_code = ? AND pds.drug_concat LIKE ? AND pds.chrgcode = ?
-                                GROUP BY pds.drug_concat, pds.loc_code, hcharge.chrgdesc, pds.dmdcomb, pds.dmdctr
+                                WHERE pds.loc_code = ? AND {$drugDescription} LIKE ? AND pds.chrgcode = ?
+                                GROUP BY pds.loc_code, hcharge.chrgdesc, pds.dmdcomb, pds.dmdctr
                         ", [$this->location_id, $this->search_drug . '%', $this->chrgcode]);
         }
 

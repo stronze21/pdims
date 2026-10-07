@@ -65,7 +65,7 @@
                         <span class="font-bold text-green-700">Related Deliveries</span>
                         <span class="badge badge-success badge-sm">
                             @php $totalCount = collect($relatedDeliveries)->flatten(1)->count(); @endphp
-                            {{ $totalCount }} Delivery{{ $totalCount > 1 ? 's' : '' }}
+                            {{ $totalCount }} Deliver{{ $totalCount > 1 ? 'ies' : 'y' }}
                         </span>
                     </div>
                     <button @click="showDeliveries = !showDeliveries" class="btn btn-xs btn-ghost">

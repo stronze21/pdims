@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Pharmacy\PharmLocation;
 
 class PendingOrders extends Component
@@ -67,12 +68,13 @@ class PendingOrders extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromMaster('dm');
         [$dateFrom, $dateTo] = $this->getDateRange();
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
         $locFilter = $this->location_id !== 'all' ? "AND rxo.loc_code = ?" : "";
-        $searchFilter = $this->search ? "AND dm.drug_concat LIKE ?" : "";
+        $searchFilter = $this->search ? "AND {$drugDescription} LIKE ?" : "";
 
         $params = [$from, $to];
         if ($this->location_id !== 'all') $params[] = $this->location_id;
@@ -82,7 +84,7 @@ class PendingOrders extends Component
             SELECT
                 rxo.docointkey,
                 rxo.enccode,
-                dm.drug_concat,
+                {$drugDescription} AS drug_concat,
                 rxo.pchrgqty as qty,
                 rxo.pchrgup as unit_price,
                 rxo.pcchrgamt as total_amount,

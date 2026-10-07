@@ -5,6 +5,7 @@ namespace App\Livewire\Dashboard;
 use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Pharmacy\PharmLocation;
 
 class ReturnedOrders extends Component
@@ -64,12 +65,13 @@ class ReturnedOrders extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromMaster('dm');
         [$dateFrom, $dateTo] = $this->getDateRange();
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
         $locFilter = $this->location_id !== 'all' ? "AND ret.loc_code = ?" : "";
-        $searchFilter = $this->search ? "AND dm.drug_concat LIKE ?" : "";
+        $searchFilter = $this->search ? "AND {$drugDescription} LIKE ?" : "";
 
         $params = [$from, $to];
         if ($this->location_id !== 'all') $params[] = $this->location_id;
@@ -79,7 +81,7 @@ class ReturnedOrders extends Component
             SELECT
                 ret.docointkey,
                 ret.enccode,
-                dm.drug_concat,
+                {$drugDescription} AS drug_concat,
                 ret.qty,
                 ret.unitprice as unit_price,
                 ret.returndate,

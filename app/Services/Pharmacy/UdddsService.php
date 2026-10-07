@@ -11,9 +11,22 @@ use App\Models\Pharmacy\Drugs\DrugStockLog;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class UdddsService
 {
+    public static function hasHrxoColumns(): bool
+    {
+        return Schema::connection('hospital')->hasColumns('hrxo', [
+            'order_type', 'is_uddds', 'uddds_start_date', 'uddds_end_date', 'uddds_source_docointkey',
+        ]);
+    }
+
+    public function schemaMissingMessage(): string
+    {
+        return 'The hospital order table is missing required UDDDS columns. Contact your administrator to apply the UDDDS database update.';
+    }
+
     public function normalizeOrderType($type)
     {
         $type = strtoupper(trim((string) $type));
@@ -150,8 +163,18 @@ class UdddsService
 
     public function todaysWardItems($wardcode, $locationId)
     {
-        $today = now('Asia/Manila')->toDateString();
-        $params = [$today, $locationId];
+        return $this->wardItemsForDate($wardcode, $locationId, now('Asia/Manila')->toDateString());
+    }
+
+    public function wardItemsForDate($wardcode, $locationId, $referenceDate)
+    {
+        if (!self::hasHrxoColumns()) {
+            return [];
+        }
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
+        $today = Carbon::parse($referenceDate ?: now('Asia/Manila'))->toDateString();
+        $nextDay = Carbon::parse($today)->addDay()->toDateString();
+        $params = [];
         $wardFilter = '';
 
         if ($wardcode) {
@@ -159,7 +182,7 @@ class UdddsService
             $params[] = $wardcode;
         }
 
-        return DB::select("
+        $items = DB::select("
             SELECT
                 hrxo.docointkey,
                 hrxo.enccode,
@@ -171,6 +194,8 @@ class UdddsService
                 hrxo.pchrgup,
                 hrxo.pcchrgamt,
                 hrxo.estatus,
+                hrxo.qtyissued,
+                hrxo.dodate,
                 hrxo.pcchrgcod,
                 hrxo.loc_code,
                 hrxo.uddds_start_date,
@@ -178,7 +203,18 @@ class UdddsService
                 hrxo.uddds_source_docointkey,
                 hrxo.order_type,
                 hrxo.is_uddds,
-                hdmhdr.drug_concat,
+                CASE
+                    WHEN hrxo.uddds_source_docointkey IS NOT NULL
+                        AND hrxo.estatus IN ('U', 'P')
+                        AND (hrxo.qtyissued IS NULL OR hrxo.qtyissued = 0)
+                    THEN 1 ELSE 0
+                END AS is_billable,
+                CASE
+                    WHEN hrxo.uddds_source_docointkey IS NULL OR hrxo.uddds_source_docointkey = '' THEN 1
+                    WHEN hrxo.estatus IN ('U', 'P') AND (hrxo.qtyissued IS NULL OR hrxo.qtyissued = 0) THEN 1
+                    ELSE 0
+                END AS is_actionable,
+                {$drugDescription} AS drug_concat,
                 hcharge.chrgdesc,
                 pt.patfirst,
                 pt.patmiddle,
@@ -193,18 +229,227 @@ class UdddsService
             INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
             INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = hrxo.orderfrom
             INNER JOIN hospital.dbo.hperson pt ON pt.hpercode = hrxo.hpercode
+            INNER JOIN hospital.dbo.henctr enctr ON enctr.enccode = hrxo.enccode AND enctr.toecode = 'ADM'
             INNER JOIN hospital.dbo.hpatroom pat_room ON pat_room.enccode = hrxo.enccode AND pat_room.patrmstat = 'A'
             INNER JOIN hospital.dbo.hward ward ON ward.wardcode = pat_room.wardcode
             LEFT JOIN hospital.dbo.hroom room ON room.rmintkey = pat_room.rmintkey
             LEFT JOIN webapp.dbo.prescription_data pd ON pd.id = hrxo.prescription_data_id
+            LEFT JOIN (
+                SELECT DISTINCT uddds_source_docointkey
+                FROM hospital.dbo.hrxo
+                WHERE dodate >= ? AND dodate < ?
+                    AND uddds_source_docointkey IS NOT NULL
+            ) daily_orders ON daily_orders.uddds_source_docointkey = hrxo.docointkey
             WHERE hrxo.is_uddds = 1
-                AND hrxo.uddds_source_docointkey IS NOT NULL
-                AND CAST(hrxo.dodate AS DATE) = ?
-                AND (hrxo.estatus = 'U' OR (hrxo.estatus = 'P' AND (hrxo.qtyissued IS NULL OR hrxo.qtyissued = 0)))
+                AND (
+                    (
+                        hrxo.uddds_source_docointkey IS NOT NULL
+                        AND hrxo.dodate >= ? AND hrxo.dodate < ?
+                        AND hrxo.estatus IN ('U', 'P', 'S')
+                    )
+                    OR
+                    (
+                        (hrxo.uddds_source_docointkey IS NULL OR hrxo.uddds_source_docointkey = '')
+                        AND hrxo.estatus = 'S'
+                        AND hrxo.order_type = 'BASIC'
+                        AND hrxo.uddds_start_date < ?
+                        AND hrxo.uddds_end_date >= ?
+                        AND daily_orders.uddds_source_docointkey IS NULL
+                    )
+                )
                 AND (hrxo.loc_code = ? OR hrxo.loc_code IS NULL)
                 {$wardFilter}
-            ORDER BY ward.wardname, pt.patlast, pt.patfirst, hdmhdr.drug_concat
+            ORDER BY ward.wardname, pt.patlast, pt.patfirst, {$drugDescription}
+        ", [$today, $nextDay, $today, $nextDay, $nextDay, $today, $locationId, ...$params]);
+
+        foreach ($items as $item) {
+            $item->is_source_issued_for_date = empty($item->uddds_source_docointkey)
+                && Carbon::parse($item->dodate)->toDateString() === $today
+                && ($item->estatus === 'S' || (float) $item->qtyissued > 0);
+
+            if ($item->is_source_issued_for_date) {
+                $item->is_actionable = 0;
+            }
+        }
+
+        return $items;
+    }
+
+    public function processedWardItemsForDate($wardcode, $locationId, $referenceDate): array
+    {
+        if (!self::hasHrxoColumns()) {
+            return [];
+        }
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
+        $date = Carbon::parse($referenceDate)->toDateString();
+        $nextDay = Carbon::parse($date)->addDay()->toDateString();
+        $params = [$nextDay, $date, $nextDay, $locationId];
+        $wardFilter = '';
+        if ($wardcode) {
+            $wardFilter = ' AND pat_room.wardcode = ?';
+            $params[] = $wardcode;
+        }
+
+        return DB::select("
+            SELECT hrxo.*, {$drugDescription} AS drug_concat, hcharge.chrgdesc,
+                pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
+                ward.wardname, room.rmname, pd.remark AS frequency,
+                0 AS is_billable, 0 AS is_actionable,
+                CASE WHEN hrxo.estatus = 'S' OR hrxo.qtyissued > 0 THEN 1 ELSE 0 END AS is_source_issued_for_date
+            FROM hospital.dbo.hrxo
+            OUTER APPLY (
+                SELECT TOP 1 wardcode, rmintkey
+                FROM hospital.dbo.hpatroom
+                WHERE enccode = hrxo.enccode AND hprdate < ?
+                ORDER BY hprdate DESC, wardcode, rmintkey
+            ) pat_room
+            LEFT JOIN hospital.dbo.hward ward ON ward.wardcode = pat_room.wardcode
+            LEFT JOIN hospital.dbo.hroom room ON room.rmintkey = pat_room.rmintkey
+            LEFT JOIN hospital.dbo.hperson pt ON pt.hpercode = hrxo.hpercode
+            LEFT JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
+            LEFT JOIN hospital.dbo.hcharge ON hcharge.chrgcode = hrxo.orderfrom
+            LEFT JOIN webapp.dbo.prescription_data pd ON pd.id = hrxo.prescription_data_id
+            WHERE hrxo.dodate >= ? AND hrxo.dodate < ?
+                AND hrxo.pcchrgcod IS NOT NULL AND hrxo.pcchrgcod <> ''
+                AND (hrxo.is_uddds = 1
+                    OR (hrxo.uddds_source_docointkey IS NOT NULL AND hrxo.uddds_source_docointkey <> '')
+                    OR (hrxo.order_type = 'BASIC' AND hrxo.uddds_start_date IS NOT NULL AND hrxo.uddds_end_date IS NOT NULL))
+                AND (hrxo.loc_code = ? OR hrxo.loc_code IS NULL)
+                {$wardFilter}
+            ORDER BY ward.wardname, pt.patlast, pt.patfirst, hrxo.pcchrgcod
         ", $params);
+    }
+
+    public function selectedPatientChargeCodes(array $items, array $encounters, $referenceDate): array
+    {
+        $selected = array_values(array_filter($items, fn ($item) => in_array((string) $item->enccode, $encounters, true)));
+        return $this->reprintChargeCodes($selected, $referenceDate);
+    }
+
+    public function reprintChargeCodes(array $items, $referenceDate): array
+    {
+        $date = Carbon::parse($referenceDate)->toDateString();
+        $codes = [];
+
+        foreach ($items as $item) {
+            $code = trim((string) ($item->pcchrgcod ?? ''));
+            // Standing enrollments may carry a slip from an earlier service date.
+            if ($code === '' || empty($item->dodate)
+                || Carbon::parse($item->dodate)->toDateString() !== $date) {
+                continue;
+            }
+
+            $codes[] = $code;
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    public function filterWardItemsByStatus(array $items, $status = 'all', $processed = false): array
+    {
+        foreach ($items as $item) {
+            if (!empty($item->is_source_issued_for_date)) {
+                $item->queue_status = 'issued';
+            } elseif (!$processed && empty($item->uddds_source_docointkey)) {
+                $item->queue_status = 'eligible';
+            } elseif ($item->estatus === 'S' || (float) $item->qtyissued > 0) {
+                $item->queue_status = 'issued';
+            } elseif ($item->estatus === 'U' || empty($item->pcchrgcod)) {
+                $item->queue_status = 'pending';
+            } else {
+                $item->queue_status = 'charged';
+            }
+        }
+        if (!in_array($status, ['pending', 'charged', 'issued', 'eligible'], true)) return $items;
+        return array_values(array_filter($items, fn ($item) => $item->queue_status === $status));
+    }
+
+    public function uncoveredFundGroups(array $groups, array $fallbacks): array
+    {
+        $uncovered = [];
+        foreach ($groups as $key => $group) {
+            $item = $group['item'];
+            $coverage = (float) $item->current_available;
+            $chosen = array_values(array_unique(array_filter((array) ($fallbacks[$key] ?? []))));
+            foreach ($item->alternate_funds ?? [] as $option) {
+                if (in_array($option['code'], $chosen, true)) $coverage += $option['available'];
+            }
+            if ($coverage + 0.000001 < $group['qty']) $uncovered[] = $key;
+        }
+        return $uncovered;
+    }
+
+    public function fundSelectionGroups(array $items, array $selectedKeys): array
+    {
+        $groups = [];
+        foreach ($items as $item) {
+            if (empty($item->is_actionable) || !in_array((string) $item->docointkey, $selectedKeys, true)) continue;
+            $key = UdddsStockAllocator::groupKey($item);
+            if (!isset($groups[$key])) $groups[$key] = ['item' => $item, 'qty' => 0, 'patients' => []];
+            $groups[$key]['qty'] += (float) $item->pchrgqty;
+            $groups[$key]['patients'][$item->enccode] = true;
+        }
+        return $groups;
+    }
+
+    public function annotatePendingStock(array $items, $locationId): array
+    {
+        $groups = [];
+        foreach ($items as $item) {
+            if (empty($item->is_actionable)) continue;
+            $key = $item->dmdcomb . '|' . $item->dmdctr . '|' . $item->orderfrom;
+            if (!isset($groups[$key])) $groups[$key] = ['item' => $item, 'needed' => 0];
+            $groups[$key]['needed'] += (float) $item->pchrgqty;
+        }
+        $available = [];
+        $fundOptions = [];
+        foreach (array_chunk($groups, 100, true) as $chunk) {
+            $stocks = DrugStock::query()->where('loc_code', $locationId)
+                ->where('exp_date', '>', now()->toDateString())->where('stock_bal', '>', 0)
+                ->whereIn('chrgcode', app('chargetable'))->with('charge')
+                ->where(function ($query) use ($chunk) {
+                    foreach ($chunk as $group) {
+                        $item = $group['item'];
+                        $query->orWhere(function ($match) use ($item) {
+                            $match->where('dmdcomb', $item->dmdcomb)->where('dmdctr', $item->dmdctr);
+                        });
+                    }
+                })->selectRaw('dmdcomb, dmdctr, chrgcode, SUM(stock_bal) AS available_qty')
+                ->groupBy('dmdcomb', 'dmdctr', 'chrgcode')->get();
+            foreach ($stocks as $stock) {
+                $available[$stock->dmdcomb . '|' . $stock->dmdctr . '|' . $stock->chrgcode] = (float) $stock->available_qty;
+                $fundOptions[$stock->dmdcomb . '|' . $stock->dmdctr][$stock->chrgcode] = [
+                    'code' => $stock->chrgcode,
+                    'name' => optional($stock->charge)->chrgdesc ?: $stock->chrgcode,
+                    'available' => (float) $stock->available_qty,
+                ];
+            }
+        }
+        foreach ($items as $item) {
+            $item->stock_problem = false;
+            $item->pending_reason = null;
+            $item->alternate_funds = [];
+            $item->fallback_key = UdddsStockAllocator::groupKey($item);
+            if (empty($item->is_actionable)) continue;
+            $key = $item->dmdcomb . '|' . $item->dmdctr . '|' . $item->orderfrom;
+            $balance = $available[$key] ?? 0;
+            $needed = $groups[$key]['needed'];
+            $item->current_available = $balance;
+            $item->queue_needed = $needed;
+            $item->stock_problem = $balance < $needed;
+            // A standing enrollment's slip belongs to its original dose. The next
+            // daily order is materialized without a charge before allocation.
+            $hasDailyCharge = !empty($item->uddds_source_docointkey) && !empty($item->pcchrgcod);
+            if ($item->stock_problem && !$hasDailyCharge) {
+                foreach ($fundOptions[$item->dmdcomb . '|' . $item->dmdctr] ?? [] as $option) {
+                    if ($option['code'] !== $item->orderfrom) $item->alternate_funds[] = $option;
+                }
+            }
+            $item->pending_reason = $item->stock_problem
+                ? 'Stock shortage for this queue: need ' . $needed . ', available ' . $balance . ' (same drug and fund source).'
+                : 'Stock available. Awaiting charge/issue processing.';
+        }
+        return $items;
     }
 
     public function validateFefoStock(array $items, $locationId)
@@ -251,19 +496,78 @@ class UdddsService
         return ['ok' => true, 'message' => 'Stock available.'];
     }
 
-    public function chargeAndIssue(array $docointkeys, $locationId, array $actor)
+    public function materializeDailyItems(array $docointkeys, $referenceDate): array
     {
+        $docointkeys = array_values(array_filter($docointkeys));
+        if (!$docointkeys) {
+            return [];
+        }
+
+        $date = Carbon::parse($referenceDate ?: now('Asia/Manila'))->toDateString();
+        $placeholders = implode(',', array_fill(0, count($docointkeys), '?'));
+        $orders = DB::select(
+            "SELECT hrxo.*
+             FROM hospital.dbo.hrxo
+             WHERE hrxo.docointkey IN ({$placeholders})
+               AND hrxo.is_uddds = 1",
+            $docointkeys
+        );
+
+        $dailyKeys = [];
+        foreach ($orders as $index => $order) {
+            if (!empty($order->uddds_source_docointkey)) {
+                $dailyKeys[] = $order->docointkey;
+                continue;
+            }
+
+            if (Carbon::parse($order->dodate)->toDateString() === $date
+                && ($order->estatus === 'S' || (float) $order->qtyissued > 0)) {
+                continue;
+            }
+
+            $existing = DB::selectOne(
+                "SELECT TOP 1 docointkey
+                 FROM hospital.dbo.hrxo
+                 WHERE uddds_source_docointkey = ?
+                   AND CAST(dodate AS DATE) = ?",
+                [$order->docointkey, $date]
+            );
+
+            if ($existing) {
+                $dailyKeys[] = $existing->docointkey;
+                continue;
+            }
+
+            if ($order->estatus === 'S'
+                && $order->order_type === 'BASIC'
+                && Carbon::parse($order->uddds_start_date)->toDateString() <= $date
+                && Carbon::parse($order->uddds_end_date)->toDateString() >= $date) {
+                $dailyKeys[] = $this->cloneEnrollmentForDate($order, $date, $index)['docointkey'];
+            }
+        }
+
+        return array_values(array_unique($dailyKeys));
+    }
+
+    public function chargeAndIssue(array $docointkeys, $locationId, array $actor, array $fallbacks = [])
+    {
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
         $docointkeys = array_values(array_filter($docointkeys));
 
         if (empty($docointkeys)) {
             return ['ok' => false, 'message' => 'No UDDDS items selected.', 'pcchrgcods' => []];
         }
 
+        if (array_filter($fallbacks)) {
+            return $this->chargeAndIssueWithFallback(array_values(array_unique($docointkeys)), $locationId, $actor, $fallbacks);
+        }
+
         $placeholders = implode(',', array_fill(0, count($docointkeys), '?'));
         $items = DB::select(
-            "SELECT hrxo.*, hdmhdr.drug_concat
+            "SELECT hrxo.*, {$drugDescription} AS drug_concat
              FROM hospital.dbo.hrxo
              INNER JOIN hospital.dbo.hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
+             INNER JOIN hospital.dbo.henctr enctr ON enctr.enccode = hrxo.enccode AND enctr.toecode = 'ADM'
              WHERE hrxo.docointkey IN ({$placeholders})
                 AND hrxo.is_uddds = 1
                 AND (hrxo.estatus = 'U' OR (hrxo.estatus = 'P' AND (hrxo.qtyissued IS NULL OR hrxo.qtyissued = 0)))",
@@ -307,9 +611,15 @@ class UdddsService
                     $item->pcchrgcod = $pcchrgcod;
                     $item->estatus = 'P';
                 }
-            } else {
-                $pcchrgcod = $encounterItems[0]->pcchrgcod;
             }
+
+            // Include every existing and newly assigned slip, even on partial issuance.
+            foreach ($encounterItems as $item) {
+                if (!empty($item->pcchrgcod)) {
+                    $pcchrgcods[] = $item->pcchrgcod;
+                }
+            }
+            $pcchrgcods = array_values(array_unique($pcchrgcods));
 
             foreach ($encounterItems as $item) {
                 $issued = $this->issueOne($item, $locationId, $actor);
@@ -318,9 +628,6 @@ class UdddsService
                 }
             }
 
-            if ($pcchrgcod) {
-                $pcchrgcods[] = $pcchrgcod;
-            }
         }
 
         return [
@@ -328,6 +635,109 @@ class UdddsService
             'message' => 'Batch charge and issuance completed.',
             'pcchrgcods' => array_values(array_unique($pcchrgcods)),
         ];
+    }
+
+    private function chargeAndIssueWithFallback(array $keys, $locationId, array $actor, array $fallbacks): array
+    {
+        $allowedFunds = app('chargetable');
+        foreach ($fallbacks as $key => $funds) {
+            $fallbacks[$key] = array_values(array_unique(array_filter((array) $funds)));
+            foreach ($fallbacks[$key] as $fund) {
+                if (!is_string($fund) || !in_array($fund, $allowedFunds, true)) {
+                    return ['ok' => false, 'message' => 'Invalid alternate fund source.', 'pcchrgcods' => []];
+                }
+            }
+        }
+        if (count($keys) > 500) return ['ok' => false, 'message' => 'Process at most 500 items at a time when using alternate funds.', 'pcchrgcods' => []];
+
+        try {
+            return DB::connection('hospital')->transaction(function () use ($keys, $locationId, $actor, $fallbacks, $allowedFunds) {
+                $orders = DrugOrder::whereIn('docointkey', $keys)->where('is_uddds', 1)
+                    ->whereHas('enctr', function ($query) { $query->where('toecode', 'ADM'); })
+                    ->where(function ($query) use ($locationId) { $query->where('loc_code', $locationId)->orWhereNull('loc_code'); })
+                    ->whereIn('estatus', ['U', 'P'])->where(function ($query) { $query->whereNull('qtyissued')->orWhere('qtyissued', 0); })
+                    ->orderBy('docointkey')->lockForUpdate()->get();
+                if ($orders->count() !== count($keys)) return ['ok' => false, 'message' => 'Some selected orders changed or are already issued. Refresh the queue and select again.', 'pcchrgcods' => []];
+                foreach ($orders as $order) {
+                    if (empty($order->uddds_source_docointkey)) return ['ok' => false, 'message' => 'Only generated daily UDDDS orders can use alternate funds.', 'pcchrgcods' => []];
+                }
+                $stocks = DB::connection('hospital')->table('hospital.dbo.pharm_drug_stocks as stock')
+                    ->join('hospital.dbo.hdmhdrprice as price', 'price.dmdprdte', '=', 'stock.dmdprdte')
+                    ->where('stock.loc_code', $locationId)->where('stock.exp_date', '>', now()->toDateString())
+                    ->where('stock.stock_bal', '>', 0)->whereIn('stock.chrgcode', $allowedFunds)
+                    ->whereNotNull('price.retail_price')->where('price.retail_price', '>=', 0)
+                    ->where(function ($query) use ($orders) {
+                        foreach ($orders as $order) {
+                            $query->orWhere(function ($match) use ($order) {
+                                $match->where('stock.dmdcomb', $order->dmdcomb)->where('stock.dmdctr', $order->dmdctr);
+                            });
+                        }
+                    })->select('stock.*', 'price.dmduprice', 'price.retail_price as fund_unit_price')
+                    ->orderBy('stock.exp_date')->orderBy('stock.id')->lockForUpdate()->get()->all();
+                $plan = (new UdddsStockAllocator())->allocate($orders->all(), $stocks, $fallbacks);
+                if (!$plan['ok']) return ['ok' => false, 'message' => $plan['message'], 'pcchrgcods' => []];
+                foreach ($orders as $order) {
+                    if (!empty($order->pcchrgcod) && count($plan['plans'][$order->docointkey]) > 1) {
+                        return ['ok' => false, 'message' => 'An existing charge would need to be split. Process already-charged items separately.', 'pcchrgcods' => []];
+                    }
+                }
+                // All stock is reserved and validated before any charges or deductions.
+                $slips = [];
+                $stockRemaining = [];
+                foreach ($stocks as $stock) $stockRemaining[$stock->id] = (float) $stock->stock_bal;
+                $codes = [];
+                foreach ($orders as $order) {
+                    $parts = $plan['plans'][$order->docointkey];
+                    $template = $order->getAttributes();
+                    $code = $order->pcchrgcod;
+                    if (!$code) {
+                        if (!isset($slips[$order->enccode])) {
+                            $charge = OrderChargeCode::create(['charge_desc' => 'a']);
+                            $slips[$order->enccode] = 'P' . date('y') . '-' . sprintf('%07d', $charge->id);
+                        }
+                        $code = $slips[$order->enccode];
+                    }
+                    foreach ($parts as $index => $part) {
+                        $stock = $part['stock'];
+                        $qty = $part['qty'];
+                        $line = $index === 0 ? $order : new DrugOrder();
+                        if ($index !== 0) {
+                            $line->fill(array_intersect_key($template, array_flip($line->getFillable())));
+                            $line->docointkey = 'UDD' . bin2hex(random_bytes(16));
+                        }
+                        $unitPrice = $stock->chrgcode === $template['orderfrom'] ? (float) $template['pchrgup'] : (float) $stock->fund_unit_price;
+                        $line->orderfrom = $stock->chrgcode;
+                        $line->pchrgqty = $qty;
+                        $line->pchrgup = $unitPrice;
+                        $line->pcchrgamt = round($qty * $unitPrice, 2);
+                        $line->qtyissued = $qty;
+                        $line->estatus = 'S';
+                        $line->pcchrgcod = $code;
+                        $line->dmdprdte = $stock->dmdprdte;
+                        $line->exp_date = $stock->exp_date;
+                        $line->item_id = $stock->id;
+                        $line->loc_code = $locationId;
+                        $line->dodtepost = now();
+                        $line->dotmepost = now();
+                        $line->save();
+                        $stockRemaining[$stock->id] -= $qty;
+                        DB::connection('hospital')->table('hospital.dbo.pharm_drug_stocks')->where('id', $stock->id)->update(['stock_bal' => $stockRemaining[$stock->id]]);
+                        $stock->retail_price = (float) $stock->fund_unit_price;
+                        $this->logStockIssue($stock, $line, $qty, $line->tx_type ?: 'service', $actor, $locationId);
+                        if ($line->prescription_data_id) {
+                            // Same SQL Server connection keeps the cross-database issuance log in this transaction.
+                            $issued = new PrescriptionDataIssued(['presc_data_id' => $line->prescription_data_id, 'docointkey' => $line->docointkey, 'qtyissued' => $qty]);
+                            $issued->setConnection('hospital')->save();
+                        }
+                    }
+                    $codes[] = $code;
+                }
+                return ['ok' => true, 'message' => 'Charge and issuance completed using current stock first, then selected alternate funds.', 'pcchrgcods' => array_values(array_unique($codes))];
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return ['ok' => false, 'message' => 'Alternate-fund processing failed. No changes from this attempt were committed. Refresh the queue and retry; contact support if it persists.', 'pcchrgcods' => []];
+        }
     }
 
     private function cloneEnrollmentForDate($enrollment, $today, $index)
@@ -372,7 +782,6 @@ class UdddsService
             'prescription_data_id' => $enrollment->prescription_data_id,
             'prescribed_by' => $enrollment->prescribed_by,
             'deptcode' => $enrollment->deptcode,
-            'order_by' => $enrollment->order_by,
             'original_enccode' => $enrollment->original_enccode,
             'order_type' => 'BASIC',
             'uddds_start_date' => $enrollment->uddds_start_date,

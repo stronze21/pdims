@@ -11,17 +11,13 @@
             <x-mary-icon name="o-user-group" class="w-5 h-5" />
             Out Patient Department
         </a>
+        <a href="{{ route('rx.uddds') }}" class="btn btn-ghost btn-sm" wire:navigate>
+            <x-heroicon-o-clock class="w-5 h-5" />
+            UDDDS
+        </a>
         <a href="{{ route('rx.er') }}" class="btn btn-ghost btn-sm" wire:navigate>
             <x-mary-icon name="o-heart" class="w-5 h-5" />
             Emergency Room
-        </a>
-        <a href="{{ route('rx.reactivated-today') }}" class="btn btn-ghost btn-sm" wire:navigate>
-            <x-mary-icon name="o-check-circle" class="w-5 h-5" />
-            Reordered Today
-        </a>
-        <a href="{{ route('rx.reactivates-tomorrow') }}" class="btn btn-ghost btn-sm" wire:navigate>
-            <x-mary-icon name="o-clock" class="w-5 h-5" />
-            Reorders Tomorrow
         </a>
     </div>
 

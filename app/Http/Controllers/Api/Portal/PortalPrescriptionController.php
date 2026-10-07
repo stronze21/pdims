@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Portal\PortalPrescriptionRefill;
 use App\Services\Pharmacy\PrescriptionReactivationService;
+use App\Services\Pharmacy\DrugDescription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +20,7 @@ class PortalPrescriptionController extends Controller
      */
     public function issuedMedications(Request $request)
     {
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
         $account = $request->user();
         $account->load('patient');
         $hpercode = $account->patient?->hpercode;
@@ -67,7 +69,7 @@ class PortalPrescriptionController extends Controller
                 COALESCE(rxi.qty, hrxo.qtyissued) AS quantity_issued,
                 COALESCE(rxi.pchrgup, hrxo.pchrgup) AS unit_price,
                 COALESCE(rxi.pchrgup, hrxo.pchrgup) * COALESCE(rxi.qty, hrxo.qtyissued) AS charge_amount,
-                hdmhdr.drug_concat AS item_name,
+                {$drugDescription} AS item_name,
                 hcharge.chrgdesc AS cost_center_name,
                 COALESCE(rxi.issuedfrom, hrxo.orderfrom) AS cost_center_code,
                 hrxo.tx_type,

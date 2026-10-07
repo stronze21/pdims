@@ -3,6 +3,8 @@
 namespace App\Livewire\Pharmacy;
 
 use App\Services\Pharmacy\DrugImport\DrugMasterWriter;
+use App\Services\Pharmacy\DrugEquivalenceService;
+use App\Services\Pharmacy\DrugDescription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -47,6 +49,22 @@ class ManageDrugLibrary extends Component
     public bool $groupModal = false;
 
     public bool $subModal = false;
+
+    public bool $equivalenceModal = false;
+
+    public bool $equivalenceReviewModal = false;
+
+    public array $equivalenceDraftMembers = [];
+
+    public array $equivalenceDraftSelected = [];
+
+    public ?string $equivalenceDraftCanonicalComb = null;
+
+    public ?string $equivalenceDraftCanonicalCtr = null;
+
+    public ?int $editingEquivalenceGroupId = null;
+
+    public string $equivalenceCandidateSearch = '';
 
     public ?string $editingDmdcomb = null;
 
@@ -188,6 +206,114 @@ class ManageDrugLibrary extends Component
         $this->brandSourceDmdctr = null;
         $this->resetDrugForm();
         $this->drugModal = true;
+    }
+
+    public function createEquivalenceGroup(string $dmdcomb, string $dmdctr): void
+    {
+        try {
+            $members = $this->equivalence()->potentialMembersFor($dmdcomb, $dmdctr);
+            if ($members->count() < 2) {
+                throw new \RuntimeException('No ungrouped, clinically exact equivalents are available for this drug.');
+            }
+            $this->equivalenceDraftCanonicalComb = $dmdcomb;
+            $this->equivalenceDraftCanonicalCtr = $dmdctr;
+            $this->equivalenceDraftMembers = $members->map(fn ($drug) => [
+                'dmdcomb' => (string) $drug->dmdcomb, 'dmdctr' => (string) $drug->dmdctr,
+                'drug_concat' => (string) $drug->drug_concat, 'brandname' => (string) ($drug->brandname ?? ''),
+            ])->all();
+            $this->equivalenceDraftSelected = $members
+                ->map(fn ($drug) => $drug->dmdcomb.'|'.$drug->dmdctr)->all();
+            $this->resetErrorBag('equivalence');
+            $this->equivalenceReviewModal = true;
+        } catch (Throwable $e) {
+            report($e);
+            $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function saveReviewedEquivalenceGroup(): void
+    {
+        try {
+            $selected = collect($this->equivalenceDraftSelected)->map(function ($key) {
+                [$dmdcomb, $dmdctr] = array_pad(explode('|', (string) $key, 2), 2, '');
+                return compact('dmdcomb', 'dmdctr');
+            })->all();
+            $groupId = $this->equivalence()->createReviewed(
+                (string) $this->equivalenceDraftCanonicalComb,
+                (string) $this->equivalenceDraftCanonicalCtr,
+                $selected,
+                $this->auditUser(50)
+            );
+            $this->equivalenceReviewModal = false;
+            $this->reset(['equivalenceDraftMembers', 'equivalenceDraftSelected', 'equivalenceDraftCanonicalComb', 'equivalenceDraftCanonicalCtr']);
+            session()->flash('success', 'Equivalent drug group created with the approved members.');
+            $this->editEquivalenceGroup($groupId);
+        } catch (Throwable $e) {
+            report($e);
+            $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function dissolveEquivalenceGroup(int $groupId): void
+    {
+        $this->equivalence()->dissolve($groupId, $this->auditUser(50));
+        if ($this->editingEquivalenceGroupId === $groupId) {
+            $this->equivalenceModal = false;
+            $this->editingEquivalenceGroupId = null;
+        }
+        session()->flash('success', 'Equivalent group dissolved. Its drugs are available for review again.');
+    }
+
+    public function editEquivalenceGroup(int $groupId): void
+    {
+        abort_if(! $this->hospital()->table('pharm_drug_equivalence_groups')->where('id', $groupId)->exists(), 404);
+        $this->editingEquivalenceGroupId = $groupId;
+        $this->equivalenceCandidateSearch = '';
+        $this->resetErrorBag('equivalence');
+        $this->equivalenceModal = true;
+    }
+
+    public function addEquivalenceMember(string $dmdcomb, string $dmdctr): void
+    {
+        abort_unless($this->editingEquivalenceGroupId, 404);
+        try {
+            $this->equivalence()->addMember($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
+            $this->resetErrorBag('equivalence');
+            session()->flash('success', 'Drug added to the equivalent group.');
+        } catch (Throwable $e) {
+            report($e);
+            $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function removeEquivalenceMember(string $dmdcomb, string $dmdctr): void
+    {
+        abort_unless($this->editingEquivalenceGroupId, 404);
+        try {
+            $this->equivalence()->removeMember($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
+            $this->resetErrorBag('equivalence');
+        } catch (Throwable $e) {
+            report($e);
+            $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function setEquivalenceCanonical(string $dmdcomb, string $dmdctr): void
+    {
+        abort_unless($this->editingEquivalenceGroupId, 404);
+        try {
+            $this->equivalence()->setCanonical($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
+            $this->resetErrorBag('equivalence');
+        } catch (Throwable $e) {
+            report($e);
+            $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function toggleEquivalenceStatus(int $groupId): void
+    {
+        $this->equivalence()->toggle($groupId, $this->auditUser(50));
+        session()->flash('success', 'Equivalent group status updated.');
     }
 
     public function editDrug(string $dmdcomb, string $dmdctr): void
@@ -707,6 +833,9 @@ class ManageDrugLibrary extends Component
         $lookupType = $this->lookupType ?: $lookupTab;
         $emptyOptions = collect();
         $showDrugFilters = $this->tab === 'drugs';
+        $equivalenceData = $this->editingEquivalenceGroupId
+            ? $this->equivalence()->suggestions($this->editingEquivalenceGroupId, $this->equivalenceCandidateSearch)
+            : ['compatible' => collect(), 'conflicts' => collect()];
 
         return view('livewire.pharmacy.manage-drug-library', [
             'rows' => $this->rows(),
@@ -732,6 +861,17 @@ class ManageDrugLibrary extends Component
             'filterChargeCodes' => $this->tab === 'subs' ? $this->chargeOptions(false) : $emptyOptions,
             'activeFilterCount' => $this->activeFilterCount(),
             'lookupLabel' => $lookupType ? $this->lookupConfig($lookupType)['label'] : 'Library',
+            'equivalenceGroup' => $this->editingEquivalenceGroupId
+                ? $this->hospital()->table('pharm_drug_equivalence_groups')->where('id', $this->editingEquivalenceGroupId)->first()
+                : null,
+            'equivalenceMembers' => $this->editingEquivalenceGroupId
+                ? $this->equivalence()->members($this->editingEquivalenceGroupId, false)
+                : collect(),
+            'equivalenceCandidates' => $equivalenceData['compatible'],
+            'equivalenceConflicts' => $equivalenceData['conflicts'],
+            'possibleEquivalenceGroups' => $this->tab === 'equivalents'
+                ? $this->equivalence()->possibleGroups($this->search)
+                : collect(),
         ]);
     }
 
@@ -740,14 +880,46 @@ class ManageDrugLibrary extends Component
         return match ($this->tab) {
             'generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units' => $this->lookupRows($this->tab),
             'groups' => $this->groupRows(),
+            'equivalents' => $this->equivalenceRows(),
             'subs' => $this->subRows(),
             default => $this->drugRows(),
         };
     }
 
+    private function equivalenceRows()
+    {
+        $search = '%'.$this->search.'%';
+        $description = DrugDescription::fromMaster('canonical');
+
+        return $this->hospital()->table('pharm_drug_equivalence_groups as eq')
+            ->join('hdmhdr as canonical', function ($join) {
+                $join->on('canonical.dmdcomb', '=', 'eq.canonical_dmdcomb')
+                    ->on('canonical.dmdctr', '=', 'eq.canonical_dmdctr');
+            })
+            ->leftJoin('pharm_drug_equivalence_members as member', 'member.group_id', '=', 'eq.id')
+            ->where('eq.status', '<>', 'D')
+            ->select('eq.id', 'eq.canonical_dmdcomb', 'eq.canonical_dmdctr', 'eq.status', 'eq.created_by',
+                'eq.created_at', DB::raw('COUNT(member.id) as member_count'))->selectRaw("{$description} AS drug_concat")
+            ->when($this->search, fn ($q) => $q->where(function ($nested) use ($search) {
+                $nested->whereRaw("{$description} like ?", [$search])
+                    ->orWhere('canonical.dmdcomb', 'like', $search);
+            }))
+            ->when($this->statusFilter, fn ($q) => $q->where('eq.status', $this->statusFilter))
+            ->groupBy('eq.id', 'eq.canonical_dmdcomb', 'eq.canonical_dmdctr', 'eq.status', 'eq.created_by',
+                'eq.created_at', 'canonical.grpcode', 'canonical.brandname', 'canonical.dmdnost', 'canonical.dmdnnostp',
+                'canonical.strecode', 'canonical.formcode', 'canonical.rtecode')
+            ->orderByRaw($description)->paginate($this->perPage);
+    }
+
+    private function equivalence(): DrugEquivalenceService
+    {
+        return app(DrugEquivalenceService::class);
+    }
+
     private function drugRows()
     {
         $search = '%'.$this->search.'%';
+        $description = DrugDescription::fromMaster('d');
 
         return $this->hospital()->table('hdmhdr as d')
             ->join('hdruggrp as grp', 'grp.grpcode', '=', 'd.grpcode')
@@ -765,16 +937,16 @@ class ManageDrugLibrary extends Component
                 'd.brandname',
                 'd.dmdpndf',
                 'd.dmdstat',
-                'd.drug_concat',
                 'gen.gendesc',
                 'form.formdesc',
                 'route.rtedesc',
                 'strength.stredesc',
                 DB::raw('COUNT(sub.dmhdrsub) as sub_count'),
             ])
+            ->selectRaw("{$description} AS drug_concat")
             ->when($this->search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('d.drug_concat', 'like', $search)
+                    $q->whereRaw("{$description} like ?", [$search])
                         ->orWhere('d.dmdnost', 'like', $search)
                         ->orWhere('d.brandname', 'like', $search)
                         ->orWhere('gen.gendesc', 'like', $search);
@@ -789,7 +961,8 @@ class ManageDrugLibrary extends Component
             ->when($this->strengthFilter, fn ($query) => $query->where('d.strecode', $this->strengthFilter))
             ->when($this->brandFilter === 'generic', fn ($query) => $query->whereRaw("NULLIF(LTRIM(RTRIM(d.brandname)), '') IS NULL"))
             ->when($this->brandFilter === 'branded', fn ($query) => $query->whereRaw("NULLIF(LTRIM(RTRIM(d.brandname)), '') IS NOT NULL"))
-            ->groupBy('d.dmdcomb', 'd.dmdctr', 'd.dmdnost', 'd.brandname', 'd.dmdpndf', 'd.dmdstat', 'd.drug_concat', 'gen.gendesc', 'form.formdesc', 'route.rtedesc', 'strength.stredesc')
+            ->groupBy('d.dmdcomb', 'd.dmdctr', 'd.dmdnost', 'd.dmdnnostp', 'd.brandname', 'd.dmdpndf', 'd.dmdstat',
+                'd.grpcode', 'd.strecode', 'd.formcode', 'd.rtecode', 'gen.gendesc', 'form.formdesc', 'route.rtedesc', 'strength.stredesc')
             ->orderBy('gen.gendesc')
             ->orderBy('d.dmdcomb')
             ->orderBy('d.dmdctr')
@@ -847,16 +1020,17 @@ class ManageDrugLibrary extends Component
     private function subRows()
     {
         $search = '%'.$this->search.'%';
+        $description = DrugDescription::fromMaster('d');
 
         return $this->hospital()->table('hdmhdrsub as sub')
             ->join('hdmhdr as d', function ($join) {
                 $join->on('d.dmdcomb', '=', 'sub.dmdcomb')->on('d.dmdctr', '=', 'sub.dmdctr');
             })
             ->leftJoin('hcharge as charge', 'charge.chrgcode', '=', 'sub.dmhdrsub')
-            ->select('sub.*', 'd.drug_concat', 'charge.chrgdesc')
+            ->select('sub.*', 'charge.chrgdesc')->selectRaw("{$description} AS drug_concat")
             ->when($this->search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('d.drug_concat', 'like', $search)
+                    $q->whereRaw("{$description} like ?", [$search])
                         ->orWhere('sub.dmhdrsub', 'like', $search)
                         ->orWhere('sub.barcode', 'like', $search)
                         ->orWhere('charge.chrgdesc', 'like', $search);
@@ -864,7 +1038,7 @@ class ManageDrugLibrary extends Component
             })
             ->when($this->statusFilter, fn ($query) => $query->where('sub.statusMed', $this->statusFilter))
             ->when($this->fundSourceFilter, fn ($query) => $query->where('sub.dmhdrsub', $this->fundSourceFilter))
-            ->orderBy('d.drug_concat')
+            ->orderByRaw($description)
             ->orderBy('sub.dmhdrsub')
             ->paginate($this->perPage);
     }

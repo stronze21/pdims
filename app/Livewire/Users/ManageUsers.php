@@ -6,6 +6,7 @@ use App\Models\PharmLocation;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -194,6 +195,24 @@ class ManageUsers extends Component
 
         $user->delete();
         $this->success('User deleted successfully');
+    }
+
+    public function resetPassword($id)
+    {
+        $this->authorize('view-settings');
+        $user = User::findOrFail($id);
+
+        if ($user->hasRole('Super Admin')) {
+            $this->error('The Super Admin account is protected.');
+
+            return;
+        }
+
+        $user->password = Hash::make('123456');
+        $user->setRememberToken(Str::random(60));
+        $user->save();
+
+        $this->success("Password reset for {$user->name}. Ask the user to change their password after signing in.");
     }
 
     public function resetForm()

@@ -4,6 +4,7 @@ namespace App\Livewire\Dashboard;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Pharmacy\PharmLocation;
 
 class ExpiredItems extends Component
@@ -38,8 +39,9 @@ class ExpiredItems extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromStock('pds');
         $locFilter = $this->location_id !== 'all' ? "AND pds.loc_code = ?" : "";
-        $searchFilter = $this->search ? "AND pds.drug_concat LIKE ?" : "";
+        $searchFilter = $this->search ? "AND {$drugDescription} LIKE ?" : "";
 
         $params = [];
         if ($this->location_id !== 'all') $params[] = $this->location_id;
@@ -48,7 +50,7 @@ class ExpiredItems extends Component
         $records = collect(DB::connection('hospital')->select("
             SELECT
                 pds.id,
-                pds.drug_concat,
+                {$drugDescription} AS drug_concat,
                 pds.exp_date,
                 pds.stock_bal,
                 pds.chrgcode,

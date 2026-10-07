@@ -5,6 +5,7 @@ namespace App\Livewire\Dashboard;
 use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Pharmacy\PharmLocation;
 
 class NearExpiryItems extends Component
@@ -39,10 +40,11 @@ class NearExpiryItems extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromStock('pds');
         $sixMonthsFromNow = Carbon::now()->addMonths(6)->format('Y-m-d');
 
         $locFilter = $this->location_id !== 'all' ? "AND pds.loc_code = ?" : "";
-        $searchFilter = $this->search ? "AND pds.drug_concat LIKE ?" : "";
+        $searchFilter = $this->search ? "AND {$drugDescription} LIKE ?" : "";
 
         $params = [$sixMonthsFromNow];
         if ($this->location_id !== 'all') $params[] = $this->location_id;
@@ -51,7 +53,7 @@ class NearExpiryItems extends Component
         $records = collect(DB::connection('hospital')->select("
             SELECT
                 pds.id,
-                pds.drug_concat,
+                {$drugDescription} AS drug_concat,
                 pds.exp_date,
                 pds.stock_bal,
                 pds.chrgcode,

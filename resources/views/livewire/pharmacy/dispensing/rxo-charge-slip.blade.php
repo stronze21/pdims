@@ -2,7 +2,8 @@
     $total_issued = 0;
     $total_amt = 0;
 @endphp
-<div class="container max-w-xl mx-auto mt-5">
+<div class="container max-w-xl mx-auto mt-5 pos-print-page">
+    @include('livewire.pharmacy.dispensing.pos-receipt-styles')
     <div class="flex justify-between mb-3 align-middle no-print">
         <div class="form-control">
             <label class="cursor-pointer label">
@@ -12,7 +13,7 @@
         </div>
         <button class="btn btn-sm btn-primary" onclick="printMe()">Print</button>
     </div>
-    <div id="print" class="bg-white text-black w-box-border">
+    <div id="print" class="bg-white text-black w-box-border pos-receipt">
         <div class="p-2">
             <div class="flex flex-col text-xs/4">
                 <h5 class="mb-0 text-2xl text-left">
@@ -146,14 +147,7 @@
 @push('scripts')
     <script>
         function printMe() {
-            var printContents = document.getElementById('print').innerHTML;
-            var originalContents = document.body.innerHTML;
-
-            document.body.innerHTML = printContents;
-
             window.onafterprint = function () {
-                document.body.innerHTML = originalContents;
-
                 if (window.opener) {
                     window.opener.focus(); // return focus to dispensing window
                 }

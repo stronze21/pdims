@@ -13,7 +13,9 @@ use App\Livewire\Permissions\ManagePermissions;
 use App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
 use App\Livewire\Pharmacy\Dispensing\ReturnSlip;
 use App\Livewire\Pharmacy\Dispensing\RxoChargeSlip;
+use App\Livewire\Pharmacy\Dispensing\UdddsChargeSlipBatch;
 use App\Livewire\Pharmacy\Drugs\IoTransactions;
+use App\Livewire\Pharmacy\Drugs\MissingDrugPrices;
 use App\Livewire\Pharmacy\Drugs\ReorderLevel;
 use App\Livewire\Pharmacy\Drugs\ReorderLevelComputed;
 use App\Livewire\Pharmacy\Drugs\StockCard;
@@ -38,6 +40,7 @@ use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatedToday;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatesTomorrow;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionWard;
+use App\Livewire\Pharmacy\Prescriptions\UdddsWard;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\CashierQueueController;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueController;
 use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueDisplay;
@@ -46,14 +49,6 @@ use App\Livewire\Pharmacy\Prescriptions\Queueing\PrescriptionQueueManagementTabl
 use App\Livewire\Pharmacy\Prescriptions\Queueing\QueueDisplaySettings;
 use App\Livewire\Pharmacy\Settings\ManageZeroBillingCharges;
 use App\Livewire\Pharmacy\Settings\PrescriptionReorderSettings;
-use App\Livewire\Portal\ManageAnnouncements;
-use App\Livewire\Portal\ManageChatConversations;
-use App\Livewire\Portal\ManagePortalManual;
-use App\Livewire\Portal\ManagePortalUsers;
-use App\Livewire\Portal\ManageRefillRequests;
-use App\Livewire\Teleconsult\TeleconsultLobby;
-use App\Livewire\Teleconsult\TeleconsultRoom;
-use App\Livewire\Teleconsult\TeleconsultSummary;
 use App\Livewire\Records\DischargedPatients;
 use App\Livewire\Records\ForDischargePatients;
 use App\Livewire\Records\PatientsList;
@@ -97,6 +92,7 @@ Route::middleware([
     Route::prefix('/inventory')->name('inventory.')->group(function () {
         Route::get('/stocks', StockList::class)->name('stocks.list');
         Route::get('/stock-summary', StockSummary::class)->name('stocks.summary');
+        Route::get('/missing-drug-prices', MissingDrugPrices::class)->name('stocks.missing-prices');
         Route::get('/stock-card', StockCard::class)->name('stocks.card');
         Route::get('/reorder-level', ReorderLevel::class)->name('stocks.reorder');
         Route::get('/reorder-level-computed', ReorderLevelComputed::class)->name('stocks.reorder-computed');
@@ -118,6 +114,7 @@ Route::middleware([
     });
 
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
+        Route::get('/uddds/charge-slips', UdddsChargeSlipBatch::class)->name('uddds.chargeslips');
         Route::get('/encounter/charge/{pcchrgcod}', RxoChargeSlip::class)
             ->name('rxo.chargeslip');
         Route::get('/encounter/{enccode?}', DispensingEncounter::class)
@@ -151,6 +148,7 @@ Route::middleware([
     Route::prefix('rx')->name('rx.')->group(function () {
         Route::get('/opd', PrescriptionOpd::class)->name('opd');
         Route::get('/ward', PrescriptionWard::class)->name('ward');
+        Route::get('/uddds', UdddsWard::class)->middleware('can:view-prescriptions')->name('uddds');
         Route::get('/er', PrescriptionEr::class)->name('er');
         Route::get('/reactivated-today', PrescriptionReactivatedToday::class)->name('reactivated-today');
         Route::get('/reactivates-tomorrow', PrescriptionReactivatesTomorrow::class)->name('reactivates-tomorrow');
@@ -262,30 +260,9 @@ Route::middleware([
     Route::get('/permissions', ManagePermissions::class)
         ->name('permissions.index');
 
-    // Teleconsult Routes
-    Route::prefix('teleconsult')->name('teleconsult.')->group(function () {
-        Route::get('/', TeleconsultLobby::class)->name('lobby');
-        Route::get('/room/{sessionId}', TeleconsultRoom::class)->name('room');
-        Route::get('/summary/{sessionId}', TeleconsultSummary::class)->name('summary');
-    });
-
-    Route::prefix('portal/teleconsult')->name('portal.teleconsult.')->group(function () {
-        Route::get('/', TeleconsultLobby::class)->name('lobby');
-        Route::get('/room/{sessionId}', TeleconsultRoom::class)->name('room');
-        Route::get('/summary/{sessionId}', TeleconsultSummary::class)->name('summary');
-    });
-
     Route::get('/settings/zero-billing-charges', ManageZeroBillingCharges::class)->name('settings.zero-billing');
 
-    Route::get('/portal', function () {
-        return redirect()->route('settings.portal.users');
-    })->name('portal.index');
 
-    Route::get('/settings/portal/users', ManagePortalUsers::class)->name('settings.portal.users');
-    Route::get('/settings/portal/refills', ManageRefillRequests::class)->name('settings.portal.refills');
-    Route::get('/settings/portal/announcements', ManageAnnouncements::class)->name('settings.portal.announcements');
-    Route::get('/settings/portal/chat', ManageChatConversations::class)->name('settings.portal.chat');
-    Route::get('/settings/portal/manual', ManagePortalManual::class)->name('settings.portal.manual');
 });
 
 // Public Queue Display (can be accessed without auth for TV displays)

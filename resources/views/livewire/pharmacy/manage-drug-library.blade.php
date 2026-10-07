@@ -141,6 +141,8 @@
                 <x-mary-button icon="o-plus" wire:click="createDrug" class="btn-primary">Add Drug</x-mary-button>
             @elseif ($tab === 'groups')
                 <x-mary-button icon="o-plus" wire:click="createGroup" class="btn-primary">Add PNDF Group</x-mary-button>
+            @elseif ($tab === 'equivalents')
+                <span class="text-xs text-base-content/60">Create a group from a drug row, then approve matching members here.</span>
             @elseif (in_array($tab, ['generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units'], true))
                 <x-mary-button icon="o-plus" wire:click="createLookup('{{ $tab }}')" class="btn-primary">
                     Add {{ $lookupLabel }}
@@ -162,6 +164,7 @@
             'drugs' => 'Drugs & Medicines',
             'generics' => 'Generics',
             'groups' => 'PNDF Groups',
+            'equivalents' => 'Equivalent Groups',
             'forms' => 'Forms',
             'routes' => 'Routes',
             'strengths' => 'Strengths',
@@ -277,6 +280,45 @@
         </div>
     </section>
 
+    @if ($tab === 'equivalents')
+        <section class="rounded-xl border border-warning/40 bg-warning/5 p-3 shadow-sm sm:p-4">
+            <div class="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                    <h2 class="font-semibold">Potential groups</h2>
+                    <p class="text-xs text-base-content/60">Ungrouped active drugs sharing the exact generic, dose, strength, form, and route.</p>
+                </div>
+                <span class="badge badge-warning badge-outline">{{ $possibleEquivalenceGroups->count() }} candidates</span>
+            </div>
+            <div class="space-y-2">
+                @forelse ($possibleEquivalenceGroups as $possibleGroup)
+                    <div wire:key="possible-equivalence-{{ $possibleGroup->fingerprint }}"
+                        class="rounded-lg border border-base-300 bg-base-100 p-3">
+                        <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+                            <div class="min-w-0">
+                                <div class="font-semibold">{{ $possibleGroup->canonical->drug_concat }}</div>
+                                <div class="mt-1 flex flex-wrap gap-1.5">
+                                    @foreach ($possibleGroup->members as $candidateDrug)
+                                        <span class="badge badge-ghost h-auto max-w-full whitespace-normal py-1 font-mono text-[11px]">
+                                            {{ $candidateDrug->dmdcomb }}-{{ $candidateDrug->dmdctr }} · {{ $candidateDrug->drug_concat }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm shrink-0"
+                                wire:click="createEquivalenceGroup('{{ $possibleGroup->canonical->dmdcomb }}', '{{ $possibleGroup->canonical->dmdctr }}')">
+                                Review and group
+                            </button>
+                        </div>
+                    </div>
+                @empty
+                    <div class="rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-center text-base-content/60">
+                        No ungrouped drugs with an exact clinical match were found.
+                    </div>
+                @endforelse
+            </div>
+        </section>
+    @endif
+
     <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
         @if ($tab === 'drugs')
             <table class="table table-sm table-zebra w-full">
@@ -356,6 +398,15 @@
                                                 d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                         </svg>
                                     </button>
+                                    <button type="button" class="btn btn-ghost btn-square btn-xs"
+                                        title="Create equivalent group" aria-label="Create equivalent group"
+                                        wire:click="createEquivalenceGroup('{{ $row->dmdcomb }}', '{{ $row->dmdctr }}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.8" stroke="currentColor" class="h-4 w-4" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M18 7.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM6 16.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm18 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5.6 14.8l7.8-5.6m-7.3 8.1h11.8" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -363,6 +414,33 @@
                         <tr>
                             <td colspan="9" class="py-8 text-center text-base-content/60">No drug items found.</td>
                         </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        @elseif ($tab === 'equivalents')
+            <table class="table table-sm table-zebra w-full">
+                <thead class="bg-base-200">
+                    <tr><th>Canonical Drug</th><th>Members</th><th>Created By</th><th>Status</th><th class="text-center">Actions</th></tr>
+                </thead>
+                <tbody>
+                    @forelse ($rows as $row)
+                        <tr wire:key="equivalence-{{ $row->id }}">
+                            <td><div class="font-semibold">{{ $row->drug_concat }}</div><div class="font-mono text-xs text-base-content/60">{{ $row->canonical_dmdcomb }}-{{ $row->canonical_dmdctr }}</div></td>
+                            <td>{{ $row->member_count }}</td>
+                            <td>{{ $row->created_by ?: '-' }}</td>
+                            <td><span class="badge badge-sm {{ $row->status === 'A' ? 'badge-success' : 'badge-ghost' }}">{{ $row->status === 'A' ? 'Active' : 'Inactive' }}</span></td>
+                            <td class="text-center">
+                                <button type="button" wire:click="editEquivalenceGroup({{ $row->id }})" class="btn btn-ghost btn-xs">Manage</button>
+                                <button type="button" wire:click="toggleEquivalenceStatus({{ $row->id }})"
+                                    wire:mary-confirm="{{ $row->status === 'A' ? 'Deactivate' : 'Reactivate' }} this equivalent group?"
+                                    class="btn btn-outline btn-xs">{{ $row->status === 'A' ? 'Deactivate' : 'Activate' }}</button>
+                                <button type="button" wire:click="dissolveEquivalenceGroup({{ $row->id }})"
+                                    wire:mary-confirm="Dissolve this group and return all members to the Potential groups list?"
+                                    class="btn btn-error btn-outline btn-xs">Dissolve</button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="py-8 text-center text-base-content/60">No equivalent drug groups found. Create one from the Drugs & Medicines tab.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -644,6 +722,98 @@
                 <x-mary-button label="Save" type="submit" class="btn-primary" spinner="saveDrug" />
             </x-slot:actions>
         </x-mary-form>
+    </x-mary-modal>
+
+    <x-mary-modal wire:model="equivalenceReviewModal" title="Review Potential Equivalent Group" separator
+        box-class="w-[96vw] max-w-5xl">
+        @error('equivalence')<div class="alert alert-error mb-3 text-sm">{{ $message }}</div>@enderror
+        <p class="mb-3 text-sm text-base-content/70">Review the records below. Uncheck anything that should not be grouped. No database changes occur until you click <strong>Create approved group</strong>.</p>
+        <div class="overflow-x-auto rounded-lg border border-base-300">
+            <table class="table table-sm">
+                <thead><tr><th class="w-12">Include</th><th>Code</th><th>Description</th><th>Brand</th></tr></thead>
+                <tbody>
+                    @foreach ($equivalenceDraftMembers as $draftMember)
+                        @php($draftKey = $draftMember['dmdcomb'].'|'.$draftMember['dmdctr'])
+                        @php($draftCanonical = $draftMember['dmdcomb'] === $equivalenceDraftCanonicalComb && (string) $draftMember['dmdctr'] === (string) $equivalenceDraftCanonicalCtr)
+                        <tr wire:key="draft-equivalence-{{ $draftMember['dmdcomb'] }}-{{ $draftMember['dmdctr'] }}">
+                            <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" wire:model="equivalenceDraftSelected" value="{{ $draftKey }}" @disabled($draftCanonical) /></td>
+                            <td class="font-mono text-xs">{{ $draftMember['dmdcomb'] }}-{{ $draftMember['dmdctr'] }} @if($draftCanonical)<span class="badge badge-primary badge-xs">Canonical</span>@endif</td>
+                            <td>{{ $draftMember['drug_concat'] }}</td><td>{{ $draftMember['brandname'] ?: '-' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+            <button type="button" class="btn btn-ghost btn-sm" wire:click="$set('equivalenceReviewModal', false)">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm" wire:click="saveReviewedEquivalenceGroup" wire:loading.attr="disabled" wire:target="saveReviewedEquivalenceGroup">
+                Create approved group
+            </button>
+        </div>
+    </x-mary-modal>
+
+    <x-mary-modal wire:model="equivalenceModal" title="Manage Equivalent Drug Group" separator
+        box-class="w-[96vw] max-w-6xl">
+        @if ($equivalenceGroup)
+            @error('equivalence')<div class="alert alert-error mb-3 text-sm">{{ $message }}</div>@enderror
+            <div class="mb-4 rounded-lg border border-base-300 bg-base-200/40 p-3">
+                <div class="text-xs uppercase tracking-wide text-base-content/60">Canonical identity</div>
+                @php($canonical = $equivalenceMembers->first(fn ($member) => $member->dmdcomb === $equivalenceGroup->canonical_dmdcomb && (string) $member->dmdctr === (string) $equivalenceGroup->canonical_dmdctr))
+                <div class="font-semibold">{{ $canonical->drug_concat ?? 'Missing drug record' }}</div>
+                <div class="font-mono text-xs">{{ $equivalenceGroup->canonical_dmdcomb }}-{{ $equivalenceGroup->canonical_dmdctr }}</div>
+            </div>
+
+            <h3 class="mb-2 font-semibold">Approved members</h3>
+            <div class="overflow-x-auto rounded-lg border border-base-300">
+                <table class="table table-sm">
+                    <thead><tr><th>Code</th><th>Description</th><th>Brand</th><th class="text-right">Actions</th></tr></thead>
+                    <tbody>
+                        @foreach ($equivalenceMembers as $member)
+                            @php($isCanonical = $member->dmdcomb === $equivalenceGroup->canonical_dmdcomb && (string) $member->dmdctr === (string) $equivalenceGroup->canonical_dmdctr)
+                            <tr wire:key="equivalence-member-{{ $member->dmdcomb }}-{{ $member->dmdctr }}">
+                                <td class="font-mono text-xs">{{ $member->dmdcomb }}-{{ $member->dmdctr }}</td>
+                                <td>{{ $member->drug_concat }}</td><td>{{ $member->brandname ?: '-' }}</td>
+                                <td class="text-right">
+                                    @if ($isCanonical)
+                                        <span class="badge badge-primary badge-sm">Canonical</span>
+                                    @else
+                                        <button type="button" class="btn btn-ghost btn-xs" wire:click="setEquivalenceCanonical('{{ $member->dmdcomb }}', '{{ $member->dmdctr }}')">Make canonical</button>
+                                        <button type="button" class="btn btn-error btn-outline btn-xs" wire:click="removeEquivalenceMember('{{ $member->dmdcomb }}', '{{ $member->dmdctr }}')" wire:mary-confirm="Remove this member?">Remove</button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-5">
+                <label class="form-control"><span class="label-text text-xs font-semibold">Find compatible drugs</span>
+                    <input type="search" wire:model.live.debounce.300ms="equivalenceCandidateSearch" class="input input-bordered input-sm" placeholder="Search description or brand" />
+                </label>
+                <p class="mt-1 text-xs text-base-content/60">Only exact generic, dose, strength, form, and route matches are eligible. Description similarity only controls ordering.</p>
+            </div>
+            <div class="mt-3 max-h-72 overflow-auto rounded-lg border border-base-300">
+                <table class="table table-sm">
+                    <tbody>
+                        @forelse ($equivalenceCandidates as $candidate)
+                            <tr wire:key="equivalence-candidate-{{ $candidate->dmdcomb }}-{{ $candidate->dmdctr }}">
+                                <td class="font-mono text-xs">{{ $candidate->dmdcomb }}-{{ $candidate->dmdctr }}</td>
+                                <td>{{ $candidate->drug_concat }}</td>
+                                <td class="text-right"><button type="button" class="btn btn-primary btn-xs" wire:click="addEquivalenceMember('{{ $candidate->dmdcomb }}', '{{ $candidate->dmdctr }}')">Approve member</button></td>
+                            </tr>
+                        @empty
+                            <tr><td class="py-5 text-center text-base-content/60">No ungrouped, clinically exact matches found.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if ($equivalenceCandidateSearch !== '' && $equivalenceConflicts->isNotEmpty())
+                <div class="alert alert-warning mt-3 text-sm">
+                    {{ $equivalenceConflicts->count() }} look-alike result(s) were excluded because one or more clinical fields differ.
+                </div>
+            @endif
+        @endif
     </x-mary-modal>
 
     <x-mary-modal wire:model="lookupModal" title="{{ $lookupOriginalCode ? 'Edit' : 'Add' }} {{ $lookupLabel }}" separator>

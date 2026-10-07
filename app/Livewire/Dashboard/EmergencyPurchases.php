@@ -5,6 +5,7 @@ namespace App\Livewire\Dashboard;
 use Carbon\Carbon;
 use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Pharmacy\PharmLocation;
 use App\Models\Pharmacy\Drugs\DrugEmergencyPurchase;
 
@@ -65,12 +66,13 @@ class EmergencyPurchases extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromMaster('dm');
         [$dateFrom, $dateTo] = $this->getDateRange();
         $from = $dateFrom->format('Y-m-d H:i:s');
         $to = $dateTo->format('Y-m-d H:i:s');
 
         $locFilter = $this->location_id !== 'all' ? "AND ep.pharm_location_id = ?" : "";
-        $searchFilter = $this->search ? "AND dm.drug_concat LIKE ?" : "";
+        $searchFilter = $this->search ? "AND {$drugDescription} LIKE ?" : "";
 
         $params = [$from, $to];
         if ($this->location_id !== 'all') $params[] = $this->location_id;
@@ -82,7 +84,7 @@ class EmergencyPurchases extends Component
                 ep.or_no,
                 ep.pharmacy_name,
                 ep.purchase_date,
-                dm.drug_concat,
+                {$drugDescription} AS drug_concat,
                 ep.qty,
                 ep.unit_price,
                 ep.retail_price,

@@ -4,13 +4,13 @@ namespace App\Livewire\Pharmacy\Drugs;
 
 use App\Livewire\Pharmacy\Drugs\Concerns\HandlesIoTransactionReturns;
 use App\Models\Pharmacy\Drug;
-use App\Models\Pharmacy\DrugGroup;
 use App\Models\Pharmacy\Drugs\DrugStock;
 use App\Models\Pharmacy\Drugs\DrugStockCard;
 use App\Models\Pharmacy\Drugs\DrugStockLog;
 use App\Models\Pharmacy\Drugs\InOutTransaction;
 use App\Models\Pharmacy\Drugs\InOutTransactionItem;
 use App\Models\Pharmacy\PharmLocation;
+use App\Services\Pharmacy\DrugEquivalenceService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -62,32 +62,8 @@ class ViewIoTransRef extends Component
         }
 
         $this->updating_transaction = $txn;
-        $drug = $txn->drug;
-
-        if ($drug && $drug->generic) {
-            $gencode = $drug->generic->gencode;
-            $grpcodes = DrugGroup::where('gencode', $gencode)->pluck('grpcode');
-
-            $this->same_generic_drugs = DB::select("
-                SELECT d.dmdcomb, d.dmdctr, d.drug_concat, COALESCE(s.total_stock, 0) as total_stock
-                FROM hdmhdr d
-                LEFT JOIN (
-                    SELECT dmdcomb, dmdctr, SUM(stock_bal) as total_stock
-                    FROM pharm_drug_stocks
-                    WHERE loc_code = ?
-                        AND stock_bal > 0
-                        AND exp_date > GETDATE()
-                    GROUP BY dmdcomb, dmdctr
-                ) s ON d.dmdcomb = s.dmdcomb AND d.dmdctr = s.dmdctr
-                WHERE d.dmdstat = 'A'
-                    AND d.drug_concat IS NOT NULL
-                    AND d.grpcode IN (" . implode(',', array_fill(0, count($grpcodes), '?')) . ")
-                    AND COALESCE(s.total_stock, 0) > 0
-                ORDER BY d.drug_concat
-            ", array_merge([$txn->request_from], $grpcodes->toArray()));
-        } else {
-            $this->same_generic_drugs = [];
-        }
+        $this->same_generic_drugs = app(DrugEquivalenceService::class)
+            ->substitutionCandidates($txn->dmdcomb, $txn->dmdctr, $txn->request_from)->all();
 
         $this->new_stock_id = $txn->dmdcomb . ',' . $txn->dmdctr;
         $this->updateItemModal = true;

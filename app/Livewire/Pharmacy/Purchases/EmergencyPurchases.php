@@ -12,6 +12,7 @@ use App\Models\Pharmacy\ZeroBillingCharge;
 use App\Models\References\ChargeCode;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Mary\Traits\Toast;
@@ -59,13 +60,12 @@ class EmergencyPurchases extends Component
             ->join('hdruggrp', 'hdruggrp.grpcode', '=', 'hdmhdr.grpcode')
             ->join('hgen', 'hgen.gencode', '=', 'hdruggrp.gencode')
             ->where('hdmhdr.dmdstat', 'A')
-            ->whereNotNull('hdmhdr.drug_concat')
-            ->orderBy('hdmhdr.drug_concat')
+            ->orderByRaw(DrugDescription::fromMaster('hdmhdr'))
             ->select([
                 'hdmhdr.dmdcomb',
                 'hdmhdr.dmdctr',
-                'hdmhdr.drug_concat as drug_name',
             ])
+            ->selectRaw(DrugDescription::fromMaster('hdmhdr').' AS drug_name')
             ->distinct()
             ->get();
 

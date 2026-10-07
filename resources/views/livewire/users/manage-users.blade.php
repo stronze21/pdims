@@ -1,4 +1,4 @@
-<div>
+<div style="width: 100%; max-width: none;">
     <x-mary-header title="User Management" separator>
         <x-slot:actions>
             @can('create-users')
@@ -34,7 +34,7 @@
             ['key' => 'email', 'label' => 'Email'],
             ['key' => 'location', 'label' => 'Location'],
             ['key' => 'roles', 'label' => 'Roles'],
-            ['key' => 'actions', 'label' => 'Actions', 'class' => 'w-32'],
+            ['key' => 'actions', 'label' => 'Actions', 'class' => 'w-96'],
         ]" :rows="$users" with-pagination>
 
             @scope('cell_employeeid', $user)
@@ -67,18 +67,30 @@
             @endscope
 
             @scope('cell_actions', $user)
-                <div class="flex gap-2">
-                    <x-mary-button icon="o-shield-check" wire:click="manageRoles({{ $user->id }})"
-                        tooltip="Manage Roles" class="btn-sm btn-ghost" />
+                <div class="flex flex-wrap justify-end gap-2" style="width: 28rem; white-space: normal;">
+                    <button type="button" wire:click="manageRoles({{ $user->id }})"
+                        style="flex-shrink: 0; text-transform: none;"
+                        class="btn btn-sm btn-ghost" wire:loading.attr="disabled">Manage roles</button>
 
-                    <x-mary-button icon="o-pencil" wire:click="edit({{ $user->id }})" tooltip="Edit"
-                        class="btn-sm btn-ghost" />
+                    <button type="button" wire:click="edit({{ $user->id }})"
+                        style="flex-shrink: 0; text-transform: none;"
+                        class="btn btn-sm btn-ghost" wire:loading.attr="disabled">Edit</button>
+
+                    @can('view-settings')
+                        @if (!$user->hasRole('Super Admin'))
+                            <button type="button" wire:click="resetPassword({{ $user->id }})"
+                                style="flex-shrink: 0; text-transform: none;"
+                                wire:confirm="Reset this user password to 123456? Ask the user to change it after signing in."
+                                class="btn btn-sm btn-warning btn-outline" wire:loading.attr="disabled">Reset password</button>
+                        @endif
+                    @endcan
 
                     @can('delete-users')
                         @if ($user->id !== auth()->id())
-                            <x-mary-button icon="o-trash" wire:mary-confirm="Are you sure you want to delete this user?"
-                                wire:click="$dispatch('delete-user', { id: {{ $user->id }} })" tooltip="Delete"
-                                class="btn-sm btn-ghost text-error" />
+                            <button type="button" wire:confirm="Are you sure you want to delete this user?"
+                                style="flex-shrink: 0; text-transform: none;"
+                                wire:click="$dispatch('delete-user', { id: {{ $user->id }} })"
+                                class="btn btn-sm btn-ghost text-error" wire:loading.attr="disabled">Delete</button>
                         @endif
                     @endcan
                 </div>

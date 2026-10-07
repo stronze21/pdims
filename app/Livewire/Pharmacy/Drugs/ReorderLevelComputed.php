@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
+use App\Services\Pharmacy\DrugDescription;
 
 class ReorderLevelComputed extends Component
 {
@@ -18,6 +19,7 @@ class ReorderLevelComputed extends Component
 
     public function render()
     {
+        $drugDescription = DrugDescription::fromStock('pds');
         $from = Carbon::parse(now())->startOfWeek()->format('Y-m-d H:i:s');
         $to = Carbon::parse(now())->endOfWeek()->format('Y-m-d H:i:s');
 
@@ -26,7 +28,7 @@ class ReorderLevelComputed extends Component
             : "1=1";
 
         $stocks = DB::select("SELECT
-                                pds.drug_concat,
+                                {$drugDescription} AS drug_concat,
                                 SUM(pds.stock_bal) AS stock_bal,
                                 MAX(level.reorder_point) AS reorder_point,
                                 ROUND(AVG(card.iss), 0) AS average,
@@ -54,8 +56,8 @@ class ReorderLevelComputed extends Component
                             AND card.stock_date BETWEEN DATEADD(DAY, -30, GETDATE()) AND GETDATE()
                             AND card.loc_code <> 1
                             WHERE {$where}
-                            GROUP BY pds.drug_concat
-                            ORDER BY pds.drug_concat
+                            GROUP BY pds.dmdcomb, pds.dmdctr
+                            ORDER BY {$drugDescription}
                     ");
 
         $locations = PharmLocation::all();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 
 class StockApiController extends Controller
 {
@@ -15,6 +16,7 @@ class StockApiController extends Controller
             $page = $request->get('page', 1);
             $perPage = 50;
             $offset = ($page - 1) * $perPage;
+            $drugDescription = DrugDescription::fromStock('s');
 
             $filters = [
                 'chrgdesc' => $request->get('chrgdesc', ''),
@@ -30,7 +32,7 @@ class StockApiController extends Controller
                 SELECT
                     s.dmdcomb,
                     s.dmdctr,
-                    s.drug_concat,
+                    {$drugDescription} AS drug_concat,
                     c.chrgdesc,
                     s.chrgcode,
                     p.dmselprice,
@@ -61,7 +63,7 @@ class StockApiController extends Controller
             }
 
             if (!empty($filters['drug_concat'])) {
-                $query .= " AND s.drug_concat LIKE ?";
+                $query .= " AND {$drugDescription} LIKE ?";
                 $params[] = '%' . $filters['drug_concat'] . '%';
             }
 
@@ -93,7 +95,7 @@ class StockApiController extends Controller
             }
 
             $query .= "
-                ORDER BY s.drug_concat ASC
+                ORDER BY {$drugDescription} ASC
                 OFFSET ? ROWS
                 FETCH NEXT ? ROWS ONLY
             ";

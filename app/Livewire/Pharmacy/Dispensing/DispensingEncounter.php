@@ -23,6 +23,8 @@ use App\Models\Record\Encounters\EncounterLog;
 use App\Models\Record\Patients\Patient;
 use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
+use App\Services\Pharmacy\DrugEquivalenceService;
+use App\Services\Pharmacy\DrugDescription;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
@@ -79,6 +81,9 @@ class DispensingEncounter extends Component
 
     // Drug Search & Filter
     public $generic = '';
+    public string $stockSearchMode = 'text';
+    public string $stockSearchPrescriptionLabel = '';
+    public int $stockSearchGroupMemberCount = 0;
     public $charge_code_filter = [];
     public $charges;
     public $stocksDisplayCount = 50;
@@ -125,6 +130,7 @@ class DispensingEncounter extends Component
     public $showPrescribedItemModal = false;
     public $showUpdateQtyModal = false;
     public $showReturnModal = false;
+    public $showRemarksModal = false;
     public $showDeactivateRxModal = false;
     public $showSummaryModal = false;
     public $showIssueModal = false;
@@ -295,6 +301,8 @@ class DispensingEncounter extends Component
 
     public function openReturnModal($docointkey, $unitPrice)
     {
+        $this->reset('return_qty');
+        $this->resetValidation();
         $this->docointkey = $docointkey;
         $this->unit_price = $unitPrice;
         $this->showReturnModal = true;
@@ -304,6 +312,21 @@ class DispensingEncounter extends Component
     {
         $this->selected_remarks = $docointkey;
         $this->new_remarks = $remarks;
+        $this->showRemarksModal = true;
+    }
+
+    public function closeReturnModal()
+    {
+        $this->showReturnModal = false;
+        $this->reset('return_qty');
+        $this->resetValidation();
+    }
+
+    public function closeRemarksModal()
+    {
+        $this->showRemarksModal = false;
+        $this->reset('selected_remarks', 'new_remarks');
+        $this->resetValidation();
     }
 
     public function openPrescribedItemModal($rxId, $dmdcomb, $dmdctr, $empid, $qty)
@@ -321,11 +344,7 @@ class DispensingEncounter extends Component
 
     public function searchGenericItem($rxId, $generic, $dmdcomb, $dmdctr, $empid)
     {
-        $this->rx_id = $rxId;
-        $this->generic = $generic;
-        $this->rx_dmdcomb = $dmdcomb;
-        $this->rx_dmdctr = $dmdctr;
-        $this->empid = $empid;
+        $this->activatePrescriptionStockSearch($rxId, $generic, $dmdcomb, $dmdctr, $empid);
     }
 
     public function confirmDeactivateRx($rxId)
@@ -336,11 +355,7 @@ class DispensingEncounter extends Component
 
     public function searchExtraGeneric($rxId, $generic, $dmdcomb, $dmdctr, $empid)
     {
-        $this->rx_id = $rxId;
-        $this->generic = $generic;
-        $this->rx_dmdcomb = $dmdcomb;
-        $this->rx_dmdctr = $dmdctr;
-        $this->empid = $empid;
+        $this->activatePrescriptionStockSearch($rxId, $generic, $dmdcomb, $dmdctr, $empid);
     }
 
     public function openPrescribedItemFromAll($rxId, $dmdcomb, $dmdctr, $empid, $qty)
@@ -358,11 +373,7 @@ class DispensingEncounter extends Component
 
     public function searchGenericFromAll($rxId, $generic, $dmdcomb, $dmdctr, $empid)
     {
-        $this->rx_id = $rxId;
-        $this->generic = $generic;
-        $this->rx_dmdcomb = $dmdcomb;
-        $this->rx_dmdctr = $dmdctr;
-        $this->empid = $empid;
+        $this->activatePrescriptionStockSearch($rxId, $generic, $dmdcomb, $dmdctr, $empid);
     }
 
     public function confirmDeactivatePrescription($rxId, $dmdcomb, $dmdctr, $empid)
@@ -396,8 +407,8 @@ class DispensingEncounter extends Component
 
     public function charge_items()
     {
-        if (empty($this->selected_items)) {
-            $this->warning('No items selected.');
+        if (!$this->selectionMatchesStatus('U')) {
+            $this->warning('Select only pending items to charge.');
             return;
         }
 
@@ -443,13 +454,23 @@ class DispensingEncounter extends Component
         }
     }
 
+    public function openIssueModal()
+    {
+        if (!$this->selectionMatchesStatus('P')) {
+            $this->warning('Select only charged items to issue.');
+            return;
+        }
+
+        $this->showIssueModal = true;
+    }
+
     public function issue_order()
     {
         $enccode = $this->decryptEnccode();
         $cnt = 0;
 
-        if (empty($this->selected_items)) {
-            $this->warning('No items selected.');
+        if (!$this->selectionMatchesStatus('P')) {
+            $this->warning('Select only charged items to issue.');
             return;
         }
 
@@ -580,7 +601,8 @@ class DispensingEncounter extends Component
         $available = $this->item_stock_bal ?? 0;
         $exp_date = $this->item_exp_date;
 
-        $with_rx = ($dmdcomb == $this->rx_dmdcomb && $dmdctr == $this->rx_dmdctr);
+        $with_rx = ($dmdcomb == $this->rx_dmdcomb && $dmdctr == $this->rx_dmdctr)
+            || $this->sameEquivalenceGroup($dmdcomb, $dmdctr, $this->rx_dmdcomb, $this->rx_dmdctr);
         $rx_id = $with_rx ? $this->rx_id : null;
         $empid = $with_rx ? $this->empid : null;
 
@@ -760,8 +782,8 @@ class DispensingEncounter extends Component
 
     public function delete_item()
     {
-        if (empty($this->selected_items)) {
-            $this->warning('No items selected.');
+        if (!$this->selectionMatchesStatus('U')) {
+            $this->warning('Select only pending items to delete.');
             return;
         }
 
@@ -770,7 +792,7 @@ class DispensingEncounter extends Component
         DB::delete(
             "DELETE FROM hrxo
                     WHERE docointkey IN ($placeholders)
-                    AND (estatus = 'U' OR pcchrgcod IS NULL)",
+                    AND estatus = 'U' AND (pcchrgcod IS NULL OR pcchrgcod = '')",
             $this->selected_items
         );
 
@@ -909,7 +931,7 @@ class DispensingEncounter extends Component
         $rxo = DrugOrder::find($this->selected_remarks);
         $rxo->remarks = $this->new_remarks;
         $rxo->save();
-        $this->reset('selected_remarks', 'new_remarks');
+        $this->closeRemarksModal();
         $this->success('Remarks updated');
     }
 
@@ -968,6 +990,22 @@ class DispensingEncounter extends Component
         $this->selected_items = $items;
     }
 
+    private function selectionMatchesStatus(string $status): bool
+    {
+        $keys = array_unique($this->selected_items);
+        if (empty($keys)) {
+            return false;
+        }
+
+        $orders = collect($this->fetchOrders($this->decryptEnccode()))->keyBy('docointkey');
+
+        return collect($keys)->every(function ($key) use ($orders, $status) {
+            $order = $orders->get($key);
+            return $order && $order->estatus === $status
+                && ($status === 'U' ? empty($order->pcchrgcod) : !empty($order->pcchrgcod));
+        });
+    }
+
     public function loadMoreStocks()
     {
         $this->stocksDisplayCount += 50;
@@ -980,6 +1018,26 @@ class DispensingEncounter extends Component
 
     public function updatedGeneric()
     {
+        $this->stocksDisplayCount = 50;
+        if ($this->stockSearchMode === 'equivalence') {
+            $this->clearStockPrescriptionFilter(false);
+        }
+    }
+
+    public function clearStockPrescriptionFilter(bool $clearSearch = true): void
+    {
+        $this->stockSearchMode = 'text';
+        $this->stockSearchPrescriptionLabel = '';
+        $this->stockSearchGroupMemberCount = 0;
+        $this->rx_id = null;
+        $this->rx_dmdcomb = null;
+        $this->rx_dmdctr = null;
+        $this->empid = null;
+        $this->matched_prescription_data = [];
+        $this->selected_prescription_data = null;
+        if ($clearSearch) {
+            $this->generic = '';
+        }
         $this->stocksDisplayCount = 50;
     }
 
@@ -1110,6 +1168,7 @@ class DispensingEncounter extends Component
 
     public function selectEncounterPrescriptions($enccode)
     {
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
         $this->selected_encounter_code = $enccode;
 
         $this->selected_encounter_prescriptions = Prescription::where('enccode', $enccode)
@@ -1119,7 +1178,7 @@ class DispensingEncounter extends Component
 
         $this->selected_encounter_orders = DB::select("
             SELECT hrxo.docointkey, hrxo.pcchrgcod, hrxo.dodate, hrxo.pchrgqty, hrxo.estatus,
-                   hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, hdmhdr.drug_concat,
+                   hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, {$drugDescription} AS drug_concat,
                    hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
                    hrxo.dmdcomb, hrxo.dmdctr, hrxo.original_enccode
             FROM hospital.dbo.hrxo WITH (NOLOCK)
@@ -1192,14 +1251,12 @@ class DispensingEncounter extends Component
             $this->showEncounterSelectorModal = false;
             $this->showPrescribedItemModal = true;
         } else {
-            $this->generic = Drug::select('drug_concat')
+            $drugLabel = Drug::select('drug_concat')
                 ->where('dmdcomb', $dmdcomb)
                 ->where('dmdctr', $dmdctr)
                 ->first()?->drug_concat ?? '';
 
-            if ($this->generic) {
-                $this->generic = explode(',', $this->generic)[0];
-            }
+            $this->activatePrescriptionStockSearch($rxId, $drugLabel, $dmdcomb, $dmdctr, $empid);
 
             $this->showEncounterSelectorModal = false;
         }
@@ -1356,6 +1413,7 @@ class DispensingEncounter extends Component
 
     private function loadAvailableCharges(string $dmdcomb, string $dmdctr): void
     {
+        $stockDescription = DrugDescription::fromStock('pharm_drug_stocks');
         $this->rx_charge_code = null;
         $drugName = $this->resolveDrugNameFromCodes($dmdcomb, $dmdctr);
 
@@ -1368,7 +1426,7 @@ class DispensingEncounter extends Component
             INNER JOIN hospital.dbo.hcharge ON hcharge.chrgcode = pharm_drug_stocks.chrgcode
             WHERE (
                     (pharm_drug_stocks.dmdcomb = ? AND pharm_drug_stocks.dmdctr = ?)
-                    OR REPLACE(LTRIM(RTRIM(pharm_drug_stocks.drug_concat)), '_,', ' ') = ?
+                    OR REPLACE(LTRIM(RTRIM({$stockDescription})), '_,', ' ') = ?
                 )
                 AND pharm_drug_stocks.loc_code = ?
                 AND pharm_drug_stocks.stock_bal > 0
@@ -1707,6 +1765,7 @@ class DispensingEncounter extends Component
 
     private function fetchStocks(): array
     {
+        $drugDescription = DrugDescription::fromStock('pharm_drug_stocks');
         $chargeCodeFilter = '';
         if (!empty($this->charge_code_filter)) {
             $chargeCodeList = "'" . implode("','", $this->charge_code_filter) . "'";
@@ -1714,12 +1773,29 @@ class DispensingEncounter extends Component
         }
 
         $genericFilter = '';
-        if ($this->generic) {
-            $genericFilter = " AND pharm_drug_stocks.drug_concat LIKE '%" . implode("''", explode("'", $this->generic)) . "%'";
+        $prescribedFirstOrder = '';
+        if ($this->stockSearchMode === 'equivalence' && filled($this->rx_dmdcomb) && filled($this->rx_dmdctr)) {
+            $resolver = app(DrugEquivalenceService::class);
+            $group = $resolver->groupFor((string) $this->rx_dmdcomb, (string) $this->rx_dmdctr);
+            $members = $group ? $resolver->members((int) $group->id) : collect();
+            if ($members->isEmpty()) {
+                $members = collect([(object) ['dmdcomb' => $this->rx_dmdcomb, 'dmdctr' => $this->rx_dmdctr]]);
+            }
+            $pairs = $members->map(function ($member) {
+                $comb = str_replace("'", "''", (string) $member->dmdcomb);
+                $ctr = str_replace("'", "''", (string) $member->dmdctr);
+                return "(pharm_drug_stocks.dmdcomb = '{$comb}' AND pharm_drug_stocks.dmdctr = '{$ctr}')";
+            });
+            $genericFilter = ' AND (' . $pairs->implode(' OR ') . ')';
+            $rxComb = str_replace("'", "''", (string) $this->rx_dmdcomb);
+            $rxCtr = str_replace("'", "''", (string) $this->rx_dmdctr);
+            $prescribedFirstOrder = "CASE WHEN pharm_drug_stocks.dmdcomb = '{$rxComb}' AND pharm_drug_stocks.dmdctr = '{$rxCtr}' THEN 0 ELSE 1 END,";
+        } elseif (filled($this->generic)) {
+            $genericFilter = $this->buildStockTextFilter((string) $this->generic);
         }
 
         return DB::select("SELECT TOP " . $this->stocksDisplayCount . "
-                            pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.drug_concat, hcharge.chrgdesc,
+                            pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, $drugDescription AS drug_concat, hcharge.chrgdesc,
                             pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, dmselprice, pharm_drug_stocks.loc_code,
                             pharm_drug_stocks.dmdprdte as dmdprdte, SUM(stock_bal) as stock_bal, MAX(id) as id, MIN(exp_date) as exp_date,
                             hdmhdrprice.acquisition_cost, DATEDIFF(day, GETDATE(), MIN(exp_date)) as days_to_expiry
@@ -1732,8 +1808,68 @@ class DispensingEncounter extends Component
                         AND stock_bal > 0
                         GROUP BY pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, pharm_drug_stocks.chrgcode,
                                  hdmhdrprice.retail_price, hdmhdrprice.acquisition_cost, dmselprice,
-                                 pharm_drug_stocks.drug_concat, hcharge.chrgdesc, pharm_drug_stocks.loc_code, pharm_drug_stocks.dmdprdte
-                        ORDER BY pharm_drug_stocks.drug_concat");
+                                 hcharge.chrgdesc, pharm_drug_stocks.loc_code, pharm_drug_stocks.dmdprdte
+                        ORDER BY $prescribedFirstOrder $drugDescription");
+    }
+
+    private function sameEquivalenceGroup($leftComb, $leftCtr, $rightComb, $rightCtr): bool
+    {
+        if (! filled($leftComb) || ! filled($rightComb)) {
+            return false;
+        }
+        $resolver = app(DrugEquivalenceService::class);
+        $left = $resolver->groupFor((string) $leftComb, (string) $leftCtr);
+        $right = $resolver->groupFor((string) $rightComb, (string) $rightCtr);
+
+        return $left && $right && (int) $left->id === (int) $right->id;
+    }
+
+    private function buildStockTextFilter(string $search): string
+    {
+        $tokens = collect(preg_split('/\s+/', mb_strtolower(trim($search))) ?: [])
+            ->map(fn($token) => trim((string) preg_replace('/[^a-z0-9.%]+/i', '', $token)))
+            ->filter()->unique()->take(8);
+
+        if ($tokens->isEmpty()) {
+            return '';
+        }
+
+        $column = 'LOWER(' . DrugDescription::fromStock('pharm_drug_stocks') . ')';
+
+        return $tokens->map(function (string $token) use ($column) {
+            $patterns = [$token];
+
+            if (preg_match('/^(\d+(?:\.\d+)?)(mcg|mg|kg|g|ml|l|iu|unit|units|meq)$/i', $token, $matches)) {
+                $number = (float) $matches[1];
+                $unit = strtolower($matches[2]);
+                $plain = rtrim(rtrim(number_format($number, 4, '.', ''), '0'), '.');
+                $twoDecimals = number_format($number, 2, '.', '');
+                $patterns = [$plain . $unit, $plain . ' ' . $unit, $twoDecimals . $unit, $twoDecimals . ' ' . $unit];
+            }
+
+            $conditions = collect($patterns)->unique()->map(function (string $pattern) use ($column) {
+                $escaped = str_replace(['[', '%', '_', "'"], ['[[]', '[%]', '[_]', "''"], $pattern);
+                return "{$column} LIKE '%{$escaped}%'";
+            });
+
+            return '(' . $conditions->implode(' OR ') . ')';
+        })->map(fn($condition) => ' AND ' . $condition)->implode('');
+    }
+
+    private function activatePrescriptionStockSearch($rxId, $label, $dmdcomb, $dmdctr, $empid): void
+    {
+        $this->rx_id = $rxId;
+        $this->rx_dmdcomb = $dmdcomb;
+        $this->rx_dmdctr = $dmdctr;
+        $this->empid = $empid;
+        $this->generic = (string) $label;
+        $this->stockSearchMode = 'equivalence';
+        $this->stockSearchPrescriptionLabel = str_replace('_,', ' ', (string) $label);
+        $group = app(DrugEquivalenceService::class)->groupFor((string) $dmdcomb, (string) $dmdctr);
+        $this->stockSearchGroupMemberCount = $group
+            ? app(DrugEquivalenceService::class)->members((int) $group->id)->count()
+            : 1;
+        $this->stocksDisplayCount = 50;
     }
 
     private function fetchStocksForIssue($rxo): array

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Portal;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\Pharmacy\DrugDescription;
 
 class PortalBillingController extends Controller
 {
@@ -13,6 +14,7 @@ class PortalBillingController extends Controller
      */
     public function pharmacyChargeSlips(Request $request)
     {
+        $drugDescription = DrugDescription::fromMaster('hdmhdr');
         $account = $request->user();
         $account->load('patient');
         $hpercode = $account->patient?->hpercode;
@@ -32,7 +34,7 @@ class PortalBillingController extends Controller
                 hrxo.pchrgqty AS quantity,
                 hrxo.pchrgup AS unit_price,
                 hrxo.pcchrgamt AS charge_amount,
-                hdmhdr.drug_concat AS item_name,
+                {$drugDescription} AS item_name,
                 hcharge.chrgdesc AS charge_desc,
                 'PHARM' AS department,
                 'Pharmacy' AS department_name,

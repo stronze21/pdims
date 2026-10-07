@@ -82,14 +82,7 @@
                         {{-- Dispensing --}}
                         @can('view-prescriptions')
                             <x-mary-menu-item title="Dispensing" icon="o-clipboard-document-list"
-                                onclick="const width = screen.availWidth;
-                                    const height = screen.availHeight;
-                                    window.open(
-                                        '{{ route('dispensing.view.enctr') }}',
-                                        'dispensingApp',
-                                        `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`
-                                    );
-                                    return false;" />
+                                link="{{ route('dispensing.view.enctr') }}"  />
                         @endcan
 
 
@@ -112,12 +105,10 @@
                                     link="{{ route('rx.opd') }}" />
                                 <x-mary-menu-item title="Wards" icon="o-building-office-2"
                                     link="{{ route('rx.ward') }}" />
+                                <x-mary-menu-item title="UDDDS (Wards)" icon="o-clock"
+                                    link="{{ route('rx.uddds') }}" />
                                 <x-mary-menu-item title="Emergency Room" icon="o-heart"
                                     link="{{ route('rx.er') }}" />
-                                <x-mary-menu-item title="Reordered Today" icon="o-check-circle"
-                                    link="{{ route('rx.reactivated-today') }}" />
-                                <x-mary-menu-item title="Reorders Tomorrow" icon="o-clock"
-                                    link="{{ route('rx.reactivates-tomorrow') }}" />
                             </x-mary-menu-sub>
                         @endcan
 
@@ -180,30 +171,17 @@
 
                                 <x-mary-menu-item title="Prescription Reorder" icon="o-bolt"
                                     link="{{ route('settings.prescription-reorder') }}" />
+
+                                @role('Super Admin')
+                                    <x-mary-menu-item title="Missing Drug Prices" icon="o-link-slash"
+                                        link="{{ route('inventory.stocks.missing-prices') }}" />
+                                @endrole
                             </x-mary-menu-sub>
                         @endcan
 
                     </x-mary-menu>
                 </div>
 
-                @can('view-settings')
-                    <div class="mt-auto border-t border-base-300 p-3">
-                        <a href="{{ route('portal.index') }}"
-                            class="group flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 to-secondary/10 px-3 py-2.5 shadow-sm transition hover:border-primary/40 hover:bg-primary/15">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-content shadow-sm shadow-primary/20">
-                                <x-mary-icon name="o-globe-alt" class="h-5 w-5" />
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[11px] font-black uppercase tracking-[0.22em] text-primary">Portal</span>
-                                    <span class="badge badge-primary badge-xs">External</span>
-                                </div>
-                                <div class="truncate text-xs font-semibold text-base-content">Open Patient Portal Admin</div>
-                            </div>
-                            <x-mary-icon name="o-arrow-top-right-on-square" class="h-4 w-4 text-primary opacity-80" />
-                        </a>
-                    </div>
-                @endcan
             </div>
         </x-slot:sidebar>
 
@@ -270,15 +248,12 @@
                             <span class="text-[11px] text-center leading-tight">ER</span>
                         </a>
 
-                        <a href="{{ route('rx.reactivated-today') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
-                            <x-heroicon-o-check-circle class="w-5 h-5" />
-                            <span class="text-[11px] text-center leading-tight">Reordered</span>
+                        <a href="{{ route('rx.uddds') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-clock class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">UDDDS (Wards)</span>
                         </a>
 
-                        <a href="{{ route('rx.reactivates-tomorrow') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
-                            <x-heroicon-o-clock class="w-5 h-5" />
-                            <span class="text-[11px] text-center leading-tight">Reorder Tomorrow</span>
-                        </a>
+
                     @endcan
 
                     @can('view-iotrans')
@@ -332,11 +307,6 @@
                         </a>
                     @endcan
 
-                    <a href="{{ route('teleconsult.lobby') }}"
-                    class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
-                        <x-heroicon-o-video-camera class="w-5 h-5" />
-                        <span class="text-[11px] text-center leading-tight">Teleconsult</span>
-                    </a>
 
                     @can('view-settings')
                         <a href="{{ route('users.index') }}"
