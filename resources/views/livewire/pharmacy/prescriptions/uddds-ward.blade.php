@@ -280,6 +280,7 @@
                     <tr class="border-b border-base-300">
                         <th scope="col" class="w-12 px-3 py-3"><span class="sr-only">Select</span></th>
                         <th scope="col" class="px-3 py-3">Item</th>
+                        <th scope="col" class="px-3 py-3">Order type</th>
                         <th scope="col" class="px-3 py-3">Fund source</th>
                         <th scope="col" class="px-3 py-3 text-right">Qty</th>
                         <th scope="col" class="px-3 py-3">Frequency</th>
@@ -299,6 +300,9 @@
                                     value="{{ $item->docointkey }}" @if (! $item->is_actionable) disabled @endif />
                             </td>
                             <td class="px-3 py-3 text-xs font-medium text-base-content">{{ implode('', explode('_', $item->drug_concat)) }}</td>
+                            <td class="px-3 py-3 text-xs">
+                                @include('livewire.pharmacy.dispensing.uddds-order-type', ['orderType' => $item->order_type ?? 'BASIC'])
+                            </td>
                             <td class="px-3 py-3 text-xs text-base-content/70">
                                 {{ $item->chrgdesc }}
                                 @if (!empty($fallback_sources[\App\Services\Pharmacy\UdddsStockAllocator::groupKey($item)]))

@@ -60,3 +60,23 @@ Additional PDIMS files changed for this follow-up:
 All changes have a satellite counterpart; the satellite return writer is `app/Http/Livewire/Pharmacy/Dispensing/EncounterTransactionView.php`. There are no satellite-only changes in this follow-up.
 
 Run `php tests/Standalone/UdddsTransactionMetadataTest.php` independently in each application, in addition to the existing recurrence runner. The metadata runner only fires in-memory model creation events, with database/schema and order lookup fixtures; it never saves a model, starts Laravel, loads configuration or connects to a database. Human verification must cover real issue insertion, return insertion, snapshot retention after schedule changes, and integration with whichever system actually writes hrxoissue.
+
+## PDIMS order-type visibility fix
+
+PDIMS now offers Basic (standing), G24 and OR Use in its order/UDDDS form, matching the satellite control. New ordinary inpatient orders retain the chosen type even when no UDDDS dates are entered. Prescription-based forms preselect their prescription's type. Only Basic accepts a recurrence window; choosing G24/OR clears the form's recurrence fields, and enrollment validation independently rejects non-Basic recurrence.
+
+Both ward queues now display an Order type column, and inpatient encounter rows display the same badge, including ordinary G24/OR items. Blank legacy types display Basic (standing); other stored types display their actual label.
+
+PDIMS files changed for this fix:
+
+- `app/Services/Pharmacy/UdddsService.php` — shared new-order field preparation and validation.
+- `app/Livewire/Pharmacy/Dispensing/DispensingEncounter.php` — order-type state, initial selection and persistence.
+- `resources/views/livewire/pharmacy/dispensing/uddds-schedule-fields.blade.php` — selector and Basic-only schedule inputs.
+- `resources/views/livewire/pharmacy/dispensing/dispensing-encounter.blade.php` — Basic-only enrollment submission and saved order-type badges.
+- `resources/views/livewire/pharmacy/dispensing/uddds-order-type.blade.php` — native type badge.
+- `resources/views/livewire/pharmacy/dispensing/uddds-schedule-summary.blade.php` — uses the surrounding encounter row for the type badge.
+- `resources/views/livewire/pharmacy/prescriptions/uddds-ward.blade.php` — queue column.
+- `tests/Standalone/UdddsRecurrenceTest.php` — ordinary type persistence and Basic-only recurring-window cases.
+- `docs/uddds-interval-rollout.md` — handoff notes.
+
+Satellite services and incoming-field validation use the same preparation rules, and its ward queue and summaries receive the same type display. Its existing SweetAlert type selector is the counterpart to PDIMS's native selector; there is no satellite-only functionality in this fix. No additional database schema change is required. Live browser behavior remains for human verification under the repository database restrictions.

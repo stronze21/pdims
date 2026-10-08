@@ -547,6 +547,9 @@
                                         @endif
                                         <br>
                                         <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
+                                        @if ($toecode === 'ADM')
+                                            @include('livewire.pharmacy.dispensing.uddds-order-type', ['orderType' => $rxo->order_type ?? 'BASIC'])
+                                        @endif
                                         @if ($toecode === 'ADM' && empty($rxo->uddds_source_docointkey) && $can_add_items && ($udddsReady ?? false))
                                             @if ($rxo->is_uddds)
                                                 @include('livewire.pharmacy.dispensing.uddds-schedule-summary')
@@ -852,7 +855,7 @@
                     @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
                     <div class="modal-action">
                         <button type="button" class="btn btn-ghost" wire:click="$set('udddsModalOpen', false)">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveUdddsEnrollment" wire:loading.attr="disabled">Enable</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveUdddsEnrollment" wire:loading.attr="disabled" @disabled($rx_order_type !== 'BASIC')>Enable</button>
                     </div>
                 </div>
             </div>

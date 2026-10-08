@@ -26,7 +26,6 @@ use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Services\Pharmacy\DrugEquivalenceService;
 use App\Services\Pharmacy\DrugDescription;
 use App\Services\Pharmacy\UdddsService;
-use App\Services\Pharmacy\UdddsSchedule;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
@@ -37,34 +36,37 @@ class DispensingEncounter extends Component
 {
     use Toast;
 
+    public $rx_order_type = 'BASIC';
     public $uddds_start_date, $uddds_end_date;
     public $uddds_interval_days = 1;
     public $uddds_choice = '1';
     public $udddsOrderKey;
     public $udddsModalOpen = false;
 
+    public function updatedRxOrderType($value): void
+    {
+        if ($value !== 'BASIC') {
+            $this->uddds_start_date = $this->uddds_end_date = null;
+            $this->uddds_choice = '1';
+            $this->uddds_interval_days = 1;
+        }
+    }
+
     private function udddsFields($prescriptionId = null): array
     {
-        try {
-            if ($this->toecode !== 'ADM' || (!$this->uddds_start_date && !$this->uddds_end_date)) return [];
-            if ($prescriptionId) {
-                $prescription = PrescriptionData::find($prescriptionId);
-                if ($prescription && !app(UdddsService::class)->isBasic($prescription->order_type)) {
-                    throw new \InvalidArgumentException('UDDDS applies to Basic (standing) prescriptions only.');
-                }
-            }
-            $days = UdddsSchedule::interval($this->uddds_choice === 'custom' ? $this->uddds_interval_days : $this->uddds_choice);
-            UdddsSchedule::due($this->uddds_start_date, $this->uddds_end_date, $days, $this->uddds_start_date);
-            if (!UdddsService::hasHrxoColumns() || ($days !== 1 && !UdddsService::hasIntervalColumn())) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['uddds_interval_days' => 'Contact your administrator to apply the UDDDS database update.']);
-            }
-            $fields = ['order_type' => 'BASIC', 'is_uddds' => false, 'uddds_start_date' => $this->uddds_start_date, 'uddds_end_date' => $this->uddds_end_date];
-            if (UdddsService::hasIntervalColumn()) $fields['uddds_interval_days'] = $days;
-            return $fields;
-        } catch (\InvalidArgumentException $e) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['uddds_interval_days' => $e->getMessage()]);
+        if ($this->toecode !== 'ADM') return [];
+        $days = $this->uddds_choice === 'custom' ? $this->uddds_interval_days : $this->uddds_choice;
+        $result = app(UdddsService::class)->newOrderUdddsFields($this->rx_order_type, $this->uddds_start_date, $this->uddds_end_date, $days);
+        if (!$result['ok']) {
+            throw \Illuminate\Validation\ValidationException::withMessages([$result['field'] ?? 'uddds_interval_days' => $result['message']]);
         }
-
+        if ($prescriptionId && ($this->uddds_start_date || $this->uddds_end_date)) {
+            $prescription = PrescriptionData::find($prescriptionId);
+            if ($prescription && !app(UdddsService::class)->isBasic($prescription->order_type)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['rx_order_type' => 'UDDDS applies to Basic (standing) prescriptions only.']);
+            }
+        }
+        return $result['fields'];
     }
 
     public function openUdddsEnrollment($key): void
@@ -72,6 +74,7 @@ class DispensingEncounter extends Component
         $order = DrugOrder::where('enccode', $this->decryptEnccode())->where('docointkey', $key)->first();
         if (!$order || $this->toecode !== 'ADM' || !$this->can_add_items || !empty($order->uddds_source_docointkey)) return;
         if ($order->is_uddds) { $this->error('Remove the active UDDDS enrollment before enrolling again.'); return; }
+        $this->rx_order_type = app(UdddsService::class)->normalizeOrderType($order->order_type);
         $this->udddsOrderKey = $key;
         $this->uddds_start_date = now('Asia/Manila')->toDateString();
         $this->uddds_end_date = null;
@@ -85,7 +88,7 @@ class DispensingEncounter extends Component
         $order = DrugOrder::where('enccode', $this->decryptEnccode())->where('docointkey', $this->udddsOrderKey)->first();
         if (!$order || $this->toecode !== 'ADM' || !$this->can_add_items) return;
         $days = $this->uddds_choice === 'custom' ? $this->uddds_interval_days : $this->uddds_choice;
-        $result = app(UdddsService::class)->enrollSingleOrder($order->docointkey, 'BASIC', $this->uddds_start_date, $this->uddds_end_date, $days);
+        $result = app(UdddsService::class)->enrollSingleOrder($order->docointkey, $this->rx_order_type, $this->uddds_start_date, $this->uddds_end_date, $days);
         if (!$result['ok']) { $this->error($result['message']); return; }
         $this->udddsModalOpen = false;
         $this->uddds_start_date = $this->uddds_end_date = null;
@@ -359,6 +362,7 @@ class DispensingEncounter extends Component
         $this->unit_price = $unit_price;
         $this->item_drug_concat = $drug_concat;
         $this->matched_prescription_data = $this->findMatchingPrescriptionData($dmdcomb, $dmdctr, $drug_concat);
+        $this->rx_order_type = app(UdddsService::class)->normalizeOrderType($this->matched_prescription_data['order_type'] ?? 'BASIC');
 
         $this->showAddItemModal = true;
     }
@@ -413,6 +417,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
         $this->selected_prescription_data = $this->findPrescriptionDataById($rxId);
+        $this->rx_order_type = app(UdddsService::class)->normalizeOrderType($this->selected_prescription_data['order_type'] ?? 'BASIC');
 
         $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;
@@ -446,6 +451,7 @@ class DispensingEncounter extends Component
         $this->empid = $empid;
         $this->order_qty = $qty;
         $this->selected_prescription_data = $this->findPrescriptionDataById($rxId);
+        $this->rx_order_type = app(UdddsService::class)->normalizeOrderType($this->selected_prescription_data['order_type'] ?? 'BASIC');
 
         $this->loadAvailableCharges($dmdcomb, $dmdctr);
         $this->showPrescribedItemModal = true;

@@ -189,5 +189,22 @@ namespace {
     check($source->uddds_interval_days === 5, 'Activation does not reset custom recurrence');
     $before = count(DB::$writes);
     check($service->activateOnIssued([$keys[0]])['ok'] && count(DB::$writes) === $before, 'Issued clone never becomes a new source enrollment');
+    foreach (['BASIC', 'G24', 'OR'] as $type) {
+        $prepared = $service->newOrderUdddsFields($type);
+        check($prepared['ok'] && $prepared['fields']['order_type'] === $type && $prepared['fields']['is_uddds'] === false, 'New ordinary order retains chosen type without enrolling');
+        check($prepared['fields']['uddds_start_date'] === null && $prepared['fields']['uddds_end_date'] === null, 'Ordinary type selection has no recurring window');
+    }
+    foreach (['G24', 'OR'] as $type) {
+        check(!$service->newOrderUdddsFields($type, '2026-10-08', '2026-10-20', 3)['ok'], 'Non-Basic type cannot acquire a recurring window');
+    }
+    check(!$service->newOrderUdddsFields('INVALID')['ok'], 'Unknown order type rejected');
+    $prepared = $service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 3);
+    check($prepared['ok'] && $prepared['fields']['uddds_interval_days'] === 3 && !$prepared['fields']['is_uddds'], 'Standing order persists recurrence for activation after issue');
+    check(!$service->newOrderUdddsFields('BASIC', '2026-10-08', null, 3)['ok'], 'Partial window rejected');
+    check(!$service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 0)['ok'], 'Invalid interval rejected before order persistence');
+    Schema::$intervalAvailable = false;
+    check(!$service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 3)['ok'], 'Undeployed interval rejected before order persistence');
+    check($service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 1)['ok'], 'Legacy daily standing creation remains available');
+    check($service->newOrderUdddsFields('G24')['fields']['order_type'] === 'G24', 'Ordinary G24 remains available without interval column');
     echo 'PASS: '.$checks." database-free recurrence checks\n";
 }
