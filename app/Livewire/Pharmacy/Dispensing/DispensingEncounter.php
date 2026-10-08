@@ -25,6 +25,8 @@ use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Services\Pharmacy\DrugEquivalenceService;
 use App\Services\Pharmacy\DrugDescription;
+use App\Services\Pharmacy\UdddsService;
+use App\Services\Pharmacy\UdddsSchedule;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use App\Models\Hospital\Ward;
 use App\Models\References\ChargeCode;
@@ -34,6 +36,70 @@ use App\Services\Pharmacy\PrescriptionQueueService;
 class DispensingEncounter extends Component
 {
     use Toast;
+
+    public $uddds_start_date, $uddds_end_date;
+    public $uddds_interval_days = 1;
+    public $uddds_choice = '1';
+    public $udddsOrderKey;
+    public $udddsModalOpen = false;
+
+    private function udddsFields($prescriptionId = null): array
+    {
+        try {
+            if ($this->toecode !== 'ADM' || (!$this->uddds_start_date && !$this->uddds_end_date)) return [];
+            if ($prescriptionId) {
+                $prescription = PrescriptionData::find($prescriptionId);
+                if ($prescription && !app(UdddsService::class)->isBasic($prescription->order_type)) {
+                    throw new \InvalidArgumentException('UDDDS applies to Basic (standing) prescriptions only.');
+                }
+            }
+            $days = UdddsSchedule::interval($this->uddds_choice === 'custom' ? $this->uddds_interval_days : $this->uddds_choice);
+            UdddsSchedule::due($this->uddds_start_date, $this->uddds_end_date, $days, $this->uddds_start_date);
+            if (!UdddsService::hasHrxoColumns() || ($days !== 1 && !UdddsService::hasIntervalColumn())) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['uddds_interval_days' => 'Contact your administrator to apply the UDDDS database update.']);
+            }
+            $fields = ['order_type' => 'BASIC', 'is_uddds' => false, 'uddds_start_date' => $this->uddds_start_date, 'uddds_end_date' => $this->uddds_end_date];
+            if (UdddsService::hasIntervalColumn()) $fields['uddds_interval_days'] = $days;
+            return $fields;
+        } catch (\InvalidArgumentException $e) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['uddds_interval_days' => $e->getMessage()]);
+        }
+
+    }
+
+    public function openUdddsEnrollment($key): void
+    {
+        $order = DrugOrder::where('enccode', $this->decryptEnccode())->where('docointkey', $key)->first();
+        if (!$order || $this->toecode !== 'ADM' || !$this->can_add_items || !empty($order->uddds_source_docointkey)) return;
+        if ($order->is_uddds) { $this->error('Remove the active UDDDS enrollment before enrolling again.'); return; }
+        $this->udddsOrderKey = $key;
+        $this->uddds_start_date = now('Asia/Manila')->toDateString();
+        $this->uddds_end_date = null;
+        $this->uddds_choice = '1';
+        $this->uddds_interval_days = 1;
+        $this->udddsModalOpen = true;
+    }
+
+    public function saveUdddsEnrollment(): void
+    {
+        $order = DrugOrder::where('enccode', $this->decryptEnccode())->where('docointkey', $this->udddsOrderKey)->first();
+        if (!$order || $this->toecode !== 'ADM' || !$this->can_add_items) return;
+        $days = $this->uddds_choice === 'custom' ? $this->uddds_interval_days : $this->uddds_choice;
+        $result = app(UdddsService::class)->enrollSingleOrder($order->docointkey, 'BASIC', $this->uddds_start_date, $this->uddds_end_date, $days);
+        if (!$result['ok']) { $this->error($result['message']); return; }
+        $this->udddsModalOpen = false;
+        $this->uddds_start_date = $this->uddds_end_date = null;
+        $this->uddds_choice = '1';
+        $this->success($result['message']);
+    }
+
+    public function removeUdddsEnrollment($key): void
+    {
+        $order = DrugOrder::where('enccode', $this->decryptEnccode())->where('docointkey', $key)->first();
+        if (!$order || $this->toecode !== 'ADM' || !$this->can_add_items || !empty($order->uddds_source_docointkey)) return;
+        $result = app(UdddsService::class)->removeFromUddds($key);
+        $this->success($result['message']);
+    }
 
     public function getListeners()
     {
@@ -266,8 +332,10 @@ class DispensingEncounter extends Component
 
         $departments = DB::select("SELECT * FROM hdept WHERE deptstat = 'A'");
 
+        $udddsReady = $this->toecode === 'ADM' && UdddsService::hasHrxoColumns();
         return view('livewire.pharmacy.dispensing.dispensing-encounter', compact(
             'orders',
+            'udddsReady',
             'stocks',
             'departments',
             'summaries',
@@ -276,6 +344,10 @@ class DispensingEncounter extends Component
 
     public function selectStock($id, $chrgcode, $dmdcomb, $dmdctr, $loc_code, $dmdprdte, $exp_date, $stock_bal, $unit_price, $drug_concat)
     {
+        $this->uddds_start_date = $this->uddds_end_date = null;
+        $this->uddds_choice = '1';
+        $this->uddds_interval_days = 1;
+
         $this->item_id = $id;
         $this->item_chrgcode = $chrgcode;
         $this->item_dmdcomb = $dmdcomb;
@@ -331,6 +403,10 @@ class DispensingEncounter extends Component
 
     public function openPrescribedItemModal($rxId, $dmdcomb, $dmdctr, $empid, $qty)
     {
+        $this->uddds_start_date = $this->uddds_end_date = null;
+        $this->uddds_choice = '1';
+        $this->uddds_interval_days = 1;
+
         $this->rx_id = $rxId;
         $this->rx_dmdcomb = $dmdcomb;
         $this->rx_dmdctr = $dmdctr;
@@ -360,6 +436,10 @@ class DispensingEncounter extends Component
 
     public function openPrescribedItemFromAll($rxId, $dmdcomb, $dmdctr, $empid, $qty)
     {
+        $this->uddds_start_date = $this->uddds_end_date = null;
+        $this->uddds_choice = '1';
+        $this->uddds_interval_days = 1;
+
         $this->rx_id = $rxId;
         $this->rx_dmdcomb = $dmdcomb;
         $this->rx_dmdctr = $dmdctr;
@@ -407,6 +487,11 @@ class DispensingEncounter extends Component
 
     public function charge_items()
     {
+        if ($problem = app(UdddsService::class)->generatedOrderProblem($this->selected_items)) {
+            $this->error($problem);
+            return;
+        }
+
         if (!$this->selectionMatchesStatus('U')) {
             $this->warning('Select only pending items to charge.');
             return;
@@ -466,6 +551,11 @@ class DispensingEncounter extends Component
 
     public function issue_order()
     {
+        if ($problem = app(UdddsService::class)->generatedOrderProblem($this->selected_items)) {
+            $this->error($problem);
+            return;
+        }
+
         $enccode = $this->decryptEnccode();
         $cnt = 0;
 
@@ -579,6 +669,11 @@ class DispensingEncounter extends Component
             // Auto-update queue status when items are issued
             $this->autoUpdateQueueOnIssue();
 
+            $activation = app(UdddsService::class)->activateOnIssued(array_map(fn ($order) => $order->docointkey, $rxos));
+            if (!$activation['ok']) {
+                $this->warning('Order issued; UDDDS was not activated: ' . $activation['message']);
+                return;
+            }
             $this->success('Order issued successfully.');
         } else {
             $this->error('No item to issue.');
@@ -605,6 +700,7 @@ class DispensingEncounter extends Component
             || $this->sameEquivalenceGroup($dmdcomb, $dmdctr, $this->rx_dmdcomb, $this->rx_dmdctr);
         $rx_id = $with_rx ? $this->rx_id : null;
         $empid = $with_rx ? $this->empid : null;
+        $udddsFields = $this->udddsFields($rx_id);
 
         $this->type = $this->resolveTransactionType();
 
@@ -614,14 +710,16 @@ class DispensingEncounter extends Component
             $originalLinkEnccode = $targetEnccode !== $originalEnccode ? $originalEnccode : null;
             $docointkey = '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $chrgcode . $dmdcomb . $dmdctr;
 
+            $udddsColumns = $udddsFields ? ', ' . implode(', ', array_keys($udddsFields)) : '';
+            $udddsValues = $udddsFields ? ', ' . implode(', ', array_map(fn ($value) => $value === false ? '0' : "'" . str_replace("'", "''", (string) $value) . "'", array_values($udddsFields))) : '';
             DB::insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
                             rxolock, rxoupsw, rxoconfd, dmdctr, estatus, entryby, ordcon, orderupd, locacode, orderfrom, issuetype,
-                            has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by, original_enccode )
+                            has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by, original_enccode{$udddsColumns} )
                         VALUES ( '" . $docointkey . "', '" . $targetEnccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
                             'N', 'N', 'N', '" . $dmdctr . "', 'U', '" . auth()->user()->employeeid . "', 'NEWOR', 'ACTIV', 'PHARM', '" . $chrgcode . "', 'c',
                             '" . ($this->type ? true : false) . "', '" . $this->type . "', '" . ($this->is_ris ? true : false) . "', '" . $this->order_qty . "', '" . $this->unit_price . "',
                             '" . $this->order_qty * $this->unit_price . "', '" . now() . "', '" . now() . "', '" . now() . "', '" . now() . "', '" . $dmdprdte . "', '" . $exp_date . "',
-                            '" . $loc_code . "', '" . $id . "', '" . ($this->remarks ?? '') . "', '" . $rx_id . "', '" . $empid . "', " . ($originalLinkEnccode ? "'" . $originalLinkEnccode . "'" : "NULL") . " )");
+                            '" . $loc_code . "', '" . $id . "', '" . ($this->remarks ?? '') . "', '" . $rx_id . "', '" . $empid . "', " . ($originalLinkEnccode ? "'" . $originalLinkEnccode . "'" : "NULL") . "{$udddsValues} )");
 
             if ($with_rx) {
                 DB::connection('webapp')->table('webapp.dbo.prescription_data')
@@ -685,6 +783,7 @@ class DispensingEncounter extends Component
         $dmdctr = $this->rx_dmdctr;
         $rx_id = $this->rx_id;
         $empid = $this->empid;
+        $udddsFields = $this->udddsFields($rx_id);
 
         $this->type = $this->resolveTransactionType();
 
@@ -695,7 +794,7 @@ class DispensingEncounter extends Component
             $targetEnccode = $this->is_walkin_linked_encounter ? $this->resolveLatestWalkInEncounter() : $originalEnccode;
             $originalLinkEnccode = $targetEnccode !== $originalEnccode ? $originalEnccode : null;
 
-            DrugOrder::create([
+            DrugOrder::create(array_merge([
                 'docointkey' => '0000040' . $this->hpercode . date('m/d/Yh:i:s', strtotime(now())) . $dm->chrgcode . $dm->dmdcomb . $dm->dmdctr,
                 'enccode' => $targetEnccode,
                 'hpercode' => $this->hpercode,
@@ -733,7 +832,7 @@ class DispensingEncounter extends Component
                 'prescription_data_id' => $rx_id,
                 'prescribed_by' => $empid,
                 'original_enccode' => $originalLinkEnccode,
-            ]);
+            ], $udddsFields));
 
             DB::connection('webapp')->table('webapp.dbo.prescription_data')
                 ->where('id', $rx_id)
@@ -817,34 +916,35 @@ class DispensingEncounter extends Component
 
         $employeeid = auth()->user()->employeeid;
 
-        DB::insert("INSERT INTO hospital.dbo.hrxoreturn(
-                docointkey, enccode, hpercode, dmdcomb, returndate, returntime, qty, returnby,
-                status, rxolock, updsw, confdl, entryby, locacode, dmdctr, dmdprdte, remarks,
-                returnfrom, chrgcode, pcchrgcod, rcode, unitprice, pchrgup, loc_code)
-            VALUES(
-            '" . $item->docointkey . "',
-            '" . $item->enccode . "',
-            '" . $item->hpercode . "',
-            '" . $item->dmdcomb . "',
-            '" . now() . "',
-            '" . now() . "',
-            '" . $this->return_qty . "',
-            '" . $employeeid . "',
-            'A', 'N', 'N', 'N',
-            '" . $employeeid . "',
-            '" . $item->locacode . "',
-            '" . $item->dmdctr . "',
-            '" . $item->dmdprdte . "',
-            '" . $item->remarks . "',
-            '" . $item->orderfrom . "',
-            '" . $item->orderfrom . "',
-            '" . $item->pcchrgcod . "',
-            '',
-            '" . $item->pchrgup . "',
-            '" . $item->pchrgup . "',
-            '" . $this->location_id . "'
-            )
-        ");
+        $returnFields = array_merge([
+            'docointkey' => $item->docointkey,
+            'enccode' => $item->enccode,
+            'hpercode' => $item->hpercode,
+            'dmdcomb' => $item->dmdcomb,
+            'returndate' => now(),
+            'returntime' => now(),
+            'qty' => $this->return_qty,
+            'returnby' => $employeeid,
+            'status' => 'A',
+            'rxolock' => 'N',
+            'updsw' => 'N',
+            'confdl' => 'N',
+            'entryby' => $employeeid,
+            'locacode' => $item->locacode,
+            'dmdctr' => $item->dmdctr,
+            'dmdprdte' => $item->dmdprdte,
+            'remarks' => $item->remarks,
+            'returnfrom' => $item->orderfrom,
+            'chrgcode' => $item->orderfrom,
+            'pcchrgcod' => $item->pcchrgcod,
+            'rcode' => '',
+            'unitprice' => $item->pchrgup,
+            'pchrgup' => $item->pchrgup,
+            'loc_code' => $this->location_id,
+        ], \App\Services\Pharmacy\UdddsTransactionMetadata::forReturn($item));
+        $returnColumns = implode(', ', array_keys($returnFields));
+        $returnPlaceholders = implode(', ', array_fill(0, count($returnFields), '?'));
+        DB::insert("INSERT INTO hospital.dbo.hrxoreturn ({$returnColumns}) VALUES ({$returnPlaceholders})", array_values($returnFields));
 
         $item->pcchrgamt = $item->pchrgup * ($item->qtyissued - $this->return_qty);
         $item->qtyissued -= $this->return_qty;
@@ -1738,8 +1838,9 @@ class DispensingEncounter extends Component
 
     private function fetchOrders(string $enccode): array
     {
+        $udddsColumns = UdddsService::hrxoSelectColumns();
         if ($this->toecode == 'WALKN') {
-            return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
+            return DB::select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                                 pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                                 FROM henctr enctr
                                 INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
@@ -1751,7 +1852,7 @@ class DispensingEncounter extends Component
                                 ORDER BY dodate DESC");
         }
 
-        return DB::select("SELECT docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
+        return DB::select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                             pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                             FROM hospital.dbo.hrxo
                             INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr

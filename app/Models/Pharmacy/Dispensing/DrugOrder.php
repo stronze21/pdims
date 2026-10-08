@@ -75,6 +75,7 @@ class DrugOrder extends Model
         'order_type',
         'uddds_start_date',
         'uddds_end_date',
+        'uddds_interval_days',
         'is_uddds',
         'uddds_source_docointkey',
     ];

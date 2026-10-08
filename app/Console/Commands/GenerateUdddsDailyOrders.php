@@ -20,7 +20,12 @@ class GenerateUdddsDailyOrders extends Command
 
     public function handle(): int
     {
-        $run = $this->udddsService->generateDaily($this->option('date') ?: null, (bool) $this->option('dry-run'));
+        try {
+            $run = $this->udddsService->generateDaily($this->option('date') ?: null, (bool) $this->option('dry-run'));
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+            return 1;
+        }
 
         $this->info('UDDDS generate run at '.$run['run_at']);
         $this->line('Date: '.$run['date']);

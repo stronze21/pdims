@@ -547,6 +547,15 @@
                                         @endif
                                         <br>
                                         <span class="badge badge-xs badge-ghost">{{ $rxo->chrgdesc }}</span>
+                                        @if ($toecode === 'ADM' && empty($rxo->uddds_source_docointkey) && $can_add_items && ($udddsReady ?? false))
+                                            @if ($rxo->is_uddds)
+                                                @include('livewire.pharmacy.dispensing.uddds-schedule-summary')
+                                                <button type="button" class="btn btn-ghost btn-xs" wire:click="removeUdddsEnrollment(@js($rxo->docointkey))" wire:confirm="Remove this UDDDS enrollment?">Remove UDDDS</button>
+                                            @elseif ($rxo->estatus === 'S')
+                                                <button type="button" class="btn btn-outline btn-xs" wire:click="openUdddsEnrollment(@js($rxo->docointkey))">Enable UDDDS</button>
+                                            @endif
+                                        @endif
+
                                     </td>
                                     <td class="text-xs text-center">
                                         {{ number_format($rxo->pchrgqty, 0) }}
@@ -836,6 +845,19 @@
         </div>
 
         {{-- Add Stock Item Modal --}}
+        @if ($udddsModalOpen)
+            <div class="modal modal-open" role="dialog" aria-modal="true" aria-labelledby="uddds-enroll-title">
+                <div class="modal-box">
+                    <h3 id="uddds-enroll-title" class="font-semibold">Enable UDDDS</h3>
+                    @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
+                    <div class="modal-action">
+                        <button type="button" class="btn btn-ghost" wire:click="$set('udddsModalOpen', false)">Cancel</button>
+                        <button type="button" class="btn btn-primary" wire:click="saveUdddsEnrollment" wire:loading.attr="disabled">Enable</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
             <div class="space-y-4">
                 <div class="text-sm font-medium text-base-content/70">
@@ -918,6 +940,7 @@
                         placeholder="Optional remarks..."></textarea>
                 </div>
             </div>
+            @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
             <x-slot:actions>
                 <x-mary-button label="Cancel" @click="$wire.showAddItemModal = false" />
                 <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_item" spinner />
@@ -1010,6 +1033,7 @@
                     </div>
                 </div>
             </div>
+            @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
             <x-slot:actions>
                 <x-mary-button label="Cancel" @click="$wire.showPrescribedItemModal = false" />
                 <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_prescribed_item"

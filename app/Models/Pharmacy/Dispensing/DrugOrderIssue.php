@@ -10,6 +10,7 @@ use App\Models\Pharmacy\DrugPrice;
 use App\Models\References\ChargeCode;
 use App\Models\Record\Patients\Patient;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\Pharmacy\UdddsTransactionMetadata;
 use App\Models\Record\Admission\PatientRoom;
 use App\Models\Record\Encounters\AdmissionLog;
 use App\Models\Record\Encounters\EncounterLog;
@@ -57,7 +58,29 @@ class DrugOrderIssue extends Model
         'ris',
         'prescription_data_id',
         'prescribed_by',
+        'order_type',
+        'is_uddds',
+        'uddds_start_date',
+        'uddds_end_date',
+        'uddds_source_docointkey',
+        'uddds_interval_days',
     ];
+
+    protected $casts = [
+        'is_uddds' => 'boolean',
+        'uddds_start_date' => 'date',
+        'uddds_end_date' => 'date',
+        'uddds_interval_days' => 'integer',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function ($record) {
+            foreach (UdddsTransactionMetadata::forNewTransaction($record, 'hrxoissue') as $column => $value) {
+                $record->setAttribute($column, $value);
+            }
+        });
+    }
 
     public function current_price()
     {

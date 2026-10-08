@@ -257,7 +257,12 @@ class UdddsWard extends Component
         $allowed = collect($queueItems)->filter(fn ($item) => (bool) $item->is_actionable)->pluck('docointkey')->all();
         $keys = array_values(array_intersect(array_unique($keys), $allowed));
         $this->processingProblem = null;
-        $keys = $udddsService->materializeDailyItems($keys, $this->selected_date);
+        try {
+            $keys = $udddsService->materializeDailyItems($keys, $this->selected_date);
+        } catch (\InvalidArgumentException $e) {
+            $this->processingProblem = $e->getMessage();
+            return;
+        }
         $result = $udddsService->chargeAndIssue($keys, auth()->user()->pharm_location_id, [
             'employeeid' => auth()->user()->employeeid,
             'user_id' => auth()->id(),

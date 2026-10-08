@@ -22,9 +22,116 @@ class UdddsService
         ]);
     }
 
+    public static function hrxoSelectColumns(): string
+    {
+        if (self::hasHrxoColumns()) {
+            return 'hrxo.order_type, hrxo.is_uddds, hrxo.uddds_start_date, hrxo.uddds_end_date, hrxo.uddds_source_docointkey, ' . (self::hasIntervalColumn() ? 'hrxo.uddds_interval_days' : 'CAST(NULL AS INT) AS uddds_interval_days');
+        }
+
+        return "CAST(NULL AS VARCHAR(20)) AS order_type, CAST(0 AS BIT) AS is_uddds, CAST(NULL AS DATETIME) AS uddds_start_date, CAST(NULL AS DATETIME) AS uddds_end_date, CAST(NULL AS VARCHAR(50)) AS uddds_source_docointkey, CAST(NULL AS INT) AS uddds_interval_days";
+    }
+
     public function schemaMissingMessage(): string
     {
         return 'The hospital order table is missing required UDDDS columns. Contact your administrator to apply the UDDDS database update.';
+    }
+
+
+    public static function hasIntervalColumn(): bool
+    {
+        try {
+            return Schema::connection('hospital')->hasColumn('hrxo', 'uddds_interval_days');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function intervalSelect(): string
+    {
+        return self::hasIntervalColumn() ? 'hrxo.uddds_interval_days' : 'CAST(NULL AS INT) AS uddds_interval_days';
+    }
+
+    private function enrollmentSchedule($start, $end, $interval): array
+    {
+        try {
+            $days = UdddsSchedule::interval($interval);
+            UdddsSchedule::due($start, $end, $days, $start);
+            if ($days !== 1 && !self::hasIntervalColumn()) {
+                return ['ok' => false, 'message' => 'Interval enrollment requires the UDDDS interval database update. Contact your administrator.'];
+            }
+            return ['ok' => true, 'days' => $days];
+        } catch (\InvalidArgumentException $e) {
+            return ['ok' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /** Resolve pending clones against the active enrollment, never their own schedule alone. */
+    private function scheduledFor($order, $date): bool
+    {
+        $source = $order;
+        if (!empty($order->uddds_source_docointkey)) {
+            $source = DB::selectOne('SELECT * FROM hospital.dbo.hrxo WHERE docointkey = ?', [$order->uddds_source_docointkey]);
+            if (!$source || !$source->is_uddds || !empty($source->uddds_source_docointkey)) {
+                return false;
+            }
+            if (UdddsSchedule::date($order->dodate)->format('Y-m-d') !== UdddsSchedule::date($date)->format('Y-m-d')
+                || UdddsSchedule::date($order->uddds_start_date) != UdddsSchedule::date($source->uddds_start_date)
+                || UdddsSchedule::date($order->uddds_end_date) != UdddsSchedule::date($source->uddds_end_date)
+                || UdddsSchedule::interval($order->uddds_interval_days ?? null) !== UdddsSchedule::interval($source->uddds_interval_days ?? null)) {
+                return false;
+            }
+        }
+        return !empty($source->is_uddds) && $source->order_type === 'BASIC'
+            && UdddsSchedule::due($source->uddds_start_date, $source->uddds_end_date, $source->uddds_interval_days ?? null, $date);
+    }
+
+    private function decorateSchedule($item, $date): void
+    {
+        try {
+            $item->schedule_label = UdddsSchedule::label($item->uddds_interval_days ?? null);
+            $item->next_supply_date = UdddsSchedule::next($item->uddds_start_date, $item->uddds_end_date, $item->uddds_interval_days ?? null, $date);
+            $item->schedule_error = null;
+        } catch (\InvalidArgumentException $e) {
+            $item->schedule_label = 'Invalid schedule';
+            $item->next_supply_date = null;
+            $item->schedule_error = $e->getMessage();
+            $item->is_actionable = 0;
+        }
+    }
+
+    public function generatedOrderProblem(array $keys): ?string
+    {
+        if (!$keys || !self::hasHrxoColumns()) return null;
+        $keys = array_map(fn ($key) => trim((string) $key, "'\""), $keys);
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $rows = DB::select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
+        foreach ($rows as $row) {
+            if (empty($row->uddds_source_docointkey)) continue;
+            try {
+                if (!$row->is_uddds || !$this->scheduledFor($row, $row->dodate)) {
+                    return 'Generated UDDDS order is off schedule or its enrollment changed. Reload the queue.';
+                }
+            } catch (\InvalidArgumentException $e) { return $e->getMessage(); }
+        }
+        return null;
+    }
+
+    private function validateProcessingSchedule(array $keys): ?string
+    {
+        if (!$keys) return null;
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $orders = DB::select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
+        if (count($orders) !== count(array_unique($keys))) return 'One or more UDDDS orders no longer exist. Reload the queue.';
+        foreach ($orders as $order) {
+            try {
+                if (!$order->is_uddds || !$this->scheduledFor($order, $order->dodate)) {
+                    return 'Selected UDDDS order is off schedule or its enrollment changed. Reload the queue.';
+                }
+            } catch (\InvalidArgumentException $e) {
+                return $e->getMessage();
+            }
+        }
+        return null;
     }
 
     public function normalizeOrderType($type)
@@ -47,20 +154,50 @@ class UdddsService
         return $this->normalizeOrderType($type) === 'BASIC';
     }
 
-    public function enrollIssuedOrders(array $docointkeys, $startDate, $endDate)
+    public function isAdmEncounter($enccode): bool
     {
-        $start = Carbon::parse($startDate)->toDateString();
-        $end = Carbon::parse($endDate)->toDateString();
+        if (!$enccode) {
+            return false;
+        }
+
+        $row = DB::selectOne(
+            'SELECT TOP 1 toecode FROM hospital.dbo.henctr WHERE enccode = ?',
+            [$enccode]
+        );
+
+        return $row && strtoupper(trim((string) $row->toecode)) === 'ADM';
+    }
+
+    public function enrollIssuedOrders(array $docointkeys, $startDate, $endDate, $intervalDays = 1)
+    {
+        $schedule = $this->enrollmentSchedule($startDate, $endDate, $intervalDays);
+        if (!$schedule['ok']) return $schedule;
+        $intervalDays = $schedule['days'];
+        $intervalSql = self::hasIntervalColumn() ? ', uddds_interval_days = ?' : '';
+
+        $start = UdddsSchedule::date($startDate)->format('Y-m-d');
+        $end = UdddsSchedule::date($endDate)->format('Y-m-d');
 
         if ($end < $start) {
             return ['ok' => false, 'message' => 'End date must be on or after the start date.'];
         }
 
+        foreach ($docointkeys as $key) {
+            $candidate = DrugOrder::where('docointkey', $key)->first();
+            if ($candidate && ($candidate->is_uddds || !empty($candidate->uddds_source_docointkey))) {
+                return ['ok' => false, 'message' => 'Remove the active UDDDS enrollment before enrolling again.'];
+            }
+        }
+
         foreach ($docointkeys as $docointkey) {
             $order = DrugOrder::where('docointkey', $docointkey)->first();
 
-            if (!$order || !$this->isBasic($order->order_type)) {
+            if (!$order || !$this->isBasic($order->order_type) || !$this->isAdmEncounter($order->enccode)) {
                 continue;
+            }
+
+            if ($order->is_uddds || !empty($order->uddds_source_docointkey)) {
+                return ['ok' => false, 'message' => 'Remove the active UDDDS enrollment before enrolling again.'];
             }
 
             DB::update(
@@ -69,13 +206,118 @@ class UdddsService
                         uddds_start_date = ?,
                         uddds_end_date = ?,
                         order_type = 'BASIC',
-                        uddds_source_docointkey = NULL
+                        uddds_source_docointkey = NULL{$intervalSql}
                     WHERE docointkey = ?",
-                [$start, $end, $docointkey]
+                array_merge([$start, $end], self::hasIntervalColumn() ? [$intervalDays] : [], [$docointkey])
             );
         }
 
         return ['ok' => true, 'message' => 'UDDDS enrollment saved.'];
+    }
+
+    public function activateOnIssued(array $docointkeys)
+    {
+        if (!self::hasHrxoColumns()) {
+            return ['ok' => true, 'message' => ''];
+        }
+
+        foreach ($docointkeys as $docointkey) {
+            $order = DrugOrder::where('docointkey', $docointkey)->first();
+
+            if (!$order || !$this->isBasic($order->order_type) || !$this->isAdmEncounter($order->enccode)) {
+                continue;
+            }
+
+            if (!empty($order->uddds_source_docointkey)) continue;
+            if (!$order->uddds_start_date || !$order->uddds_end_date) {
+                continue;
+            }
+
+            $schedule = $this->enrollmentSchedule($order->uddds_start_date, $order->uddds_end_date, $order->uddds_interval_days ?? null);
+            if (!$schedule['ok']) return $schedule;
+
+            DB::update(
+                "UPDATE hospital.dbo.hrxo
+                    SET is_uddds = 1,
+                        uddds_source_docointkey = NULL
+                    WHERE docointkey = ?",
+                [$docointkey]
+            );
+        }
+
+        return ['ok' => true, 'message' => 'UDDDS activated for issued standing items.'];
+    }
+
+    public function enrollSingleOrder($docointkey, $orderType, $startDate, $endDate, $intervalDays = 1)
+    {
+        $schedule = $this->enrollmentSchedule($startDate, $endDate, $intervalDays);
+        if (!$schedule['ok']) return $schedule;
+        $intervalDays = $schedule['days'];
+        $intervalSql = self::hasIntervalColumn() ? ', uddds_interval_days = ?' : '';
+
+        if (!self::hasHrxoColumns()) {
+            return ['ok' => false, 'message' => $this->schemaMissingMessage()];
+        }
+
+        $order = DrugOrder::where('docointkey', $docointkey)->first();
+
+        if (!$order) {
+            return ['ok' => false, 'message' => 'Order not found.'];
+        }
+
+        if (!$this->isAdmEncounter($order->enccode)) {
+            return ['ok' => false, 'message' => 'UDDDS is only available for inpatient (ADM) encounters.'];
+        }
+
+        if (!empty($order->uddds_source_docointkey)) {
+            return ['ok' => false, 'message' => 'This row was generated from a standing UDDDS order.'];
+        }
+
+        if (!$this->isBasic($order->order_type)) {
+            return ['ok' => false, 'message' => 'UDDDS applies to Basic (standing) orders only.'];
+        }
+        if ($order->prescription_data_id) {
+            $prescription = \App\Models\Record\Prescriptions\PrescriptionData::find($order->prescription_data_id);
+            if ($prescription && !$this->isBasic($prescription->order_type)) {
+                return ['ok' => false, 'message' => 'UDDDS applies to Basic (standing) prescriptions only.'];
+            }
+        }
+
+        if ($order->is_uddds) return ['ok' => false, 'message' => 'Remove the active UDDDS enrollment before enrolling again.'];
+
+        $type = $this->normalizeOrderType($orderType);
+
+        if ($type !== 'BASIC') {
+            return ['ok' => false, 'message' => 'UDDDS applies to Basic (standing) orders only. Choose Basic, then set start and end dates.'];
+        }
+
+        if (!$startDate || !$endDate) {
+            return ['ok' => false, 'message' => 'UDDDS start and end dates are required.'];
+        }
+
+        try {
+            $start = UdddsSchedule::date($startDate)->format('Y-m-d');
+            $end = UdddsSchedule::date($endDate)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'message' => 'UDDDS start and end dates are required.'];
+        }
+
+        if ($end < $start) {
+            return ['ok' => false, 'message' => 'End date must be on or after the start date.'];
+        }
+
+        DB::update(
+            "UPDATE hospital.dbo.hrxo
+                SET is_uddds = 1,
+                    uddds_start_date = ?,
+                    uddds_end_date = ?,
+                    order_type = 'BASIC',
+                    uddds_source_docointkey = NULL{$intervalSql}
+                WHERE docointkey = ?",
+            array_merge([$start, $end], self::hasIntervalColumn() ? [$intervalDays] : [], [$docointkey])
+        );
+
+        return ['ok' => true, 'message' => 'UDDDS enabled. Unit-dose orders will generate on scheduled supply dates through the end date.'];
     }
 
     public function removeFromUddds($docointkey)
@@ -98,7 +340,7 @@ class UdddsService
 
     public function generateDaily($referenceDate = null, $dryRun = false)
     {
-        $today = Carbon::parse($referenceDate ?: now('Asia/Manila'))->toDateString();
+        $today = UdddsSchedule::date($referenceDate ?: now('Asia/Manila'))->format('Y-m-d');
 
         $enrollments = DB::select("
             SELECT hrxo.*
@@ -115,10 +357,16 @@ class UdddsService
                 AND (enctr.toecode = 'ADM' OR enctr.toecode = 'OPDAD' OR enctr.toecode = 'ERADM')
         ", [$today, $today]);
 
+        foreach ($enrollments as $enrollment) $this->scheduledFor($enrollment, $today);
+
         $created = [];
         $skipped = 0;
 
         foreach ($enrollments as $index => $enrollment) {
+            if (!$this->scheduledFor($enrollment, $today)) {
+                $skipped++;
+                continue;
+            }
             $issuedOn = Carbon::parse($enrollment->dodate)->toDateString();
 
             if ($issuedOn === $today) {
@@ -172,7 +420,8 @@ class UdddsService
             return [];
         }
         $drugDescription = DrugDescription::fromMaster('hdmhdr');
-        $today = Carbon::parse($referenceDate ?: now('Asia/Manila'))->toDateString();
+        $intervalSelect = $this->intervalSelect();
+        $today = UdddsSchedule::date($referenceDate ?: now('Asia/Manila'))->format('Y-m-d');
         $nextDay = Carbon::parse($today)->addDay()->toDateString();
         $params = [];
         $wardFilter = '';
@@ -198,6 +447,7 @@ class UdddsService
                 hrxo.dodate,
                 hrxo.pcchrgcod,
                 hrxo.loc_code,
+                {$intervalSelect},
                 hrxo.uddds_start_date,
                 hrxo.uddds_end_date,
                 hrxo.uddds_source_docointkey,
@@ -262,7 +512,23 @@ class UdddsService
             ORDER BY ward.wardname, pt.patlast, pt.patfirst, {$drugDescription}
         ", [$today, $nextDay, $today, $nextDay, $nextDay, $today, $locationId, ...$params]);
 
-        foreach ($items as $item) {
+        foreach ($items as $key => $item) {
+                $this->decorateSchedule($item, $today);
+                $historical = $item->estatus === 'S' || (float) $item->qtyissued > 0;
+                try {
+                    if (!$historical && !$item->schedule_error && !$this->scheduledFor($item, $today)) {
+                        unset($items[$key]);
+                        continue;
+                    }
+                    if ($historical && empty($item->uddds_source_docointkey) && !$item->schedule_error && !$this->scheduledFor($item, $today)) {
+                        unset($items[$key]);
+                        continue;
+                    }
+                } catch (\InvalidArgumentException $e) {
+                    $item->schedule_error = $e->getMessage();
+                    $item->is_actionable = 0;
+                }
+
             $item->is_source_issued_for_date = empty($item->uddds_source_docointkey)
                 && Carbon::parse($item->dodate)->toDateString() === $today
                 && ($item->estatus === 'S' || (float) $item->qtyissued > 0);
@@ -272,7 +538,7 @@ class UdddsService
             }
         }
 
-        return $items;
+        return array_values($items);
     }
 
     public function processedWardItemsForDate($wardcode, $locationId, $referenceDate): array
@@ -281,7 +547,7 @@ class UdddsService
             return [];
         }
         $drugDescription = DrugDescription::fromMaster('hdmhdr');
-        $date = Carbon::parse($referenceDate)->toDateString();
+        $date = UdddsSchedule::date($referenceDate)->format('Y-m-d');
         $nextDay = Carbon::parse($date)->addDay()->toDateString();
         $params = [$nextDay, $date, $nextDay, $locationId];
         $wardFilter = '';
@@ -290,7 +556,7 @@ class UdddsService
             $params[] = $wardcode;
         }
 
-        return DB::select("
+        $items = DB::select("
             SELECT hrxo.*, {$drugDescription} AS drug_concat, hcharge.chrgdesc,
                 pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
                 ward.wardname, room.rmname, pd.remark AS frequency,
@@ -318,6 +584,8 @@ class UdddsService
                 {$wardFilter}
             ORDER BY ward.wardname, pt.patlast, pt.patfirst, hrxo.pcchrgcod
         ", $params);
+        foreach ($items as $item) $this->decorateSchedule($item, $date);
+        return $items;
     }
 
     public function selectedPatientChargeCodes(array $items, array $encounters, $referenceDate): array
@@ -328,7 +596,7 @@ class UdddsService
 
     public function reprintChargeCodes(array $items, $referenceDate): array
     {
-        $date = Carbon::parse($referenceDate)->toDateString();
+        $date = UdddsSchedule::date($referenceDate)->format('Y-m-d');
         $codes = [];
 
         foreach ($items as $item) {
@@ -503,7 +771,7 @@ class UdddsService
             return [];
         }
 
-        $date = Carbon::parse($referenceDate ?: now('Asia/Manila'))->toDateString();
+        $date = UdddsSchedule::date($referenceDate ?: now('Asia/Manila'))->format('Y-m-d');
         $placeholders = implode(',', array_fill(0, count($docointkeys), '?'));
         $orders = DB::select(
             "SELECT hrxo.*
@@ -513,6 +781,14 @@ class UdddsService
             $docointkeys
         );
 
+        if (count($orders) !== count(array_unique($docointkeys))) {
+            throw new \InvalidArgumentException('One or more selected UDDDS orders are no longer active. Reload the queue.');
+        }
+        foreach ($orders as $order) {
+            if (!$this->scheduledFor($order, $date)) {
+                throw new \InvalidArgumentException('Selected UDDDS order is off schedule or its enrollment changed. Reload the queue.');
+            }
+        }
         $dailyKeys = [];
         foreach ($orders as $index => $order) {
             if (!empty($order->uddds_source_docointkey)) {
@@ -556,6 +832,10 @@ class UdddsService
 
         if (empty($docointkeys)) {
             return ['ok' => false, 'message' => 'No UDDDS items selected.', 'pcchrgcods' => []];
+        }
+
+        if ($problem = $this->validateProcessingSchedule($docointkeys)) {
+            return ['ok' => false, 'message' => $problem, 'pcchrgcods' => []];
         }
 
         if (array_filter($fallbacks)) {
@@ -742,9 +1022,9 @@ class UdddsService
 
     private function cloneEnrollmentForDate($enrollment, $today, $index)
     {
-        $docointkey = '0000040' . $enrollment->hpercode . date('mdYHis') . $enrollment->orderfrom . $enrollment->dmdcomb . $enrollment->dmdctr . $index;
+        $docointkey = '0000040' . $enrollment->hpercode . UdddsSchedule::date($today)->format('mdY') . date('His') . $enrollment->orderfrom . $enrollment->dmdcomb . $enrollment->dmdctr . $index;
 
-        DrugOrder::create([
+        $attributes = [
             'docointkey' => $docointkey,
             'enccode' => $enrollment->enccode,
             'hpercode' => $enrollment->hpercode,
@@ -788,7 +1068,11 @@ class UdddsService
             'uddds_end_date' => $enrollment->uddds_end_date,
             'is_uddds' => true,
             'uddds_source_docointkey' => $enrollment->docointkey,
-        ]);
+        ];
+        if (self::hasIntervalColumn()) {
+            $attributes['uddds_interval_days'] = UdddsSchedule::interval($enrollment->uddds_interval_days ?? null);
+        }
+        DrugOrder::create($attributes);
 
         return [
             'docointkey' => $docointkey,
