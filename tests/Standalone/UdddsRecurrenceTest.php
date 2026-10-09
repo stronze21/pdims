@@ -206,5 +206,20 @@ namespace {
     check(!$service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 3)['ok'], 'Undeployed interval rejected before order persistence');
     check($service->newOrderUdddsFields('BASIC', '2026-10-08', '2026-10-20', 1)['ok'], 'Legacy daily standing creation remains available');
     check($service->newOrderUdddsFields('G24')['fields']['order_type'] === 'G24', 'Ordinary G24 remains available without interval column');
+    $previousDay = fixture(1, 'previous-day');
+    $previousDay->pcchrgcod = 'OCT8-SLIP';
+    DB::$queue = [$previousDay]; DB::$rows['previous-day'] = $previousDay;
+    $tomorrow = $service->wardItemsForDate(null, 'L1', '2026-10-09');
+    check(count($tomorrow) === 1 && $tomorrow[0]->is_actionable, 'October 8 standing order remains eligible for October 9');
+    check($tomorrow[0]->selected_date_charge_code === null, 'October 9 row does not expose October 8 charge slip');
+    check($service->reprintChargeCodes($tomorrow, '2026-10-09') === [], 'October 9 batch excludes October 8 charge slip');
+    $sameDay = $service->wardItemsForDate(null, 'L1', '2026-10-08');
+    check($sameDay[0]->selected_date_charge_code === 'OCT8-SLIP' && !$sameDay[0]->is_actionable, 'October 8 slip remains printable on its own date');
+    $generated = clone $previousDay;
+    $generated->docointkey = 'oct9-clone'; $generated->uddds_source_docointkey = 'previous-day';
+    $generated->dodate = '2026-10-09 07:00:00'; $generated->pcchrgcod = 'OCT9-SLIP';
+    DB::$queue = [$generated];
+    $tomorrow = $service->wardItemsForDate(null, 'L1', '2026-10-09');
+    check($tomorrow[0]->selected_date_charge_code === 'OCT9-SLIP', 'October 9 generated slip remains printable when prepared October 8');
     echo 'PASS: '.$checks." database-free recurrence checks\n";
 }

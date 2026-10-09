@@ -87,6 +87,8 @@ class UdddsService
 
     private function decorateSchedule($item, $date): void
     {
+        // An eligible standing order can still carry an earlier day's charge slip.
+        $item->selected_date_charge_code = $this->reprintChargeCodes([$item], $date)[0] ?? null;
         try {
             $item->schedule_label = UdddsSchedule::label($item->uddds_interval_days ?? null);
             $item->next_supply_date = UdddsSchedule::next($item->uddds_start_date, $item->uddds_end_date, $item->uddds_interval_days ?? null, $date);

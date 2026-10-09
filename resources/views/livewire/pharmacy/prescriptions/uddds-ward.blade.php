@@ -332,8 +332,8 @@
                                 @endif
                             </td>
                             <td class="px-3 py-3 text-xs">
-                                @if ($item->pcchrgcod)
-                                    <a class="link link-primary underline" href="{{ route('dispensing.uddds.chargeslips', ['codes' => $item->pcchrgcod, 'numbers' => $patient['number']]) }}" target="_blank" rel="noopener">{{ $item->pcchrgcod }}</a>
+                                @if ($item->selected_date_charge_code)
+                                    <a class="link link-primary underline" href="{{ route('dispensing.uddds.chargeslips', ['codes' => $item->selected_date_charge_code, 'numbers' => $patient['number']]) }}" target="_blank" rel="noopener">{{ $item->selected_date_charge_code }}</a>
                                 @else
                                     <span>—</span>
                                 @endif
