@@ -24,7 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->timezone('Asia/Manila');
     })
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->web(append: [\App\Http\Middleware\ApplyRolePreview::class]);
+        $middleware->prependToPriorityList(\Illuminate\Auth\Middleware\Authorize::class, \App\Http\Middleware\ApplyRolePreview::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -6,11 +6,7 @@ use App\Models\Pharmacy\Drug;
 use App\Models\Pharmacy\DeliveryDetail;
 use App\Models\Pharmacy\DeliveryItems;
 use App\Models\Pharmacy\Drugs\DrugPrice;
-use App\Models\Pharmacy\Drugs\DrugStock;
-use App\Models\Pharmacy\Drugs\DrugStockCard;
-use App\Models\Pharmacy\Drugs\DrugStockLog;
 use App\Models\Pharmacy\ZeroBillingCharge;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -89,6 +85,17 @@ class DeliveryView extends Component
 
     public function add_item()
     {
+        return \Illuminate\Support\Facades\DB::connection('hospital')->transaction(function () {
+            return $this->mutate_add_item();
+        });
+    }
+
+    private function mutate_add_item()
+    {
+        $fresh = DeliveryDetail::whereKey($this->delivery_id)->lockForUpdate()->firstOrFail();
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->authorize($fresh);
+        abort_unless($fresh->status === 'pending', 403);
+        $this->details = $fresh;
         $this->validate([
             'dmdcomb' => 'required',
             'unit_price' => ['required', 'numeric', 'min:0'],
@@ -162,6 +169,18 @@ class DeliveryView extends Component
 
     public function edit_item()
     {
+        return \Illuminate\Support\Facades\DB::connection('hospital')->transaction(function () {
+            return $this->mutate_edit_item();
+        });
+    }
+
+    private function mutate_edit_item()
+    {
+        $fresh = DeliveryDetail::whereKey($this->delivery_id)->lockForUpdate()->firstOrFail();
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->authorize($fresh);
+        abort_unless($fresh->status === 'pending', 403);
+        $this->details = $fresh;
+        abort_unless(DeliveryItems::where('delivery_id', $fresh->id)->whereKey($this->editItemId)->exists(), 403);
         $this->validate([
             'edit_lot_no' => 'required|string',
             'edit_expiry_date' => 'required|date',
@@ -228,6 +247,18 @@ class DeliveryView extends Component
 
     public function delete_item($itemId)
     {
+        return \Illuminate\Support\Facades\DB::connection('hospital')->transaction(function () use ($itemId) {
+            return $this->mutate_delete_item($itemId);
+        });
+    }
+
+    private function mutate_delete_item($itemId)
+    {
+        $fresh = DeliveryDetail::whereKey($this->delivery_id)->lockForUpdate()->firstOrFail();
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->authorize($fresh);
+        abort_unless($fresh->status === 'pending', 403);
+        $this->details = $fresh;
+        abort_unless(DeliveryItems::where('delivery_id', $fresh->id)->whereKey($itemId)->exists(), 403);
         $item = DeliveryItems::find($itemId);
         if ($item) {
             $item->delete();
@@ -236,83 +267,51 @@ class DeliveryView extends Component
         }
     }
 
+    public $revert_reason = '';
+    public $revertModal = false;
+    public $revert_confirmed = false;
+
+    public function openRevertModal()
+    {
+        $delivery = DeliveryDetail::findOrFail($this->delivery_id);
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->authorize($delivery);
+        abort_unless($delivery->status === 'locked', 403);
+        $this->details = $delivery->load(['items', 'supplier', 'charge']);
+        $this->resetValidation();
+        $this->revert_reason = '';
+        $this->revert_confirmed = false;
+        $this->revertModal = true;
+    }
+
+    public function cancelRevert()
+    {
+        $this->revertModal = false;
+        $this->revert_reason = '';
+        $this->revert_confirmed = false;
+        $this->resetValidation();
+    }
+
+
     public function save_lock()
     {
-        $updated = false;
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->lock($this->delivery_id, null);
+        $this->lockModal = false;
+        $this->loadDetails();
+        $this->success('Successfully updated stocks inventory!');
+    }
 
-        foreach ($this->details->items as $item) {
-            $drug = Drug::where('dmdcomb', $item->dmdcomb)
-                ->where('dmdctr', $item->dmdctr)
-                ->first();
-
-            $add_to = DrugStock::firstOrCreate([
-                'dmdcomb' => $item->dmdcomb,
-                'dmdctr' => $item->dmdctr,
-                'loc_code' => $item->pharm_location_id,
-                'chrgcode' => $item->charge_code,
-                'exp_date' => $item->expiry_date,
-                'retail_price' => $item->retail_price,
-                'drug_concat' => $drug ? $drug->drug_concat : $item->dmdcomb,
-                'dmdnost' => $drug->dmdnost ?? null,
-                'strecode' => $drug->strecode ?? null,
-                'formcode' => $drug->formcode ?? null,
-                'rtecode' => $drug->rtecode ?? null,
-                'brandname' => $drug->brandname ?? null,
-                'dmdrem' => $drug->dmdrem ?? null,
-                'dmdrxot' => $drug->dmdrxot ?? null,
-                'gencode' => $drug->generic->gencode ?? null,
-                'lot_no' => $item->lot_no,
-            ]);
-            $add_to->stock_bal += $item->qty;
-            $add_to->beg_bal += $item->qty;
-
-            $log = DrugStockLog::firstOrNew([
-                'loc_code' => $item->pharm_location_id,
-                'dmdcomb' => $add_to->dmdcomb,
-                'dmdctr' => $add_to->dmdctr,
-                'chrgcode' => $add_to->chrgcode,
-                'unit_cost' => $item->unit_price,
-                'unit_price' => $item->retail_price,
-                'consumption_id' => null,
-            ]);
-            $log->purchased += $item->qty;
-            $add_to->dmdprdte = $item->dmdprdte;
-
-            $log->save();
-            $add_to->save();
-
-            // Stock card entry
-            $date = Carbon::now()->format('Y-m-d');
-            $card = DrugStockCard::firstOrNew([
-                'io_trans_ref_no' => $this->details->si_no,
-                'chrgcode' => $add_to->chrgcode,
-                'loc_code' => $item->pharm_location_id,
-                'dmdcomb' => $add_to->dmdcomb,
-                'dmdctr' => $add_to->dmdctr,
-                'exp_date' => $add_to->exp_date,
-                'stock_date' => $date,
-                'drug_concat' => $drug ? $drug->drug_concat : $add_to->drug_concat,
-                'dmdprdte' => $add_to->dmdprdte,
-            ]);
-            $card->rec += $item->qty;
-            $card->bal += $item->qty;
-            $card->save();
-
-            $item->status = 'delivered';
-            $item->save();
-            $updated = true;
-        }
-
-        if ($updated) {
-            $this->details->status = 'locked';
-            $this->details->save();
-            $this->lockModal = false;
-            $this->loadDetails();
-            $this->success('Successfully updated stocks inventory!');
-        } else {
-            $this->lockModal = false;
-            $this->error('No items to add to stock inventory.');
-        }
+    public function revert_lock()
+    {
+        $this->validate([
+            'revert_reason' => 'required|string|min:5|max:1000',
+            'revert_confirmed' => 'accepted',
+        ], ['revert_confirmed.accepted' => 'Confirm that all delivered quantities should be removed from inventory.']);
+        app(\App\Services\Pharmacy\DeliveryInventory::class)->revert($this->delivery_id, $this->revert_reason);
+        $this->revert_reason = '';
+        $this->revert_confirmed = false;
+        $this->revertModal = false;
+        $this->loadDetails();
+        $this->success('Delivery reverted. Inventory receipt removed; audit saved.');
     }
 
     private function calculateMarkup($unit_cost)
@@ -342,6 +341,7 @@ class DeliveryView extends Component
 
         return view('livewire.pharmacy.purchases.delivery-view', [
             'drugs' => $drugs,
+            'deliveryAudits' => \App\Models\Pharmacy\DeliveryAudit::where('delivery_id', $this->delivery_id)->orderByDesc('id')->get(),
         ])->layout('layouts.app', ['title' => 'Delivery View - ' . ($this->details->si_no ?? $this->delivery_id)]);
     }
 }

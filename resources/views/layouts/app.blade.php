@@ -15,6 +15,7 @@
 <body class="min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
 
     {{-- NAVBAR (Top Header) --}}
+    @include('layouts.partials.role-preview')
     <x-mary-nav sticky full-width>
         <x-slot:brand>
             {{-- Drawer toggle for sidebar --}}

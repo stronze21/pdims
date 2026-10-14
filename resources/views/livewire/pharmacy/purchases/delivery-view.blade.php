@@ -12,6 +12,13 @@
             </div>
         </x-slot:middle>
         <x-slot:actions>
+    @if ($details && $details->status === 'locked')
+        @can('view-deliveries')
+            @if ((string) auth()->user()->pharm_location_id === (string) $details->pharm_location_id)
+                <button type="button" class="btn btn-sm btn-error" wire:click="openRevertModal" wire:loading.attr="disabled">Revert Delivery</button>
+            @endif
+        @endcan
+    @endif
             @if ($details && $details->status == 'pending')
                 <x-mary-button label="Save & Lock" icon="o-lock-closed" class="btn-sm btn-warning shadow-md"
                     wire:click="$set('lockModal', true)" />
@@ -25,8 +32,56 @@
         </x-slot:actions>
     </x-mary-header>
 
+
+    <x-mary-modal wire:model="revertModal" title="Revert Locked Delivery" class="backdrop-blur" box-class="max-w-xl">
+        <form id="revert-delivery-form" wire:submit.prevent="revert_lock" class="space-y-4">
+            <p class="text-sm">Sales Invoice: <strong>{{ $details->si_no ?? $delivery_id }}</strong></p>
+            <div role="alert" id="revert-delivery-warning" class="p-4 border border-yellow-300 rounded bg-yellow-50 text-yellow-900">
+                <p class="font-semibold">Warning: this will remove all delivered quantities from inventory.</p>
+                <p class="mt-2 text-sm">Every original batch must have enough available balance. If any item cannot be reversed, the entire delivery stays locked and no quantities are removed.</p>
+                <p class="mt-2 text-sm">The delivery will return to Pending. Purchase receipts will be corrected without recording consumption. Your reason, user account and stock balances will be retained in the audit trail.</p>
+            </div>
+            <div>
+                <label for="revert_reason" class="block mb-1 text-sm font-semibold">Reason for reversal</label>
+                <textarea id="revert_reason" wire:model.defer="revert_reason" class="textarea textarea-bordered w-full" rows="3" required minlength="5" maxlength="1000" aria-describedby="revert-reason-help revert-reason-error"></textarea>
+                <p id="revert-reason-help" class="mt-1 text-xs text-gray-500">Enter 5–1000 characters explaining why this receipt should be reversed.</p>
+                @error('revert_reason') <p id="revert-reason-error" class="text-sm text-error" role="alert">{{ $message }}</p> @enderror
+            </div>
+            <label class="flex items-start gap-3 text-sm">
+                <input type="checkbox" wire:model.live="revert_confirmed" required class="checkbox checkbox-sm mt-1" aria-describedby="revert-confirm-error">
+                <span>I understand this removes all delivered quantities from inventory, and I confirm this reversal.</span>
+            </label>
+            @error('revert_confirmed') <p id="revert-confirm-error" class="text-sm text-error" role="alert">{{ $message }}</p> @enderror
+            @error('delivery') <p class="text-sm text-error" role="alert">{{ $message }}</p> @enderror
+        </form>
+        <div class="flex justify-end gap-2 mt-6">
+            <button type="button" class="btn btn-sm btn-ghost" wire:click="cancelRevert" wire:loading.attr="disabled" wire:target="revert_lock">Cancel</button>
+            <button type="submit" form="revert-delivery-form" class="btn btn-sm btn-error" @if (!$revert_confirmed) disabled @endif wire:loading.attr="disabled" wire:target="revert_lock">
+                <span wire:loading.remove wire:target="revert_lock">Confirm Reversal</span>
+                <span wire:loading wire:target="revert_lock">Reverting…</span>
+            </button>
+        </div>
+    </x-mary-modal>
+
+    @if ($deliveryAudits->isNotEmpty())
+        <details class="p-4 mb-4 border rounded bg-white">
+            <summary class="cursor-pointer font-semibold">Delivery audit trail</summary>
+            @foreach ($deliveryAudits as $audit)
+                <div class="py-3 border-b">
+                    <p>{{ $audit->created_at }} — {{ ucfirst($audit->action) }} by {{ $audit->user_name }} (ID {{ $audit->user_id }})</p>
+                    @if ($audit->reason) <p>Reason: {{ $audit->reason }}</p> @endif
+                    <ul class="ml-4 list-disc">
+                        @foreach ($audit->entries as $entry)
+                            <li>{{ $entry['drug'] }} — lot {{ $entry['lot_no'] }}, expiry {{ $entry['expiry_date'] }}, quantity {{ $entry['qty'] }}; balance {{ $entry['balance_before'] }} → {{ $entry['balance_after'] }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endforeach
+        </details>
+    @endif
+
     {{-- Loading --}}
-    <div wire:loading.flex wire:target="add_item, edit_item, save_lock, delete_item"
+    <div wire:loading.flex wire:target="add_item, edit_item, save_lock, delete_item, revert_lock"
         class="fixed inset-0 z-50 items-center justify-center bg-base-100/50">
         <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
@@ -121,8 +176,7 @@
                                     @if ($item->current_price && $item->current_price->has_compounding)
                                         <span class="tooltip tooltip-left"
                                             data-tip="Includes {{ number_format($item->current_price->compounding_fee, 2) }} compounding fee">
-                                            <x-mary-icon name="o-information-circle"
-                                                class="w-3 h-3 inline text-blue-500" />
+                                            <span aria-label="Includes compounding fee" class="text-blue-500">ⓘ</span>
                                         </span>
                                     @endif
                                     {{ number_format($item->retail_price, 2) }}
@@ -134,12 +188,12 @@
                                         <div class="flex justify-center gap-1">
                                             <button class="btn btn-xs btn-warning"
                                                 wire:click="openEditItemModal({{ $item->id }})">
-                                                <x-mary-icon name="o-pencil" class="w-3 h-3" />
+                                                <span aria-label="Edit item">✎</span>
                                             </button>
                                             <button class="btn btn-xs btn-error"
                                                 wire:click="delete_item({{ $item->id }})"
                                                 wire:mary-confirm="Delete this item?">
-                                                <x-mary-icon name="o-trash" class="w-3 h-3" />
+                                                <span aria-label="Delete item">×</span>
                                             </button>
                                         </div>
                                     </td>
@@ -149,7 +203,7 @@
                             <tr>
                                 <td colspan="{{ $details->status == 'pending' ? 7 : 6 }}">
                                     <div class="flex flex-col items-center justify-center py-12 opacity-40">
-                                        <x-mary-icon name="o-inbox" class="w-12 h-12 mb-2" />
+                                        <span aria-hidden="true" class="text-4xl mb-2">□</span>
                                         <p class="text-sm">No items yet</p>
                                     </div>
                                 </td>
@@ -237,8 +291,8 @@
         <div class="flex flex-col items-center py-4">
             <x-mary-icon name="o-exclamation-triangle" class="w-16 h-16 text-warning mb-4" />
             <p class="text-sm text-gray-600 text-center">
-                All items in this delivery will be added to your current stocks and no changes can be made after.
-                <br><strong>This process cannot be undone. Continue?</strong>
+                All items will be added to inventory. To correct a locked delivery, revert it with sufficient stock and a reason first.
+                <br><strong>Reversal requires sufficient stock and an audit reason. Continue?</strong>
             </p>
         </div>
         <div class="flex justify-end gap-2">

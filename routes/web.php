@@ -76,6 +76,8 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', DashboardExecutive::class)->name('dashboard');
+    Route::post('/role-preview', [App\Http\Controllers\RolePreviewController::class, 'store'])->name('role-preview.store');
+    Route::delete('/role-preview', [App\Http\Controllers\RolePreviewController::class, 'destroy'])->name('role-preview.destroy');
 
     // Dashboard KPI Detail Pages
     Route::prefix('dashboard')->name('dashboard.')->group(function () {
