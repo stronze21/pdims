@@ -15,7 +15,6 @@
 <body class="min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
 
     {{-- NAVBAR (Top Header) --}}
-    @include('layouts.partials.role-preview')
     <x-mary-nav sticky full-width>
         <x-slot:brand>
             {{-- Drawer toggle for sidebar --}}
@@ -29,11 +28,22 @@
 
         {{-- Right Side Actions --}}
         <x-slot:actions>
+            @if (request()->attributes->get('can_preview_roles'))
+                <button type="button"
+                    class="btn btn-sm {{ request()->attributes->get('preview_role') ? 'btn-warning' : 'btn-ghost' }}"
+                    aria-haspopup="dialog" aria-controls="role-preview-modal"
+                    x-data x-on:click="document.getElementById('role-preview-modal').showModal()">
+                    <x-mary-icon name="o-eye" class="h-5 w-5" />
+                    <span class="hidden sm:inline">Role preview</span>
+                    <span class="sm:hidden">Preview</span>
+                </button>
+            @endif
             <x-mary-theme-toggle class="btn btn-circle btn-ghost" />
             <x-mary-button icon="o-bell" tooltip-bottom="Notifications" class="tooltip-bottom btn-ghost btn-sm" />
             <x-mary-button icon="o-user-circle" tooltip-bottom="Profile" class="tooltip-bottom btn-ghost btn-sm" />
         </x-slot:actions>
     </x-mary-nav>
+    @include('layouts.partials.role-preview')
 
     {{-- MAIN BODY --}}
     <x-mary-main with-nav full-width>
