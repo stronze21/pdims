@@ -101,7 +101,11 @@ class ManageDrugLibrary extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->can('view-settings'), 403);
+        abort_unless(auth()->user()?->can('view-settings') || $this->canViewEquivalence(), 403);
+        if (! auth()->user()->can('view-settings')) {
+            $this->tab = 'equivalents';
+        }
+        $this->authorizeTab();
 
         $this->resetDrugForm();
         $this->resetLookupForm();
@@ -126,6 +130,7 @@ class ManageDrugLibrary extends Component
 
     public function updatedTab(): void
     {
+        $this->authorizeTab();
         $this->resetPage();
         $this->clearFilters();
     }
@@ -200,6 +205,7 @@ class ManageDrugLibrary extends Component
 
     public function createDrug(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->editingDmdcomb = null;
         $this->editingDmdctr = null;
         $this->brandSourceDmdcomb = null;
@@ -210,6 +216,7 @@ class ManageDrugLibrary extends Component
 
     public function createEquivalenceGroup(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         try {
             $members = $this->equivalence()->potentialMembersFor($dmdcomb, $dmdctr);
             if ($members->count() < 2) {
@@ -233,6 +240,7 @@ class ManageDrugLibrary extends Component
 
     public function saveReviewedEquivalenceGroup(): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         try {
             $selected = collect($this->equivalenceDraftSelected)->map(function ($key) {
                 [$dmdcomb, $dmdctr] = array_pad(explode('|', (string) $key, 2), 2, '');
@@ -256,6 +264,7 @@ class ManageDrugLibrary extends Component
 
     public function dissolveEquivalenceGroup(int $groupId): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         $this->equivalence()->dissolve($groupId, $this->auditUser(50));
         if ($this->editingEquivalenceGroupId === $groupId) {
             $this->equivalenceModal = false;
@@ -266,6 +275,7 @@ class ManageDrugLibrary extends Component
 
     public function editEquivalenceGroup(int $groupId): void
     {
+        abort_unless($this->canViewEquivalence(), 403);
         abort_if(! $this->hospital()->table('pharm_drug_equivalence_groups')->where('id', $groupId)->exists(), 404);
         $this->editingEquivalenceGroupId = $groupId;
         $this->equivalenceCandidateSearch = '';
@@ -275,6 +285,7 @@ class ManageDrugLibrary extends Component
 
     public function addEquivalenceMember(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         abort_unless($this->editingEquivalenceGroupId, 404);
         try {
             $this->equivalence()->addMember($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
@@ -288,6 +299,7 @@ class ManageDrugLibrary extends Component
 
     public function removeEquivalenceMember(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         abort_unless($this->editingEquivalenceGroupId, 404);
         try {
             $this->equivalence()->removeMember($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
@@ -300,6 +312,7 @@ class ManageDrugLibrary extends Component
 
     public function setEquivalenceCanonical(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         abort_unless($this->editingEquivalenceGroupId, 404);
         try {
             $this->equivalence()->setCanonical($this->editingEquivalenceGroupId, $dmdcomb, $dmdctr, $this->auditUser(50));
@@ -312,12 +325,14 @@ class ManageDrugLibrary extends Component
 
     public function toggleEquivalenceStatus(int $groupId): void
     {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
         $this->equivalence()->toggle($groupId, $this->auditUser(50));
         session()->flash('success', 'Equivalent group status updated.');
     }
 
     public function editDrug(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $drug = $this->hospital()->table('hdmhdr')->where(compact('dmdcomb', 'dmdctr'))->first();
 
         abort_if(! $drug, 404);
@@ -334,6 +349,7 @@ class ManageDrugLibrary extends Component
 
     public function createBrandVariant(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $drug = $this->hospital()->table('hdmhdr')->where(compact('dmdcomb', 'dmdctr'))->first();
 
         abort_if(! $drug, 404);
@@ -352,6 +368,7 @@ class ManageDrugLibrary extends Component
 
     public function saveDrug(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->validate([
             'drugForm.grpcode' => ['required', 'string', 'max:10', Rule::exists('hospital.hdruggrp', 'grpcode')],
             'drugForm.dmdnost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
@@ -491,6 +508,7 @@ class ManageDrugLibrary extends Component
 
     public function toggleDrugStatus(string $dmdcomb, string $dmdctr, string $currentStatus): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $status = $this->nextStatus($currentStatus);
 
         $this->hospital()->transaction(function () use ($dmdcomb, $dmdctr, $status) {
@@ -517,6 +535,7 @@ class ManageDrugLibrary extends Component
 
     public function createLookup(string $type): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->lookupType = $type;
         $this->lookupOriginalCode = null;
         $this->resetLookupForm();
@@ -525,6 +544,7 @@ class ManageDrugLibrary extends Component
 
     public function editLookup(string $type, string $code): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $config = $this->lookupConfig($type);
         $record = $this->hospital()->table($config['table'])->where($config['code'], $code)->first();
 
@@ -542,6 +562,7 @@ class ManageDrugLibrary extends Component
 
     public function saveLookup(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $config = $this->lookupConfig($this->lookupType);
 
         $this->validate([
@@ -594,6 +615,7 @@ class ManageDrugLibrary extends Component
 
     public function toggleLookupStatus(string $type, string $code, string $currentStatus): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $config = $this->lookupConfig($type);
 
         $this->hospital()->table($config['table'])
@@ -609,6 +631,7 @@ class ManageDrugLibrary extends Component
 
     public function createGroup(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->editingGrpcode = null;
         $this->resetGroupForm();
         $this->groupForm['grpcode'] = $this->nextNumericCode('hdruggrp', 'grpcode', 10, true);
@@ -617,6 +640,7 @@ class ManageDrugLibrary extends Component
 
     public function editGroup(string $grpcode): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $group = $this->hospital()->table('hdruggrp')->where('grpcode', $grpcode)->first();
 
         abort_if(! $group, 404);
@@ -637,6 +661,7 @@ class ManageDrugLibrary extends Component
 
     public function saveGroup(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->validate([
             'groupForm.grpcode' => ['required', 'string', 'max:10'],
             'groupForm.gencode' => ['required', 'string', 'max:5', Rule::exists('hospital.hgen', 'gencode')],
@@ -724,6 +749,7 @@ class ManageDrugLibrary extends Component
 
     public function toggleGroupStatus(string $grpcode, string $currentStatus): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->hospital()->table('hdruggrp')
             ->where('grpcode', $grpcode)
             ->update([
@@ -737,6 +763,7 @@ class ManageDrugLibrary extends Component
 
     public function editSub(string $dmdcomb, string $dmdctr, string $dmhdrsub): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $sub = $this->hospital()->table('hdmhdrsub')->where(compact('dmdcomb', 'dmdctr', 'dmhdrsub'))->first();
 
         abort_if(! $sub, 404);
@@ -758,6 +785,7 @@ class ManageDrugLibrary extends Component
 
     public function createSub(string $dmdcomb, string $dmdctr): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         abort_if(! $this->hospital()->table('hdmhdr')->where(compact('dmdcomb', 'dmdctr'))->exists(), 404);
 
         $this->editingSubDmdcomb = $dmdcomb;
@@ -769,6 +797,7 @@ class ManageDrugLibrary extends Component
 
     public function saveSub(): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->validate([
             'subForm.dmhdrsub' => ['required', 'string', 'max:6', Rule::exists('hospital.hcharge', 'chrgcode')],
             'subForm.barcode' => ['nullable', 'string', 'max:30'],
@@ -813,6 +842,7 @@ class ManageDrugLibrary extends Component
 
     public function toggleSubStatus(string $dmdcomb, string $dmdctr, string $dmhdrsub, string $currentStatus): void
     {
+        abort_unless(auth()->user()?->can('view-settings'), 403);
         $this->hospital()->table('hdmhdrsub')
             ->where('dmdcomb', $dmdcomb)
             ->where('dmdctr', $dmdctr)
@@ -825,19 +855,44 @@ class ManageDrugLibrary extends Component
         session()->flash('success', 'Drug sub-record status updated successfully.');
     }
 
+    private function canViewEquivalence(): bool
+    {
+        return auth()->user()?->canAny(['view-equivalent-groups', 'manage-equivalent-groups']) ?? false;
+    }
+
+    private function authorizeTab(): void
+    {
+        abort_unless($this->tab === 'equivalents'
+            ? $this->canViewEquivalence()
+            : auth()->user()?->can('view-settings'), 403);
+    }
+
     public function render()
     {
+        $this->authorizeTab();
+        $canManageLibrary = auth()->user()->can('view-settings');
+        $canViewEquivalence = $this->canViewEquivalence();
+        $canManageEquivalence = auth()->user()->can('manage-equivalent-groups');
+        // Public Livewire properties must not expose other library surfaces.
+        if (! $canManageLibrary) {
+            $this->drugModal = $this->lookupModal = $this->groupModal = $this->subModal = false;
+        }
+        abort_if(($this->equivalenceModal || $this->editingEquivalenceGroupId) && ! $canViewEquivalence, 403);
+        abort_if($this->equivalenceReviewModal && ! $canManageEquivalence, 403);
         $lookupTab = in_array($this->tab, ['generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units'], true)
             ? $this->tab
             : null;
         $lookupType = $this->lookupType ?: $lookupTab;
         $emptyOptions = collect();
         $showDrugFilters = $this->tab === 'drugs';
-        $equivalenceData = $this->editingEquivalenceGroupId
+        $equivalenceData = $canManageEquivalence && $this->editingEquivalenceGroupId
             ? $this->equivalence()->suggestions($this->editingEquivalenceGroupId, $this->equivalenceCandidateSearch)
             : ['compatible' => collect(), 'conflicts' => collect()];
 
         return view('livewire.pharmacy.manage-drug-library', [
+            'canManageLibrary' => $canManageLibrary,
+            'canViewEquivalence' => $canViewEquivalence,
+            'canManageEquivalence' => $canManageEquivalence,
             'rows' => $this->rows(),
             'generics' => $this->groupModal ? $this->options('hgen', 'gencode', 'gendesc') : $emptyOptions,
             'groups' => $this->drugModal ? $this->groupOptions() : $emptyOptions,

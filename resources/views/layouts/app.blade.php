@@ -163,6 +163,10 @@
                         </x-mary-menu-sub>
 
                         {{-- Settings --}}
+                        @canany(['view-equivalent-groups', 'manage-equivalent-groups'])
+                            <x-mary-menu-item title="Equivalent Groups" icon="o-link"
+                                link="{{ route('pharmacy.drug-library', ['tab' => 'equivalents']) }}" />
+                        @endcanany
                         @can('view-settings')
                             <x-mary-menu-sub title="Settings" icon="o-cog-6-tooth">
 
@@ -326,6 +330,14 @@
                             <span class="text-[11px] text-center leading-tight">Settings</span>
                         </a>
                     @endcan
+
+                    @canany(['view-equivalent-groups', 'manage-equivalent-groups'])
+                        <a href="{{ route('pharmacy.drug-library', ['tab' => 'equivalents']) }}"
+                            class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-link class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Equivalent Groups</span>
+                        </a>
+                    @endcanany
 
                     <a href="{{ route('prescriptions.queue.controller2') }}"
                     class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">

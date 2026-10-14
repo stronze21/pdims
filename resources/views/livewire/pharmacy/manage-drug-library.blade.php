@@ -131,7 +131,7 @@
         })();
     </script>
 
-    <x-mary-header title="Drug & Medicine Library" separator progress-indicator>
+    <x-mary-header :title="$canManageLibrary ? 'Drug & Medicine Library' : 'Equivalent Groups'" separator progress-indicator>
         <x-slot:actions>
             @if ($tab === 'drugs')
                 <a href="{{ route('pharmacy.drug-library.import') }}" wire:navigate class="btn btn-outline btn-sm">
@@ -142,7 +142,7 @@
             @elseif ($tab === 'groups')
                 <x-mary-button icon="o-plus" wire:click="createGroup" class="btn-primary">Add PNDF Group</x-mary-button>
             @elseif ($tab === 'equivalents')
-                <span class="text-xs text-base-content/60">Create a group from a drug row, then approve matching members here.</span>
+                <span class="text-xs text-base-content/60">{{ $canManageEquivalence ? 'Review potential groups to approve matching members.' : 'View approved groups and their members.' }}</span>
             @elseif (in_array($tab, ['generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units'], true))
                 <x-mary-button icon="o-plus" wire:click="createLookup('{{ $tab }}')" class="btn-primary">
                     Add {{ $lookupLabel }}
@@ -159,6 +159,7 @@
         <x-mary-alert icon="o-x-circle" class="alert-error">{{ session('error') }}</x-mary-alert>
     @endif
 
+    @if ($canManageLibrary)
     <div class="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-10">
         @foreach ([
             'drugs' => 'Drugs & Medicines',
@@ -173,14 +174,17 @@
             'units' => 'Units',
             'subs' => 'Sub Records',
         ] as $key => $label)
+            @if ($key === 'equivalents' ? $canViewEquivalence : $canManageLibrary)
             <button wire:click="$set('tab', '{{ $key }}')"
                 class="btn btn-sm w-full px-2 {{ $tab === $key ? 'btn-primary' : 'btn-outline' }}">
                 <span
                     class="h-2 w-2 rounded-full {{ $tab === $key ? 'bg-primary-content' : 'bg-current opacity-60' }}"></span>
                 {{ $label }}
             </button>
+            @endif
         @endforeach
     </div>
+    @endif
 
     <section x-data="{ filtersOpen: false }"
         class="rounded-xl border border-base-300 bg-base-100 shadow-sm"
@@ -281,42 +285,34 @@
     </section>
 
     @if ($tab === 'equivalents')
-        <section class="rounded-xl border border-warning/40 bg-warning/5 p-3 shadow-sm sm:p-4">
-            <div class="mb-3 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                    <h2 class="font-semibold">Potential groups</h2>
-                    <p class="text-xs text-base-content/60">Ungrouped active drugs sharing the exact generic, dose, strength, form, and route.</p>
-                </div>
-                <span class="badge badge-warning badge-outline">{{ $possibleEquivalenceGroups->count() }} candidates</span>
-            </div>
-            <div class="space-y-2">
+        <details class="rounded-xl border border-base-300 bg-base-100">
+            <summary class="cursor-pointer rounded-xl p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:p-4">
+                <span class="font-semibold">Potential groups</span>
+                <span class="badge badge-ghost badge-sm ml-2">{{ $possibleEquivalenceGroups->count() }} candidates</span>
+                <span class="ml-2 text-xs text-base-content/70">Expand to see exact clinical matches</span>
+            </summary>
+            <p class="px-4 pb-3 text-xs text-base-content/70">Ungrouped active drugs sharing the exact generic, dose, strength, form, and route.</p>
+            <div class="max-h-72 overflow-y-auto overscroll-contain border-t border-base-300" tabindex="0" role="region" aria-label="Potential equivalent groups">
                 @forelse ($possibleEquivalenceGroups as $possibleGroup)
                     <div wire:key="possible-equivalence-{{ $possibleGroup->fingerprint }}"
-                        class="rounded-lg border border-base-300 bg-base-100 p-3">
-                        <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                            <div class="min-w-0">
-                                <div class="font-semibold">{{ $possibleGroup->canonical->drug_concat }}</div>
-                                <div class="mt-1 flex flex-wrap gap-1.5">
-                                    @foreach ($possibleGroup->members as $candidateDrug)
-                                        <span class="badge badge-ghost h-auto max-w-full whitespace-normal py-1 font-mono text-[11px]">
-                                            {{ $candidateDrug->dmdcomb }}-{{ $candidateDrug->dmdctr }} · {{ $candidateDrug->drug_concat }}
-                                        </span>
-                                    @endforeach
-                                </div>
-                            </div>
+                        class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3 last:border-b-0">
+                        <div class="min-w-0 flex-1">
+                            <p class="line-clamp-2 text-sm font-medium">{{ $possibleGroup->canonical->drug_concat }}</p>
+                            <p class="mt-1 text-xs text-base-content/70">{{ $possibleGroup->member_count }} matching drugs · {{ $possibleGroup->canonical->dmdcomb }}-{{ $possibleGroup->canonical->dmdctr }}</p>
+                        </div>
+                        @if ($canManageEquivalence)
                             <button type="button" class="btn btn-primary btn-sm shrink-0"
                                 wire:click="createEquivalenceGroup('{{ $possibleGroup->canonical->dmdcomb }}', '{{ $possibleGroup->canonical->dmdctr }}')">
                                 Review and group
                             </button>
-                        </div>
+                        @endif
                     </div>
                 @empty
-                    <div class="rounded-lg border border-dashed border-base-300 bg-base-100 p-6 text-center text-base-content/60">
-                        No ungrouped drugs with an exact clinical match were found.
-                    </div>
+                    <p class="p-4 text-sm text-base-content/70">No ungrouped drugs with an exact clinical match were found.</p>
                 @endforelse
             </div>
-        </section>
+        </details>
+        <h2 class="text-lg font-semibold">Approved groups</h2>
     @endif
 
     <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
@@ -398,6 +394,7 @@
                                                 d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                         </svg>
                                     </button>
+                                    @if ($canManageEquivalence)
                                     <button type="button" class="btn btn-ghost btn-square btn-xs"
                                         title="Create equivalent group" aria-label="Create equivalent group"
                                         wire:click="createEquivalenceGroup('{{ $row->dmdcomb }}', '{{ $row->dmdctr }}')">
@@ -407,6 +404,7 @@
                                                 d="M18 7.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM6 16.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm18 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5.6 14.8l7.8-5.6m-7.3 8.1h11.8" />
                                         </svg>
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -430,17 +428,19 @@
                             <td>{{ $row->created_by ?: '-' }}</td>
                             <td><span class="badge badge-sm {{ $row->status === 'A' ? 'badge-success' : 'badge-ghost' }}">{{ $row->status === 'A' ? 'Active' : 'Inactive' }}</span></td>
                             <td class="text-center">
-                                <button type="button" wire:click="editEquivalenceGroup({{ $row->id }})" class="btn btn-ghost btn-xs">Manage</button>
+                                <button type="button" wire:click="editEquivalenceGroup({{ $row->id }})" class="btn btn-ghost btn-xs">{{ $canManageEquivalence ? 'Manage' : 'View members' }}</button>
+                                @if ($canManageEquivalence)
                                 <button type="button" wire:click="toggleEquivalenceStatus({{ $row->id }})"
                                     wire:mary-confirm="{{ $row->status === 'A' ? 'Deactivate' : 'Reactivate' }} this equivalent group?"
                                     class="btn btn-outline btn-xs">{{ $row->status === 'A' ? 'Deactivate' : 'Activate' }}</button>
                                 <button type="button" wire:click="dissolveEquivalenceGroup({{ $row->id }})"
                                     wire:mary-confirm="Dissolve this group and return all members to the Potential groups list?"
                                     class="btn btn-error btn-outline btn-xs">Dissolve</button>
+                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="py-8 text-center text-base-content/60">No equivalent drug groups found. Create one from the Drugs & Medicines tab.</td></tr>
+                        <tr><td colspan="5" class="py-8 text-center text-base-content/60">No approved equivalent groups found.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -752,7 +752,7 @@
         </div>
     </x-mary-modal>
 
-    <x-mary-modal wire:model="equivalenceModal" title="Manage Equivalent Drug Group" separator
+    <x-mary-modal wire:model="equivalenceModal" title="{{ $canManageEquivalence ? 'Manage Equivalent Drug Group' : 'Equivalent Group Members' }}" separator
         box-class="w-[96vw] max-w-6xl">
         @if ($equivalenceGroup)
             @error('equivalence')<div class="alert alert-error mb-3 text-sm">{{ $message }}</div>@enderror
@@ -776,7 +776,7 @@
                                 <td class="text-right">
                                     @if ($isCanonical)
                                         <span class="badge badge-primary badge-sm">Canonical</span>
-                                    @else
+                                    @elseif ($canManageEquivalence)
                                         <button type="button" class="btn btn-ghost btn-xs" wire:click="setEquivalenceCanonical('{{ $member->dmdcomb }}', '{{ $member->dmdctr }}')">Make canonical</button>
                                         <button type="button" class="btn btn-error btn-outline btn-xs" wire:click="removeEquivalenceMember('{{ $member->dmdcomb }}', '{{ $member->dmdctr }}')" wire:mary-confirm="Remove this member?">Remove</button>
                                     @endif
@@ -787,6 +787,7 @@
                 </table>
             </div>
 
+            @if ($canManageEquivalence)
             <div class="mt-5">
                 <label class="form-control"><span class="label-text text-xs font-semibold">Find compatible drugs</span>
                     <input type="search" wire:model.live.debounce.300ms="equivalenceCandidateSearch" class="input input-bordered input-sm" placeholder="Search description or brand" />
@@ -812,6 +813,7 @@
                 <div class="alert alert-warning mt-3 text-sm">
                     {{ $equivalenceConflicts->count() }} look-alike result(s) were excluded because one or more clinical fields differ.
                 </div>
+            @endif
             @endif
         @endif
     </x-mary-modal>
