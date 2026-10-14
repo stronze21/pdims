@@ -143,6 +143,9 @@
                 <x-mary-button icon="o-plus" wire:click="createGroup" class="btn-primary">Add PNDF Group</x-mary-button>
             @elseif ($tab === 'equivalents')
                 <span class="text-xs text-base-content/60">{{ $canManageEquivalence ? 'Review potential groups to approve matching members.' : 'View approved groups and their members.' }}</span>
+                @if ($canManageEquivalence)
+                    <button type="button" class="btn btn-primary btn-sm" wire:click="openManualEquivalence">Create group manually</button>
+                @endif
             @elseif (in_array($tab, ['generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units'], true))
                 <x-mary-button icon="o-plus" wire:click="createLookup('{{ $tab }}')" class="btn-primary">
                     Add {{ $lookupLabel }}
@@ -724,6 +727,8 @@
         </x-mary-form>
     </x-mary-modal>
 
+    @include('livewire.pharmacy.partials.manual-equivalence')
+
     <x-mary-modal wire:model="equivalenceReviewModal" title="Review Potential Equivalent Group" separator
         box-class="w-[96vw] max-w-5xl">
         @error('equivalence')<div class="alert alert-error mb-3 text-sm">{{ $message }}</div>@enderror
@@ -756,6 +761,20 @@
         box-class="w-[96vw] max-w-6xl">
         @if ($equivalenceGroup)
             @error('equivalence')<div class="alert alert-error mb-3 text-sm">{{ $message }}</div>@enderror
+            @if ($equivalenceClinicalWarnings->isNotEmpty())
+                <details class="mb-4 rounded-lg border border-warning bg-warning/10 p-3 text-sm">
+                    <summary class="cursor-pointer font-semibold">Clinical differences or missing fields detected in this group</summary>
+                    <p class="mt-2">These records are grouped for dispensing despite the differences below. Group membership does not establish clinical interchangeability.</p>
+                    @foreach ($equivalenceClinicalWarnings as $warning)
+                        <div class="mt-3">
+                            <p class="font-medium">{{ $warning['description'] }}</p>
+                            @foreach ($warning['differences'] as $difference)
+                                <p>{{ $difference['field'] }}: reference {{ $difference['canonical'] }}; member {{ $difference['candidate'] }}</p>
+                            @endforeach
+                        </div>
+                    @endforeach
+                </details>
+            @endif
             <div class="mb-4 rounded-lg border border-base-300 bg-base-200/40 p-3">
                 <div class="text-xs uppercase tracking-wide text-base-content/60">Canonical identity</div>
                 @php($canonical = $equivalenceMembers->first(fn ($member) => $member->dmdcomb === $equivalenceGroup->canonical_dmdcomb && (string) $member->dmdctr === (string) $equivalenceGroup->canonical_dmdctr))

@@ -66,6 +66,15 @@ class ManageDrugLibrary extends Component
 
     public string $equivalenceCandidateSearch = '';
 
+    public bool $manualEquivalenceModal = false;
+    public string $manualEquivalenceSearch = '';
+    public array $manualEquivalenceKeys = [];
+    public string $manualEquivalenceCanonical = '';
+    #[\Livewire\Attributes\Locked]
+    public array $manualEquivalenceReview = [];
+    public bool $manualEquivalenceConfirmed = false;
+    public string $manualEquivalenceReason = '';
+
     public ?string $editingDmdcomb = null;
 
     public ?string $editingDmdctr = null;
@@ -235,6 +244,76 @@ class ManageDrugLibrary extends Component
         } catch (Throwable $e) {
             report($e);
             $this->addError('equivalence', $e->getMessage());
+        }
+    }
+
+    public function openManualEquivalence(): void
+    {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
+        $this->reset(['manualEquivalenceSearch', 'manualEquivalenceKeys', 'manualEquivalenceCanonical', 'manualEquivalenceReview', 'manualEquivalenceConfirmed', 'manualEquivalenceReason']);
+        $this->resetErrorBag('manualEquivalence');
+        $this->manualEquivalenceModal = true;
+    }
+
+    public function selectManualEquivalence(string $key): void
+    {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
+        abort_if(strlen($key) > 100 || count($this->manualEquivalenceKeys) >= 50, 422);
+        if (! in_array($key, $this->manualEquivalenceKeys, true)) {
+            $this->manualEquivalenceKeys[] = $key;
+        }
+        $this->manualEquivalenceCanonical = $this->manualEquivalenceCanonical ?: $key;
+        $this->invalidateManualReview();
+    }
+
+    public function removeManualEquivalence(string $key): void
+    {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
+        $this->manualEquivalenceKeys = array_values(array_diff($this->manualEquivalenceKeys, [$key]));
+        if ($this->manualEquivalenceCanonical === $key) {
+            $this->manualEquivalenceCanonical = $this->manualEquivalenceKeys[0] ?? '';
+        }
+        $this->invalidateManualReview();
+    }
+
+    public function updatedManualEquivalenceCanonical(): void
+    {
+        $this->invalidateManualReview();
+    }
+
+    private function invalidateManualReview(): void
+    {
+        $this->manualEquivalenceReview = [];
+        $this->manualEquivalenceConfirmed = false;
+        $this->manualEquivalenceReason = '';
+        $this->resetErrorBag('manualEquivalence');
+    }
+
+    public function reviewManualEquivalence(): void
+    {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
+        $this->invalidateManualReview();
+        try {
+            $this->manualEquivalenceReview = $this->equivalence()->reviewManual($this->manualEquivalenceCanonical, $this->manualEquivalenceKeys);
+        } catch (\Illuminate\Validation\ValidationException $error) {
+            $this->addError('manualEquivalence', $error->validator->errors()->first());
+        }
+    }
+
+    public function saveManualEquivalence(): void
+    {
+        abort_unless(auth()->user()?->can('manage-equivalent-groups'), 403);
+        try {
+            $groupId = $this->equivalence()->createManual(
+                $this->manualEquivalenceCanonical, $this->manualEquivalenceKeys, $this->auditUser(50),
+                $this->manualEquivalenceReview['token'] ?? '', $this->manualEquivalenceConfirmed, $this->manualEquivalenceReason
+            );
+            $this->manualEquivalenceModal = false;
+            $this->invalidateManualReview();
+            session()->flash('success', 'Manual equivalent group created. Review and any confirmed exceptions were recorded.');
+            $this->editEquivalenceGroup($groupId);
+        } catch (\Illuminate\Validation\ValidationException $error) {
+            $this->addError('manualEquivalence', $error->validator->errors()->first());
         }
     }
 
@@ -879,6 +958,7 @@ class ManageDrugLibrary extends Component
         }
         abort_if(($this->equivalenceModal || $this->editingEquivalenceGroupId) && ! $canViewEquivalence, 403);
         abort_if($this->equivalenceReviewModal && ! $canManageEquivalence, 403);
+        abort_if($this->manualEquivalenceModal && ! $canManageEquivalence, 403);
         $lookupTab = in_array($this->tab, ['generics', 'forms', 'routes', 'strengths', 'packages', 'salts', 'units'], true)
             ? $this->tab
             : null;
@@ -893,6 +973,12 @@ class ManageDrugLibrary extends Component
             'canManageLibrary' => $canManageLibrary,
             'canViewEquivalence' => $canViewEquivalence,
             'canManageEquivalence' => $canManageEquivalence,
+            'equivalenceClinicalWarnings' => $this->editingEquivalenceGroupId
+                ? $this->equivalence()->groupClinicalWarnings($this->editingEquivalenceGroupId) : collect(),
+            'manualEquivalenceCandidates' => $canManageEquivalence && $this->manualEquivalenceModal
+                ? $this->equivalence()->manualCandidates($this->manualEquivalenceSearch) : collect(),
+            'manualEquivalenceDrugs' => $canManageEquivalence && $this->manualEquivalenceModal
+                ? $this->equivalence()->manualSelection($this->manualEquivalenceKeys) : collect(),
             'rows' => $this->rows(),
             'generics' => $this->groupModal ? $this->options('hgen', 'gencode', 'gendesc') : $emptyOptions,
             'groups' => $this->drugModal ? $this->groupOptions() : $emptyOptions,

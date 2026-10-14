@@ -49,6 +49,11 @@ class DrugEquivalenceAccessTest extends TestCase
             'removeEquivalenceMember' => ['001', '1'],
             'setEquivalenceCanonical' => ['001', '1'],
             'toggleEquivalenceStatus' => [1],
+            'openManualEquivalence' => [],
+            'selectManualEquivalence' => ['001|1'],
+            'removeManualEquivalence' => ['001|1'],
+            'reviewManualEquivalence' => [],
+            'saveManualEquivalence' => [],
         ] as $method => $args) {
             try {
                 $component->$method(...$args);

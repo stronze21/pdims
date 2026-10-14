@@ -85,13 +85,17 @@ class DrugEquivalenceService
         });
     }
 
-    public function addMember(int $groupId, string $dmdcomb, string|int $dmdctr, ?string $actor): void
+    public function addMember(int $groupId, string $dmdcomb, string|int $dmdctr, ?string $actor, bool $confirmedMismatch = false, string $reason = ''): void
     {
-        $this->db()->transaction(function () use ($groupId, $dmdcomb, $dmdctr, $actor) {
+        $this->db()->transaction(function () use ($groupId, $dmdcomb, $dmdctr, $actor, $confirmedMismatch, $reason) {
             $group = $this->lockedGroup($groupId);
             $canonical = $this->drug($group->canonical_dmdcomb, $group->canonical_dmdctr, true);
             $candidate = $this->drug($dmdcomb, $dmdctr, true);
-            if ($this->fingerprint($canonical) !== $this->fingerprint($candidate)) {
+            $differences = $this->clinicalDifferences($canonical, $candidate);
+            if (! $confirmedMismatch && $this->fingerprint($canonical) === $this->fingerprint($candidate)) {
+                $differences = [];
+            }
+            if ($differences && (! $confirmedMismatch || mb_strlen(trim($reason)) < 10)) {
                 throw ValidationException::withMessages(['equivalence' => 'Generic ingredient, dose, strength, form, and route must match the canonical drug exactly.']);
             }
             if ($this->groupFor($dmdcomb, $dmdctr, false)) {
@@ -101,7 +105,8 @@ class DrugEquivalenceService
                 'group_id' => $groupId, 'dmdcomb' => $candidate->dmdcomb, 'dmdctr' => $candidate->dmdctr,
                 'added_by' => $actor, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $this->audit($groupId, 'member_added', $candidate->dmdcomb, $candidate->dmdctr, $actor);
+            $this->audit($groupId, $differences ? 'member_override_confirmed' : 'member_added', $candidate->dmdcomb, $candidate->dmdctr, $actor,
+                $differences ? ['reason' => trim($reason), 'differences' => $differences, 'canonical' => [$canonical->dmdcomb, $canonical->dmdctr], 'confirmed' => true] : null);
         });
     }
 
@@ -256,6 +261,126 @@ class DrugEquivalenceService
             (string) $drug->dmdnnostp, (string) $drug->strecode, (string) $drug->formcode, (string) $drug->rtecode]);
     }
 
+    public function manualCandidates(string $search): Collection
+    {
+        if (mb_strlen(trim($search)) < 2) {
+            return collect();
+        }
+
+        return $this->drugQuery()->where('drug.dmdstat', 'A')
+            ->where(function ($query) use ($search) {
+                $query->where('drug.dmdcomb', 'like', '%'.trim($search).'%')
+                    ->orWhere('drug.brandname', 'like', '%'.trim($search).'%')
+                    ->orWhereRaw(DrugDescription::fromMaster('drug', $this->db()->getDriverName()).' like ?', ['%'.trim($search).'%']);
+            })->whereNotExists(function ($query) {
+                $query->selectRaw('1')->from('pharm_drug_equivalence_members as used')
+                    ->whereColumn('used.dmdcomb', 'drug.dmdcomb')->whereColumn('used.dmdctr', 'drug.dmdctr');
+            })->orderBy('drug.dmdcomb')->orderBy('drug.dmdctr')->limit(30)->get();
+    }
+
+    public function clinicalDifferences(object $canonical, object $candidate): array
+    {
+        $differences = [];
+        foreach (['gencode' => 'Generic ingredient', 'dmdnost' => 'Dose', 'dmdnnostp' => 'Percentage indicator',
+            'strecode' => 'Strength unit', 'formcode' => 'Dosage form', 'rtecode' => 'Route'] as $field => $label) {
+            $left = trim((string) ($canonical->$field ?? ''));
+            $right = trim((string) ($candidate->$field ?? ''));
+            $same = $field === 'dmdnost'
+                ? is_numeric($left) && is_numeric($right) && number_format((float) $left, 4, '.', '') === number_format((float) $right, 4, '.', '')
+                : $left === $right;
+            if (! $same || $left === '' || $right === '') {
+                $descriptionField = ['gencode' => 'clinical_generic', 'strecode' => 'clinical_strength', 'formcode' => 'clinical_form', 'rtecode' => 'clinical_route'][$field] ?? null;
+                $describe = fn ($drug, $value) => $value === '' ? '(not recorded)' :
+                    ($descriptionField && filled($drug->$descriptionField ?? null) ? trim($drug->$descriptionField).' ('.$value.')' : $value);
+                $differences[] = ['field' => $label, 'canonical' => $describe($canonical, $left), 'candidate' => $describe($candidate, $right)];
+            }
+        }
+
+        return $differences;
+    }
+
+    public function reviewManual(string $canonicalKey, array $memberKeys, bool $lock = false): array
+    {
+        $keys = collect($memberKeys)->map(fn ($key) => (string) $key)->unique()->sort()->values();
+        if ($keys->count() < 2 || $keys->count() > 50 || ! $keys->contains($canonicalKey)) {
+            throw ValidationException::withMessages(['manualEquivalence' => 'Select a reference drug and 2 to 50 distinct members.']);
+        }
+        $drugs = $keys->map(function ($key) use ($lock) {
+            [$comb, $ctr] = array_pad(explode('|', $key, 2), 2, '');
+            $drug = $this->drugQuery()->where('drug.dmdcomb', $comb)->where('drug.dmdctr', $ctr)
+                ->when($lock, fn ($query) => $query->lockForUpdate())->first();
+            if (! $drug || $drug->dmdstat !== 'A' || $this->groupFor($comb, $ctr, false)) {
+                throw ValidationException::withMessages(['manualEquivalence' => 'A selected drug is missing, inactive, or already grouped. Refresh your selection.']);
+            }
+
+            return $drug;
+        });
+        $canonical = $drugs->first(fn ($drug) => $drug->dmdcomb.'|'.$drug->dmdctr === $canonicalKey);
+        if (! $canonical) {
+            throw ValidationException::withMessages(['manualEquivalence' => 'Choose a reference drug from the selected records.']);
+        }
+        $members = $drugs->map(fn ($drug) => [
+            'key' => $drug->dmdcomb.'|'.$drug->dmdctr,
+            'dmdcomb' => $drug->dmdcomb, 'dmdctr' => $drug->dmdctr,
+            'description' => $drug->drug_concat, 'brand' => $drug->brandname,
+            'fingerprint' => $this->fingerprint($drug),
+            'differences' => $drug === $canonical ? [] : $this->clinicalDifferences($canonical, $drug),
+        ])->all();
+        $token = hash_hmac('sha256', json_encode([$canonicalKey, $members], JSON_THROW_ON_ERROR), (string) config('app.key'));
+
+        return ['canonical' => $canonicalKey, 'members' => $members, 'has_warnings' => collect($members)->contains(fn ($member) => count($member['differences']) > 0), 'token' => $token];
+    }
+
+    public function createManual(string $canonicalKey, array $memberKeys, ?string $actor, string $reviewToken, bool $confirmed, string $reason): int
+    {
+        return $this->db()->transaction(function () use ($canonicalKey, $memberKeys, $actor, $reviewToken, $confirmed, $reason) {
+            // Re-read and lock records: confirmation applies only to the exact reviewed selection and clinical values.
+            $review = $this->reviewManual($canonicalKey, $memberKeys, true);
+            if (! hash_equals($review['token'], $reviewToken)) {
+                throw ValidationException::withMessages(['manualEquivalence' => 'The selection or drug details changed. Review the group again before saving.']);
+            }
+            if ($review['has_warnings'] && (! $confirmed || mb_strlen(trim($reason)) < 10 || mb_strlen($reason) > 1000)) {
+                throw ValidationException::withMessages(['manualEquivalence' => 'Confirm the field differences and enter a reason of 10 to 1000 characters to proceed.']);
+            }
+            [$comb, $ctr] = explode('|', $canonicalKey, 2);
+            $groupId = $this->create($comb, $ctr, $actor);
+            foreach ($review['members'] as $member) {
+                if ($member['key'] !== $canonicalKey) {
+                    $this->addMember($groupId, $member['dmdcomb'], $member['dmdctr'], $actor, $confirmed, $reason);
+                }
+            }
+            $this->audit($groupId, 'manual_group_approved', null, null, $actor, [
+                'canonical' => $canonicalKey, 'members' => $review['members'],
+                'confirmed_mismatch' => $review['has_warnings'] && $confirmed,
+                'reason' => $review['has_warnings'] ? trim($reason) : null,
+            ]);
+
+            return $groupId;
+        });
+    }
+
+    public function manualSelection(array $keys): Collection
+    {
+        return collect($keys)->unique()->take(50)->map(function ($key) {
+            [$comb, $ctr] = array_pad(explode('|', (string) $key, 2), 2, '');
+
+            return $this->drug($comb, $ctr);
+        })->filter()->values();
+    }
+
+    public function groupClinicalWarnings(int $groupId): Collection
+    {
+        $group = $this->lockedGroup($groupId);
+        $canonical = $this->drug($group->canonical_dmdcomb, $group->canonical_dmdctr, true);
+
+        return $this->drugQuery()->join('pharm_drug_equivalence_members as member', function ($join) {
+            $join->on('member.dmdcomb', 'drug.dmdcomb')->on('member.dmdctr', 'drug.dmdctr');
+        })->where('member.group_id', $groupId)->get()
+            ->reject(fn ($drug) => $drug->dmdcomb === $canonical->dmdcomb && (string) $drug->dmdctr === (string) $canonical->dmdctr)
+            ->map(fn ($drug) => ['description' => $drug->drug_concat, 'differences' => $this->clinicalDifferences($canonical, $drug)])
+            ->filter(fn ($warning) => count($warning['differences']) > 0)->values();
+    }
+
     public function normalizeDescription(?string $description): string
     {
         $value = strtolower((string) $description);
@@ -284,7 +409,13 @@ class DrugEquivalenceService
     private function drugQuery()
     {
         return $this->db()->table('hdmhdr as drug')->join('hdruggrp as grp', 'grp.grpcode', '=', 'drug.grpcode')
-            ->select('drug.*', 'grp.gencode')->selectRaw(DrugDescription::fromMaster('drug', $this->db()->getDriverName()).' AS drug_concat');
+            ->leftJoin('hgen as clinical_gen', 'clinical_gen.gencode', '=', 'grp.gencode')
+            ->leftJoin('hstre as clinical_strength', 'clinical_strength.strecode', '=', 'drug.strecode')
+            ->leftJoin('hform as clinical_form', 'clinical_form.formcode', '=', 'drug.formcode')
+            ->leftJoin('hroute as clinical_route', 'clinical_route.rtecode', '=', 'drug.rtecode')
+            ->select('drug.*', 'grp.gencode', 'clinical_gen.gendesc as clinical_generic', 'clinical_strength.stredesc as clinical_strength',
+                'clinical_form.formdesc as clinical_form', 'clinical_route.rtedesc as clinical_route')
+            ->selectRaw(DrugDescription::fromMaster('drug', $this->db()->getDriverName()).' AS drug_concat');
     }
 
     private function lockedGroup(int $groupId): object
@@ -296,11 +427,11 @@ class DrugEquivalenceService
         return $group;
     }
 
-    private function audit(int $groupId, string $action, ?string $dmdcomb, string|int|null $dmdctr, ?string $actor): void
+    private function audit(int $groupId, string $action, ?string $dmdcomb, string|int|null $dmdctr, ?string $actor, ?array $details = null): void
     {
         $this->db()->table('pharm_drug_equivalence_audits')->insert([
             'group_id' => $groupId, 'action' => $action, 'dmdcomb' => $dmdcomb, 'dmdctr' => $dmdctr,
-            'actor' => $actor, 'details_json' => null, 'created_at' => now(),
+            'actor' => $actor, 'details_json' => $details === null ? null : json_encode($details, JSON_THROW_ON_ERROR), 'created_at' => now(),
         ]);
     }
 }
