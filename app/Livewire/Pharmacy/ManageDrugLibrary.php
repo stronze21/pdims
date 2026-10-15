@@ -1058,7 +1058,8 @@ class ManageDrugLibrary extends Component
             ->when($this->statusFilter, fn ($q) => $q->where('eq.status', $this->statusFilter))
             ->groupBy('eq.id', 'eq.canonical_dmdcomb', 'eq.canonical_dmdctr', 'eq.status', 'eq.created_by',
                 'eq.created_at', 'canonical.grpcode', 'canonical.brandname', 'canonical.dmdnost', 'canonical.dmdnnostp',
-                'canonical.strecode', 'canonical.formcode', 'canonical.rtecode')
+                'canonical.strecode', 'canonical.formcode', 'canonical.rtecode',
+                'canonical.dmdrem', 'canonical.dmdclaimno', 'canonical.dmdclmuom')
             ->orderByRaw($description)->paginate($this->perPage);
     }
 
@@ -1113,7 +1114,8 @@ class ManageDrugLibrary extends Component
             ->when($this->brandFilter === 'generic', fn ($query) => $query->whereRaw("NULLIF(LTRIM(RTRIM(d.brandname)), '') IS NULL"))
             ->when($this->brandFilter === 'branded', fn ($query) => $query->whereRaw("NULLIF(LTRIM(RTRIM(d.brandname)), '') IS NOT NULL"))
             ->groupBy('d.dmdcomb', 'd.dmdctr', 'd.dmdnost', 'd.dmdnnostp', 'd.brandname', 'd.dmdpndf', 'd.dmdstat',
-                'd.grpcode', 'd.strecode', 'd.formcode', 'd.rtecode', 'gen.gendesc', 'form.formdesc', 'route.rtedesc', 'strength.stredesc')
+                'd.grpcode', 'd.strecode', 'd.formcode', 'd.rtecode', 'gen.gendesc', 'form.formdesc', 'route.rtedesc', 'strength.stredesc',
+                'd.dmdrem', 'd.dmdclaimno', 'd.dmdclmuom')
             ->orderBy('gen.gendesc')
             ->orderBy('d.dmdcomb')
             ->orderBy('d.dmdctr')

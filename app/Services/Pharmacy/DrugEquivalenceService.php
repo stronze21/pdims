@@ -58,7 +58,8 @@ class DrugEquivalenceService
             ->select('drug.dmdcomb', 'drug.dmdctr', 'drug.brandname')->selectRaw("{$description} AS drug_concat")
             ->selectRaw('SUM(stock.stock_bal) as total_stock')
             ->groupBy('drug.dmdcomb', 'drug.dmdctr', 'drug.brandname', 'drug.grpcode', 'drug.dmdnost',
-                'drug.dmdnnostp', 'drug.strecode', 'drug.formcode', 'drug.rtecode')
+                'drug.dmdnnostp', 'drug.strecode', 'drug.formcode', 'drug.rtecode',
+                'drug.dmdrem', 'drug.dmdclaimno', 'drug.dmdclmuom')
             ->orderByRaw('CASE WHEN drug.dmdcomb = ? AND drug.dmdctr = ? THEN 0 ELSE 1 END', [$dmdcomb, $dmdctr])
             ->orderByRaw($description)->get();
     }

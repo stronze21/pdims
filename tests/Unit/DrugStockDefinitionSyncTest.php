@@ -19,7 +19,7 @@ class DrugStockDefinitionSyncTest extends TestCase
         foreach (['hgen' => ['gencode', 'gendesc'], 'hdruggrp' => ['grpcode', 'gencode'],
             'hstre' => ['strecode', 'stredesc'], 'hform' => ['formcode', 'formdesc'],
             'hroute' => ['rtecode', 'rtedesc'],
-            'hdmhdr' => ['dmdcomb', 'dmdctr', 'grpcode', 'brandname', 'dmdnost', 'dmdnnostp', 'strecode', 'formcode', 'rtecode'],
+            'hdmhdr' => ['dmdcomb', 'dmdctr', 'grpcode', 'brandname', 'dmdnost', 'dmdnnostp', 'strecode', 'formcode', 'rtecode', 'dmdrem', 'dmdclaimno', 'dmdclmuom'],
             'pharm_drug_stocks' => ['dmdcomb', 'dmdctr', 'loc_code', 'drug_concat', 'dmdnost', 'strecode', 'stock_bal', 'retail_price', 'exp_date', 'lot_no'],
         ] as $table => $columns) {
             $schema->create($table, function (Blueprint $blueprint) use ($columns) {
@@ -94,6 +94,24 @@ class DrugStockDefinitionSyncTest extends TestCase
             $this->assertSame($value, $db->table('hdmhdr')->value('dmdnost'));
             $drug = (array) $db->table('hdmhdr')->first();
             $this->assertSame('Example_, '.$expected.'% eye drops', app(\App\Services\Pharmacy\DrugImport\DrugMasterWriter::class)->description($db, $drug));
+        }
+    }
+
+    public function test_legacy_remarks_and_claim_size_are_included_without_repeating_size(): void
+    {
+        $db = DB::connection('hospital');
+        foreach ([
+            ['15g', null, null, '15g'],
+            [null, '60.00', 'ml', '60ml'],
+            ['60 ml', '60.00', 'ml', '60 ml'],
+            ['tube', '15', 'g', 'tube 15g'],
+            ['', '0', 'ml', ''],
+        ] as [$remarks, $quantity, $unit, $expected]) {
+            $db->table('hdmhdr')->update(['dmdrem' => $remarks, 'dmdclaimno' => $quantity, 'dmdclmuom' => $unit]);
+            app(DrugStockDefinitionSync::class)->syncDrug('D', '1');
+            $label = 'Example_, 10mg/ml bottle'.($expected === '' ? '' : ' '.$expected);
+            $this->assertSame($label, $db->table('pharm_drug_stocks')->where('dmdctr', '1')->value('drug_concat'));
+            $this->assertSame($label, app(\App\Services\Pharmacy\DrugImport\DrugMasterWriter::class)->description($db, (array) $db->table('hdmhdr')->first()));
         }
     }
 }

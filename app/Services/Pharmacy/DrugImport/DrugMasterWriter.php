@@ -24,7 +24,9 @@ class DrugMasterWriter
         $number = \App\Services\Pharmacy\DrugDescription::formatStrengthNumber($drug['dmdnost']);
         $number .= ($drug['dmdnnostp'] ?? null) === 'Y' ? '%' : '';
 
-        return trim((string) $generic).'_, '.trim(collect([$drug['brandname'] ?? null, $number.$strength, $form])->filter()->implode(' '));
+        $details = \App\Services\Pharmacy\DrugDescription::details($drug);
+
+        return trim((string) $generic).'_, '.trim(collect([$drug['brandname'] ?? null, $number.$strength, $form, $details])->filter()->implode(' '));
     }
 
     public function duplicate(ConnectionInterface $db, array $drug): ?object
