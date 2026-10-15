@@ -635,7 +635,7 @@
     </div>
 
     <x-mary-modal wire:model="drugModal"
-        title="{{ $editingDmdcomb ? 'Edit Drug & Medicine' : ($brandSourceDmdcomb ? 'Add Brand Variant' : 'Add Drug & Medicine') }}"
+        :title="$editingDmdcomb ? 'Edit Drug & Medicine' : ($brandSourceDmdcomb ? 'Add Brand Variant' : 'Add Drug & Medicine')"
         separator
         box-class="w-[96vw] max-w-[96vw]">
         @php($sharedDefinitionLocked = filled($brandSourceDmdcomb) || (filled($editingDmdcomb) && (int) $editingDmdctr > 1))
@@ -646,7 +646,7 @@
                     ['id' => 'OTC', 'name' => 'Over The Counter (OTC)'],
                 ]" option-value="id" option-label="name" placeholder="Select classification" single required
                     :disabled="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="PNDF Group / Generic" wire:model="drugForm.grpcode" :options="$groups"
+                <x-mary-choices-offline label="PNDF Group / Generic" wire:model="drugForm.grpcode" values-as-string :options="$groups"
                     option-value="id" option-label="name" placeholder="Search PNDF group" single searchable clearable required
                     :disabled="$sharedDefinitionLocked" />
                 <x-mary-input label="Brand Name" wire:model="drugForm.brandname" maxlength="30"
@@ -659,13 +659,13 @@
                         ['id' => 'Y', 'name' => 'Percent (%)'],
                     ]" option-value="id" option-label="name" single required :disabled="$sharedDefinitionLocked" />
                 </div>
-                <x-mary-choices-offline label="Strength" wire:model="drugForm.strecode" :options="$strengths"
+                <x-mary-choices-offline label="Strength" wire:model="drugForm.strecode" values-as-string :options="$strengths"
                     option-value="id" option-label="name" placeholder="Search strength" single searchable clearable required
                     :disabled="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="Form" wire:model="drugForm.formcode" :options="$forms"
+                <x-mary-choices-offline label="Form" wire:model="drugForm.formcode" values-as-string :options="$forms"
                     option-value="id" option-label="name" placeholder="Search form" single searchable clearable required
                     :disabled="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="Route" wire:model="drugForm.rtecode" :options="$routes"
+                <x-mary-choices-offline label="Route" wire:model="drugForm.rtecode" values-as-string :options="$routes"
                     option-value="id" option-label="name" placeholder="Search route" single searchable clearable required
                     :disabled="$sharedDefinitionLocked" />
                 <x-mary-choices-offline label="PNDF Flag" wire:model="drugForm.dmdpndf" :options="[
@@ -692,15 +692,15 @@
                 ]" option-value="id" option-label="name" single :disabled="$sharedDefinitionLocked" />
                 <x-mary-input label="LBS Code" wire:model="drugForm.lbscode" maxlength="5"
                     :readonly="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="Packaging" wire:model="drugForm.packcode" :options="$packages"
+                <x-mary-choices-offline label="Packaging" wire:model="drugForm.packcode" values-as-string :options="$packages"
                     option-value="id" option-label="name" placeholder="Search packaging" single searchable clearable
                     :disabled="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="Salt" wire:model="drugForm.saltcode" :options="$salts"
+                <x-mary-choices-offline label="Salt" wire:model="drugForm.saltcode" values-as-string :options="$salts"
                     option-value="id" option-label="name" placeholder="Search salt" single searchable clearable
                     :disabled="$sharedDefinitionLocked" />
                 <x-mary-input label="Pack Volume" type="number" min="0" step="0.01"
                     wire:model="drugForm.packvolno" :readonly="$sharedDefinitionLocked" />
-                <x-mary-choices-offline label="Pack Volume Unit" wire:model="drugForm.packvolunitcode" :options="$units"
+                <x-mary-choices-offline label="Pack Volume Unit" wire:model="drugForm.packvolunitcode" values-as-string :options="$units"
                     option-value="id" option-label="name" placeholder="Search unit" single searchable clearable
                     :disabled="$sharedDefinitionLocked" />
                 <x-mary-input label="Beginning Balance" type="number" min="0" step="1"
