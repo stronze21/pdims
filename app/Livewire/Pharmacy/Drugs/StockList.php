@@ -14,7 +14,6 @@ use App\Models\Pharmacy\ZeroBillingCharge;
 use App\Models\References\ChargeCode;
 use App\Models\StockAdjustment;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -354,7 +353,10 @@ class StockList extends Component
 
     public function sync_items()
     {
-        Artisan::call('init:drugconcat');
+        abort_unless(auth()->user(), 403);
+        abort_unless((string) $this->location_id === (string) auth()->user()->pharm_location_id
+            || auth()->user()->can('filter-stocks-location'), 403);
+        app(\App\Services\Pharmacy\DrugStockDefinitionSync::class)->syncLocation((string) $this->location_id);
         $this->dispatch('refresh-stocks');
         $this->success('Items in sync');
     }

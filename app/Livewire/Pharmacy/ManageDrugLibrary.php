@@ -581,6 +581,8 @@ class ManageDrugLibrary extends Component
                         ...$drugData,
                     ]);
                 }
+
+                app(\App\Services\Pharmacy\DrugStockDefinitionSync::class)->syncDrug((string) $dmdcomb, (string) $dmdctr);
             });
 
             session()->flash('success', 'Drug and medicine item saved successfully.');
