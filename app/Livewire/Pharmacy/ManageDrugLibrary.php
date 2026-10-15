@@ -1041,7 +1041,7 @@ class ManageDrugLibrary extends Component
             ->where('eq.status', '<>', 'D')
             ->select('eq.id', 'eq.canonical_dmdcomb', 'eq.canonical_dmdctr', 'eq.status', 'eq.created_by',
                 'eq.created_at', DB::raw('COUNT(member.id) as member_count'))->selectRaw("{$description} AS drug_concat")
-            ->when($this->search, fn ($q) => $q->where(function ($nested) use ($search) {
+            ->when($this->search, fn ($q) => $q->where(function ($nested) use ($search, $description) {
                 $nested->whereRaw("{$description} like ?", [$search])
                     ->orWhere('canonical.dmdcomb', 'like', $search);
             }))
@@ -1085,8 +1085,8 @@ class ManageDrugLibrary extends Component
                 DB::raw('COUNT(sub.dmhdrsub) as sub_count'),
             ])
             ->selectRaw("{$description} AS drug_concat")
-            ->when($this->search, function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
+            ->when($this->search, function ($query) use ($search, $description) {
+                $query->where(function ($q) use ($search, $description) {
                     $q->whereRaw("{$description} like ?", [$search])
                         ->orWhere('d.dmdnost', 'like', $search)
                         ->orWhere('d.brandname', 'like', $search)
@@ -1169,8 +1169,8 @@ class ManageDrugLibrary extends Component
             })
             ->leftJoin('hcharge as charge', 'charge.chrgcode', '=', 'sub.dmhdrsub')
             ->select('sub.*', 'charge.chrgdesc')->selectRaw("{$description} AS drug_concat")
-            ->when($this->search, function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
+            ->when($this->search, function ($query) use ($search, $description) {
+                $query->where(function ($q) use ($search, $description) {
                     $q->whereRaw("{$description} like ?", [$search])
                         ->orWhere('sub.dmhdrsub', 'like', $search)
                         ->orWhere('sub.barcode', 'like', $search)
