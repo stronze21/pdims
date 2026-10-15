@@ -21,7 +21,7 @@ class DrugMasterWriter
             ->where('grp.grpcode', $drug['grpcode'])->value('gen.gendesc');
         $strength = $db->table('hstre')->where('strecode', $drug['strecode'])->value('stredesc');
         $form = $db->table('hform')->where('formcode', $drug['formcode'])->value('formdesc');
-        $number = number_format((float) $drug['dmdnost'], 2, '.', '');
+        $number = \App\Services\Pharmacy\DrugDescription::formatStrengthNumber($drug['dmdnost']);
         $number .= ($drug['dmdnnostp'] ?? null) === 'Y' ? '%' : '';
 
         return trim((string) $generic).'_, '.trim(collect([$drug['brandname'] ?? null, $number.$strength, $form])->filter()->implode(' '));

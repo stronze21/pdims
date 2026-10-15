@@ -1324,6 +1324,7 @@ class ManageDrugLibrary extends Component
         ] as $field) {
             $this->drugForm[$field] = trim((string) ($source->{$field} ?? ''));
         }
+        $this->drugForm['dmdnost'] = DrugDescription::formatStrengthNumber($source->dmdnost ?? 0);
     }
 
     private function auditUser(int $maxLength): ?string
@@ -1435,7 +1436,7 @@ class ManageDrugLibrary extends Component
     {
         $this->drugForm = [
             'grpcode' => trim((string) $drug->grpcode),
-            'dmdnost' => trim((string) $drug->dmdnost),
+            'dmdnost' => DrugDescription::formatStrengthNumber($drug->dmdnost),
             'strecode' => trim((string) $drug->strecode),
             'formcode' => trim((string) $drug->formcode),
             'rtecode' => trim((string) $drug->rtecode),

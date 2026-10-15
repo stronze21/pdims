@@ -80,4 +80,20 @@ class DrugStockDefinitionSyncTest extends TestCase
         app(DrugStockDefinitionSync::class)->syncLocation('A');
         $this->assertSame('25', $db->table('pharm_drug_stocks')->where('loc_code', 'A')->where('dmdctr', '1')->value('dmdnost'));
     }
+
+    public function test_descriptions_remove_only_insignificant_decimal_zeros(): void
+    {
+        $db = DB::connection('hospital');
+        $db->table('hstre')->update(['stredesc' => '']);
+        $db->table('hform')->update(['formdesc' => 'eye drops']);
+        foreach (['0.30' => '0.3', '0.05' => '0.05', '5.00' => '5', '10' => '10', '.30' => '0.3', '.00' => '0', '0.0030' => '0.003'] as $value => $expected) {
+            $value = (string) $value;
+            $db->table('hdmhdr')->update(['dmdnost' => $value, 'dmdnnostp' => 'Y']);
+            app(DrugStockDefinitionSync::class)->syncDrug('D', '1');
+            $this->assertSame('Example_, '.$expected.'% eye drops', $db->table('pharm_drug_stocks')->where('dmdctr', '1')->value('drug_concat'));
+            $this->assertSame($value, $db->table('hdmhdr')->value('dmdnost'));
+            $drug = (array) $db->table('hdmhdr')->first();
+            $this->assertSame('Example_, '.$expected.'% eye drops', app(\App\Services\Pharmacy\DrugImport\DrugMasterWriter::class)->description($db, $drug));
+        }
+    }
 }
