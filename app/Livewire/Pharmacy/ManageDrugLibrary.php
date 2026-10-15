@@ -555,6 +555,14 @@ class ManageDrugLibrary extends Component
                     'dmddtmd' => $now,
                 ];
 
+                // Older hospital schemas do not include packaging volume columns.
+                $columns = $this->hospital()->getSchemaBuilder()->getColumnListing('hdmhdr');
+                foreach (['packvolno', 'packvolunitcode'] as $field) {
+                    if (! in_array($field, $columns, true)) {
+                        unset($drugData[$field]);
+                    }
+                }
+
                 if ($isEditing) {
                     $updated = $this->hospital()->table('hdmhdr')
                         ->where('dmdcomb', $dmdcomb)
@@ -1312,7 +1320,7 @@ class ManageDrugLibrary extends Component
             'packvolno',
             'packvolunitcode',
         ] as $field) {
-            $this->drugForm[$field] = trim((string) $source->{$field});
+            $this->drugForm[$field] = trim((string) ($source->{$field} ?? ''));
         }
     }
 
@@ -1448,8 +1456,8 @@ class ManageDrugLibrary extends Component
             'stockbal' => trim((string) ($drug->stockbal ?? 0)),
             'packcode' => trim((string) $drug->packcode),
             'saltcode' => trim((string) $drug->saltcode),
-            'packvolno' => trim((string) $drug->packvolno),
-            'packvolunitcode' => trim((string) $drug->packvolunitcode),
+            'packvolno' => trim((string) ($drug->packvolno ?? '')),
+            'packvolunitcode' => trim((string) ($drug->packvolunitcode ?? '')),
         ];
         $this->resetValidation();
     }
