@@ -103,7 +103,7 @@ class StockApiController extends Controller
             $params[] = $offset;
             $params[] = $perPage;
 
-            $stocks = DB::connection('sqlsrv')->select($query, $params);
+            $stocks = DB::connection('hospital')->select($query, $params);
 
             return response()->json([
                 'success' => true,

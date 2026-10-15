@@ -32,8 +32,9 @@ class DrugStockDefinitionSyncTest extends TestCase
         $db->table('hdruggrp')->insert(['grpcode' => 'GR', 'gencode' => 'G']);
         $db->table('hstre')->insert(['strecode' => '150', 'stredesc' => 'mg/ml']);
         $db->table('hform')->insert(['formcode' => 'BOT', 'formdesc' => 'bottle']);
+        $db->table('hroute')->insert(['rtecode' => 'OP', 'rtedesc' => 'Ophthalmic']);
         $db->table('hdmhdr')->insert(['dmdcomb' => 'D', 'dmdctr' => '1', 'grpcode' => 'GR',
-            'dmdnost' => '10', 'strecode' => '150', 'formcode' => 'BOT']);
+            'dmdnost' => '10', 'strecode' => '150', 'formcode' => 'BOT', 'rtecode' => 'OP']);
         foreach ([['D', '1', 'A'], ['D', '1', 'B'], ['D', '2', 'A']] as [$code, $counter, $location]) {
             $db->table('pharm_drug_stocks')->insert(['dmdcomb' => $code, 'dmdctr' => $counter,
                 'loc_code' => $location, 'drug_concat' => 'Old label', 'dmdnost' => '5', 'strecode' => 'OLD',
@@ -55,12 +56,18 @@ class DrugStockDefinitionSyncTest extends TestCase
             $this->assertSame('10', $row->dmdnost);
             $this->assertSame('150', $row->strecode);
             $this->assertStringContainsString('10mg/ml bottle', $row->drug_concat);
+            $parts = explode('_,', $row->drug_concat, 2);
+            $this->assertCount(2, $parts);
+            $this->assertSame('Example', $parts[0]);
+            $this->assertSame('10mg/ml bottle', trim($parts[1]));
+            $this->assertStringNotContainsString('Ophthalmic', $row->drug_concat);
             $this->assertSame('42', $row->stock_bal);
             $this->assertSame('20', $row->retail_price);
             $this->assertSame('2028-01-01', $row->exp_date);
             $this->assertSame('LOT', $row->lot_no);
         }
         $this->assertSame('Old label', DB::connection('hospital')->table('pharm_drug_stocks')->where('dmdctr', '2')->value('drug_concat'));
+        $this->assertSame('OP', DB::connection('hospital')->table('hdmhdr')->value('rtecode'));
     }
 
     public function test_location_sync_leaves_other_locations_and_missing_master_records_unchanged(): void

@@ -356,9 +356,9 @@ class StockList extends Component
         abort_unless(auth()->user(), 403);
         abort_unless((string) $this->location_id === (string) auth()->user()->pharm_location_id
             || auth()->user()->can('filter-stocks-location'), 403);
-        app(\App\Services\Pharmacy\DrugStockDefinitionSync::class)->syncLocation((string) $this->location_id);
+        $updated = app(\App\Services\Pharmacy\DrugStockDefinitionSync::class)->syncLocation((string) $this->location_id);
         $this->dispatch('refresh-stocks');
-        $this->success('Items in sync');
+        $this->success("Sync completed: {$updated} stock records matched the drug library in this location.");
     }
 
     private function resetForm()

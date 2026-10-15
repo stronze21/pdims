@@ -36,6 +36,7 @@
         stocks: [],
         page: 1,
         loading: false,
+        reloadPending: false,
         hasMore: true,
         locationId: {{ $location_id }},
         chargeCodes: @js($charge_codes->pluck('chrgdesc')->unique()->values()),
@@ -51,7 +52,11 @@
         filterTimeout: null,
     
         async loadStocks(resetPage = false) {
-            if (this.loading || (!this.hasMore && !resetPage)) return;
+            if (this.loading) {
+                this.reloadPending = this.reloadPending || resetPage;
+                return;
+            }
+            if (!this.hasMore && !resetPage) return;
     
             if (resetPage) {
                 this.page = 1;
@@ -89,6 +94,10 @@
                 console.error('Error loading stocks:', error);
             } finally {
                 this.loading = false;
+                if (this.reloadPending) {
+                    this.reloadPending = false;
+                    this.loadStocks(true);
+                }
             }
         },
     

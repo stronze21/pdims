@@ -25,7 +25,8 @@ class DrugStockDefinitionSync
             ->update([
                 'dmdnost' => $drug->dmdnost,
                 'strecode' => $drug->strecode,
-                'drug_concat' => str_replace('_,', ' ', $drug->description),
+                // Legacy dispensing splits this stored value on "_," into two lines.
+                'drug_concat' => $drug->description,
             ]);
     }
 
