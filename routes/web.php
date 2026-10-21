@@ -117,6 +117,7 @@ Route::middleware([
 
     Route::prefix('dispensing')->name('dispensing.')->group(function () {
         Route::get('/uddds/charge-slips', UdddsChargeSlipBatch::class)->name('uddds.chargeslips');
+        Route::get('/uddds/ward-orders', \App\Http\Controllers\UdddsWardPrintController::class)->middleware('can:view-prescriptions')->name('uddds.ward-orders');
         Route::get('/encounter/charge/{pcchrgcod}', RxoChargeSlip::class)
             ->name('rxo.chargeslip');
         Route::get('/encounter/{enccode?}', DispensingEncounter::class)

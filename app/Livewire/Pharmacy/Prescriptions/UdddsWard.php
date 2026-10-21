@@ -32,6 +32,8 @@ class UdddsWard extends Component
     public $processingProblem;
     public $fallback_sources = [];
     public $fundModalOpen = false;
+    public $replacement_items = [];
+    public $replacement_search = '';
 
     public function mount()
     {
@@ -78,15 +80,37 @@ class UdddsWard extends Component
         }
         $items = $service->annotatePendingStock($items, auth()->user()->pharm_location_id);
         $groups = $service->fundSelectionGroups($items, $this->selected_items);
+        $replacementSummary = [];
+        if (array_filter($this->replacement_items)) {
+            try {
+                $selected = array_values(array_filter($items, fn ($item) => in_array((string) $item->docointkey, $this->selected_items, true)));
+                $selected = array_map(fn ($item) => clone $item, $selected);
+                $replacements = app(\App\Services\Pharmacy\UdddsReplacementSelection::class);
+                $options = $replacements->options(auth()->user()->pharm_location_id, '', $this->replacement_items);
+                $replacementSummary = $replacements->summary($groups, $this->replacement_items, $options);
+                $selected = $replacements->apply($selected, $this->replacement_items, $options);
+                $selected = $service->annotatePendingStock($selected, auth()->user()->pharm_location_id);
+                $groups = $service->fundSelectionGroups($selected, $this->selected_items);
+            } catch (\InvalidArgumentException $e) {
+                $this->processingProblem = $e->getMessage();
+                $this->fundModalOpen = true;
+                return;
+            }
+        }
         $uncovered = $service->uncoveredFundGroups($groups, $this->fallback_sources);
         $this->processingProblem = null;
         if ($uncovered) {
             $this->fundModalOpen = true;
-            if ($requireCoverage) $this->processingProblem = 'Selected funds still cannot cover the shortage. Choose another available fund before continuing.';
+            if ($requireCoverage) $this->processingProblem = 'Selected funds still cannot cover the shortage. Choose another available fund or replacement item before continuing.';
             return;
         }
         $this->fundModalOpen = false;
-        $this->dispatch('uddds-confirm-issue', count: count($this->selected_items));
+        $this->dispatch('uddds-confirm-issue', count: count($this->selected_items), replacements: $replacementSummary, replacementConfirmation: $this->replacementConfirmationKey($this->selected_items));
+    }
+
+    public function clearReplacements()
+    {
+        $this->reset('replacement_items', 'replacement_search', 'processingProblem');
     }
 
     public function closeFundModal()
@@ -101,29 +125,29 @@ class UdddsWard extends Component
 
     public function updatingStatusFilter()
     {
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
         $this->dispatch('uddds-selection-cleared');
     }
 
     public function updatingQueueView()
     {
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
     }
 
     public function updatingWardcode()
     {
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
     }
 
     public function updatingSelectedDate()
     {
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
     }
 
     public function showToday()
     {
         $this->selected_date = now('Asia/Manila')->toDateString();
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
     }
 
     public function render()
@@ -145,6 +169,7 @@ class UdddsWard extends Component
         $udddsReady = !$this->queueLoaded || UdddsService::hasHrxoColumns();
 
         return view('livewire.pharmacy.prescriptions.uddds-ward', [
+            'replacementOptions' => $this->fundModalOpen ? app(\App\Services\Pharmacy\UdddsReplacementSelection::class)->options(auth()->user()->pharm_location_id, (string) $this->replacement_search, $this->replacement_items) : [],
             'items' => $items,
             'patients' => $patients,
             'fundGroups' => array_filter(app(UdddsService::class)->fundSelectionGroups($items, $this->selected_items), fn ($group) => $group['item']->current_available < $group['qty']),
@@ -234,9 +259,9 @@ class UdddsWard extends Component
         return array_values(array_unique($keys));
     }
 
-    public function processSelected(array $keys = [])
+    public function processSelected(array $keys = [], $replacementConfirmation = null)
     {
-        $this->processKeys($keys ?: $this->selected_items);
+        $this->processKeys($keys ?: $this->selected_items, $replacementConfirmation);
     }
 
     public function view_enctr($enccode)
@@ -246,7 +271,12 @@ class UdddsWard extends Component
         return redirect()->route('dispensing.view.enctr', ['enccode' => $enccode]);
     }
 
-    protected function processKeys(array $keys)
+    protected function replacementConfirmationKey(array $keys): string
+    {
+        return \App\Services\Pharmacy\UdddsReplacementSelection::confirmationKey($keys, $this->replacement_items, $this->fallback_sources, $this->selected_date);
+    }
+
+    protected function processKeys(array $keys, $replacementConfirmation = null)
     {
         if ($this->queue_view === 'processed') {
             return;
@@ -256,6 +286,12 @@ class UdddsWard extends Component
         $patientNumbersBefore = array_column($this->groupPatients($queueItems), 'number', 'enccode');
         $allowed = collect($queueItems)->filter(fn ($item) => (bool) $item->is_actionable)->pluck('docointkey')->all();
         $keys = array_values(array_intersect(array_unique($keys), $allowed));
+        if (array_filter($this->replacement_items) && (!is_string($replacementConfirmation)
+            || !hash_equals($this->replacementConfirmationKey($keys), $replacementConfirmation))) {
+            $this->selected_items = $keys;
+            $this->reviewFunding(true);
+            return;
+        }
         $this->processingProblem = null;
         try {
             $keys = $udddsService->materializeDailyItems($keys, $this->selected_date);
@@ -268,7 +304,7 @@ class UdddsWard extends Component
             'user_id' => auth()->id(),
             'consumption_id' => null,
             'toecode' => 'ADM',
-        ], $this->fallback_sources);
+        ], $this->fallback_sources, $this->replacement_items);
 
         if (!empty($result['pcchrgcods'])) {
             $printItems = $udddsService->wardItemsForDate($this->wardcode, auth()->user()->pharm_location_id, $this->selected_date);
@@ -282,7 +318,7 @@ class UdddsWard extends Component
             return;
         }
 
-        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
+        $this->reset('selected_items', 'processingProblem', 'fallback_sources', 'replacement_items', 'replacement_search', 'fundModalOpen', 'selected_print_patients', 'print_range', 'printSelectionProblem', 'printModalOpen');
         $this->dispatch('uddds-selection-cleared');
         $this->success($result['message']);
 

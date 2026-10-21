@@ -29,3 +29,5 @@ Homestead.json
 .phpactor.json
 auth.json
 /ihomis_pharmacy
+/tests
+/state

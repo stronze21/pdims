@@ -42,6 +42,13 @@
                 @if ($processingProblem)
                     <p class="mt-3 text-sm text-error" role="alert">{{ $processingProblem }}</p>
                 @endif
+                <label class="block mt-3">
+                    <span class="block text-sm">Search replacement stock (at least 2 characters)</span>
+                    <input type="search" class="w-full input input-bordered input-sm" wire:model.lazy="replacement_search" placeholder="Medicine name">
+                </label>
+                @if (array_filter($replacement_items))
+                    <button type="button" class="btn btn-sm btn-outline mt-2" wire:click="clearReplacements" wire:loading.attr="disabled">Clear replacement selections</button>
+                @endif
                 <div class="uddds-fund-list">
                     @forelse ($fundGroups as $fundGroup)
                         @php $item = $fundGroup['item']; @endphp
@@ -88,6 +95,31 @@
 
                             @else
                                 <p class="mt-2 text-sm text-error">No alternate fund available, or this item already has a charge that must be adjusted separately.</p>
+                                @if (empty($item->uddds_source_docointkey) || empty($item->pcchrgcod))
+                                    @php
+                                        $replacementSearch = trim((string) $replacement_search);
+                                        $selectedReplacement = (string) ($replacement_items[$item->fallback_key] ?? '');
+                                        $itemReplacementOptions = array_filter($replacementOptions, function ($replacement) use ($item, $replacementSearch, $selectedReplacement) {
+                                            $differentItem = (string) $replacement->dmdcomb !== (string) $item->dmdcomb || (string) $replacement->dmdctr !== (string) $item->dmdctr;
+                                            $matchesSearch = mb_strlen($replacementSearch) >= 2 && mb_stripos((string) $replacement->drug_concat, $replacementSearch) !== false;
+                                            return $differentItem && ($matchesSearch || (string) $replacement->id === $selectedReplacement);
+                                        });
+                                    @endphp
+                                    @if (!empty($itemReplacementOptions))
+                                        <label class="block mt-2">
+                                            <span class="block text-sm font-medium">Replacement medicine / stock item</span>
+                                            <select class="w-full select select-bordered select-sm" wire:model.live="replacement_items.{{ $item->fallback_key }}" wire:loading.attr="disabled">
+                                                <option value="">Keep original item</option>
+                                                @foreach ($itemReplacementOptions as $replacement)
+                                                        <option value="{{ $replacement->id }}">{{ str_replace('_', '', $replacement->drug_concat) }} · {{ $replacement->chrgcode }} · {{ $replacement->stock_bal }} available · {{ $replacement->replacement_price }} per unit · expires {{ $replacement->exp_date }}</option>
+                                                @endforeach
+                                            </select>
+                                        </label>
+                                        <p class="mt-1 text-sm">Replaces this item for all {{ count($fundGroup['patients']) }} selected patients, using {{ $fundGroup['qty'] }} units at the replacement price. Confirm the medicine, strength, form and quantity before continuing. The standing order stays unchanged.</p>
+                                    @elseif (mb_strlen($replacementSearch) >= 2)
+                                        <p class="mt-2 text-sm" role="status">No record found.</p>
+                                    @endif
+                                @endif
                             @endif
                         </section>
                     @empty
@@ -166,6 +198,7 @@
             </label>
         </div>
         <div class="uddds-actions">
+            <a href="{{ route('dispensing.uddds.ward-orders', ['date' => $selected_date, 'ward' => $wardcode]) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline">Print issued by ward</a>
             <button type="button" class="btn btn-sm btn-outline btn-primary" wire:click="openPrintModal" wire:loading.attr="disabled">Print Patients</button>
             <button type="button" class="btn btn-sm btn-success"
                 wire:click="prepareCharge"
@@ -213,6 +246,13 @@
 
                 @if ($printSelectionProblem)
                     <p class="mt-2 text-sm text-error" role="alert">{{ $printSelectionProblem }}</p>
+                @endif
+                <label class="block mt-3">
+                    <span class="block text-sm">Search replacement stock (at least 2 characters)</span>
+                    <input type="search" class="w-full input input-bordered input-sm" wire:model.lazy="replacement_search" placeholder="Medicine name">
+                </label>
+                @if (array_filter($replacement_items))
+                    <button type="button" class="btn btn-sm btn-outline mt-2" wire:click="clearReplacements" wire:loading.attr="disabled">Clear replacement selections</button>
                 @endif
                 <div class="uddds-fund-list">
                     @forelse ($patients as $printPatient)
@@ -356,10 +396,11 @@
 
 @script
 <script>
-    $wire.on('uddds-confirm-issue', ({ count }) => {
+    $wire.on('uddds-confirm-issue', ({ count, replacements = [], replacementConfirmation }) => {
+        if (replacements.length && !window.confirm('Confirm item replacement\n\n' + replacements.join('\n\n') + '\n\nConfirm the replacement medicine, strength, form and quantity for all affected patients.')) return;
         const label = count === 1 ? 'item' : 'items';
         if (window.confirm('Charge and issue ' + count + ' ' + label + '? Current stock is used first; any remainder uses the selected alternate funds and their prices.')) {
-            $wire.processSelected();
+            $wire.processSelected([], replacementConfirmation);
         }
     });
     $wire.on('uddds-print', ({ url }) => {
