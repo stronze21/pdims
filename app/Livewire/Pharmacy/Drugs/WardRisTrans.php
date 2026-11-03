@@ -77,6 +77,13 @@ class WardRisTrans extends Component
 
     public function issueRis($more = null)
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($more) {
+            return $this->perform_issueRis($more);
+        });
+    }
+
+    private function perform_issueRis($more = null)
+    {
         if (!$this->reference_no) {
             $this->reference_no = Carbon::now()->format('y-m-') . (sprintf("%04d", count(WardRisRequest::select(DB::raw('COUNT(trans_no)'))->groupBy('trans_no')->get()) + 1));
         }
@@ -193,8 +200,16 @@ class WardRisTrans extends Component
 
     public function cancelIssue($row_id)
     {
-        $item = WardRisRequest::find($row_id);
-        $drug = DrugStock::find($item->stock_id);
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($row_id) {
+            return $this->perform_cancelIssue($row_id);
+        });
+    }
+
+    private function perform_cancelIssue($row_id)
+    {
+        $item = WardRisRequest::whereKey($row_id)->lockForUpdate()->firstOrFail();
+        if ((float) $item->issued_qty <= 0) return;
+        $drug = DrugStock::whereKey($item->stock_id)->lockForUpdate()->firstOrFail();
         if ($drug) {
             $drug->stock_bal += $item->issued_qty;
             $drug->save();

@@ -25,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [\App\Http\Middleware\ApplyRolePreview::class]);
+        $middleware->web(append: [\App\Http\Middleware\SubmissionScripts::class, \App\Http\Middleware\ProtectSubmissions::class]);
+        $middleware->api(append: [\App\Http\Middleware\ProtectSubmissions::class]);
+        $middleware->appendToPriorityList(\Illuminate\Auth\Middleware\Authorize::class, \App\Http\Middleware\ProtectSubmissions::class);
         $middleware->prependToPriorityList(\Illuminate\Auth\Middleware\Authorize::class, \App\Http\Middleware\ApplyRolePreview::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -109,6 +109,17 @@ class ViewIoTransRef extends Component
 
     public function issueRequest()
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_issueRequest();
+        });
+    }
+
+    private function perform_issueRequest()
+    {
+        $this->selected_request = InOutTransaction::whereKey($this->selected_request->id ?? null)->lockForUpdate()->firstOrFail();
+        if ($this->selected_request->trans_stat !== 'Requested') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['transaction' => 'This request has already been processed.']);
+        }
         $this->validate([
             'issue_qty' => ['required', 'numeric', 'min:1'],
             'chrgcode' => ['required'],
@@ -136,7 +147,7 @@ class ViewIoTransRef extends Component
                 ->where('exp_date', '>', date('Y-m-d'))
                 ->where('loc_code', $location_id)
                 ->where('stock_bal', '>', '0')
-                ->oldest('exp_date')
+                ->oldest('exp_date')->orderBy('id')->lockForUpdate()
                 ->get();
 
             foreach ($stocks as $stock) {
@@ -190,9 +201,21 @@ class ViewIoTransRef extends Component
 
     public function receiveIssued(InOutTransaction $txn)
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($txn) {
+            return $this->perform_receiveIssued($txn);
+        });
+    }
+
+    private function perform_receiveIssued(InOutTransaction $txn)
+    {
+        $txn = InOutTransaction::whereKey($txn->id)->lockForUpdate()->firstOrFail();
+        if ($txn->trans_stat === 'Received') return;
+        if ($txn->trans_stat !== 'Issued') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['transaction' => 'Only issued requests can be received.']);
+        }
         $issued_items = InOutTransactionItem::where('iotrans_id', $txn->id)
             ->where('status', 'Pending')
-            ->latest('exp_date')
+            ->latest('exp_date')->lockForUpdate()
             ->get();
 
         $received_qty = 0;
@@ -233,6 +256,18 @@ class ViewIoTransRef extends Component
 
     public function cancelTx(InOutTransaction $txn)
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($txn) {
+            return $this->perform_cancelTx($txn);
+        });
+    }
+
+    private function perform_cancelTx(InOutTransaction $txn)
+    {
+        $txn = InOutTransaction::whereKey($txn->id)->lockForUpdate()->firstOrFail();
+        if ($txn->trans_stat === 'Cancelled') return;
+        if (!in_array($txn->trans_stat, ['Requested', 'Issued'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['transaction' => 'This transaction can no longer be cancelled.']);
+        }
         $issued_items = InOutTransactionItem::where('iotrans_id', $txn->id)
             ->where('status', 'Pending')
             ->get();

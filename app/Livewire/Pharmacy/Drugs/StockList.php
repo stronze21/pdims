@@ -111,6 +111,13 @@ class StockList extends Component
 
     public function add_item()
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_add_item();
+        });
+    }
+
+    private function perform_add_item()
+    {
         $this->validate([
             'dmdcomb' => 'required',
             'unit_cost' => 'required',
@@ -177,7 +184,14 @@ class StockList extends Component
 
     public function update_item()
     {
-        $stock = DrugStock::find($this->selectedStockId);
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_update_item();
+        });
+    }
+
+    private function perform_update_item()
+    {
+        $stock = DrugStock::whereKey($this->selectedStockId)->lockForUpdate()->firstOrFail();
 
         $this->validate([
             'unit_cost' => 'required',
@@ -285,8 +299,17 @@ class StockList extends Component
 
     public function adjust_qty()
     {
-        $stock = DrugStock::find($this->selectedStockId);
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_adjust_qty();
+        });
+    }
+
+    private function perform_adjust_qty()
+    {
+        $this->validate(['qty' => 'required|numeric|min:0']);
+        $stock = DrugStock::whereKey($this->selectedStockId)->lockForUpdate()->firstOrFail();
         $current_bal = $stock->stock_bal;
+        if ((float) $current_bal === (float) $this->qty) return;
 
         $stock->stock_bal = $this->qty;
         $stock->save();
@@ -305,13 +328,23 @@ class StockList extends Component
 
     public function pull_out()
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_pull_out();
+        });
+    }
+
+    private function perform_pull_out()
+    {
+        $this->validate(['qty' => 'required|numeric|min:0.01']);
+        $available = DrugStock::whereKey($this->selectedStockId)->lockForUpdate()->firstOrFail();
+        if ((float) $this->qty > (float) $available->stock_bal) throw \Illuminate\Validation\ValidationException::withMessages(['qty' => 'Insufficient available stock.']);
         $pullout_date = Carbon::now()->format('Y-m-d');
         $detail = PullOut::firstOrCreate([
             'pullout_date' => $pullout_date,
             'pharm_location_id' => $this->location_id,
         ]);
 
-        $stock = DrugStock::find($this->selectedStockId);
+        $stock = DrugStock::whereKey($this->selectedStockId)->lockForUpdate()->firstOrFail();
         PullOutItem::create([
             'detail_id' => $detail->id,
             'stock_id' => $stock->id,

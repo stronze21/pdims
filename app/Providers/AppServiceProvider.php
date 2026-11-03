@@ -15,7 +15,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->booting(function () {
+            \Livewire\Livewire::componentHook(\App\Support\SubmissionNonce::class);
+        });
     }
 
     /**

@@ -133,6 +133,9 @@
 
     <x-mary-header :title="$canManageLibrary ? 'Drug & Medicine Library' : 'Equivalent Groups'" separator progress-indicator>
         <x-slot:actions>
+            @can('view-drug-clinical')
+                <a href="{{ route('pharmacy.drug-clinical') }}" wire:navigate class="btn btn-outline btn-sm">Clinical information</a>
+            @endcan
             @if ($tab === 'drugs')
                 <a href="{{ route('pharmacy.drug-library.import') }}" wire:navigate class="btn btn-outline btn-sm">
                     <x-mary-icon name="o-arrow-up-tray" class="h-4 w-4" />

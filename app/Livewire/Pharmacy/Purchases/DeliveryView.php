@@ -85,6 +85,13 @@ class DeliveryView extends Component
 
     public function add_item()
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_add_item();
+        });
+    }
+
+    private function perform_add_item()
+    {
         return \Illuminate\Support\Facades\DB::connection('hospital')->transaction(function () {
             return $this->mutate_add_item();
         });
@@ -168,6 +175,13 @@ class DeliveryView extends Component
     }
 
     public function edit_item()
+    {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_edit_item();
+        });
+    }
+
+    private function perform_edit_item()
     {
         return \Illuminate\Support\Facades\DB::connection('hospital')->transaction(function () {
             return $this->mutate_edit_item();
@@ -294,6 +308,13 @@ class DeliveryView extends Component
 
     public function save_lock()
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_save_lock();
+        });
+    }
+
+    private function perform_save_lock()
+    {
         app(\App\Services\Pharmacy\DeliveryInventory::class)->lock($this->delivery_id, null);
         $this->lockModal = false;
         $this->loadDetails();
@@ -301,6 +322,13 @@ class DeliveryView extends Component
     }
 
     public function revert_lock()
+    {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_revert_lock();
+        });
+    }
+
+    private function perform_revert_lock()
     {
         $this->validate([
             'revert_reason' => 'required|string|min:5|max:1000',

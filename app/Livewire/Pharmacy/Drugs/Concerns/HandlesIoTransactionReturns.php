@@ -40,6 +40,14 @@ trait HandlesIoTransactionReturns
 
     public function returnReceived(InOutTransaction $txn)
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($txn) {
+            return $this->perform_returnReceived($txn);
+        });
+    }
+
+    private function perform_returnReceived(InOutTransaction $txn)
+    {
+        $txn = InOutTransaction::whereKey($txn->id)->lockForUpdate()->firstOrFail();
         if ($txn->trans_stat !== 'Received') {
             $this->error('Only received IO transactions can be returned.');
             return;

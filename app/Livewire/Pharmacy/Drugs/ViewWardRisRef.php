@@ -40,8 +40,16 @@ class ViewWardRisRef extends Component
 
     public function cancelIssue($row_id)
     {
-        $item = WardRisRequest::find($row_id);
-        $drug = DrugStock::find($item->stock_id);
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($row_id) {
+            return $this->perform_cancelIssue($row_id);
+        });
+    }
+
+    private function perform_cancelIssue($row_id)
+    {
+        $item = WardRisRequest::whereKey($row_id)->lockForUpdate()->firstOrFail();
+        if ((float) $item->issued_qty <= 0) return;
+        $drug = DrugStock::whereKey($item->stock_id)->lockForUpdate()->firstOrFail();
         if ($drug) {
             $drug->stock_bal += $item->issued_qty;
             $drug->save();

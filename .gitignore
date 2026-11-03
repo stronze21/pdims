@@ -30,4 +30,17 @@ Homestead.json
 auth.json
 /ihomis_pharmacy
 /tests
+!/tests/
+/tests/*
+!/tests/Unit/
+/tests/Unit/*
+!/tests/Unit/SubmissionProtectionTest.php
+!/tests/Unit/SubmissionDomainTest.php
+!/tests/Unit/submissions-client.test.cjs
 /state
+
+!/tests/Unit/DrugClinicalTest.php
+!/tests/Unit/PharmacyReportTest.php
+/.codex-remote-attachments
+/tests
+/docs

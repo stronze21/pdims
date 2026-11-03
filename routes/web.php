@@ -76,6 +76,15 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', DashboardExecutive::class)->name('dashboard');
+    Route::prefix('reports')->name('reports.')->middleware('can:view-reports')->group(function () {
+        Route::get('/', \App\Livewire\Pharmacy\Reports\Reports::class)->name('index');
+        Route::get('/{report}/print', [\App\Http\Controllers\PharmacyReportController::class, 'print'])
+            ->whereIn('report', array_keys(\App\Services\Pharmacy\Reports\ReportDefinition::TITLES))->name('print');
+        Route::get('/{report}/export', [\App\Http\Controllers\PharmacyReportController::class, 'export'])
+            ->whereIn('report', array_keys(\App\Services\Pharmacy\Reports\ReportDefinition::TITLES))->name('export');
+        Route::get('/{report}', \App\Livewire\Pharmacy\Reports\Reports::class)
+            ->whereIn('report', array_keys(\App\Services\Pharmacy\Reports\ReportDefinition::TITLES))->name('show');
+    });
     Route::post('/role-preview', [App\Http\Controllers\RolePreviewController::class, 'store'])->name('role-preview.store');
     Route::delete('/role-preview', [App\Http\Controllers\RolePreviewController::class, 'destroy'])->name('role-preview.destroy');
 
@@ -138,6 +147,9 @@ Route::middleware([
 
     Route::get('/pharmacy/non-pnf-drugs', ManageNonPnfDrugs::class)
         ->name('pharmacy.non-pnf-drugs');
+
+    Route::get('/pharmacy/drug-library/clinical', \App\Livewire\Pharmacy\ManageDrugClinical::class)
+        ->name('pharmacy.drug-clinical');
 
     Route::get('/pharmacy/drug-library', ManageDrugLibrary::class)
         ->name('pharmacy.drug-library');

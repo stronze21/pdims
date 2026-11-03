@@ -269,7 +269,7 @@ class DispensingEncounter extends Component
             $this->autoDetectQueueByEnccode($decrypted);
         }
 
-        $encounter = collect(DB::select("SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate, diag.diagtext,
+        $encounter = collect(DB::connection('hospital')->select("SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate, diag.diagtext,
                                                 pat.patlast, pat.patfirst, pat.patmiddle,
                                                 mss.mssikey, ward.wardname, room.rmname, track.billstat
                                 FROM henctr as enctr
@@ -307,6 +307,21 @@ class DispensingEncounter extends Component
         $this->resolved_walkin_enccode = $this->is_walkin_linked_encounter ? $this->getLatestWalkInEncounter() : null;
     }
 
+    private function clinicalCheck(): array
+    {
+        if (! $this->hasEncounter || ! auth()->user()?->can('view-drug-clinical')) {
+            return [];
+        }
+        $selected = [];
+        if ($this->showAddItemModal && $this->item_dmdcomb !== null && $this->item_dmdctr !== null) {
+            $selected[] = ['dmdcomb' => (string) $this->item_dmdcomb, 'dmdctr' => (string) $this->item_dmdctr, 'uncertain' => false];
+        }
+        if ($this->showPrescribedItemModal && $this->rx_dmdcomb !== null && $this->rx_dmdctr !== null) {
+            $selected[] = ['dmdcomb' => (string) $this->rx_dmdcomb, 'dmdctr' => (string) $this->rx_dmdctr, 'uncertain' => false];
+        }
+        return app(\App\Services\Pharmacy\DrugClinicalService::class)->checkEncounter($this->decryptEnccode(), $selected);
+    }
+
     #[Layout('layouts.dispensing')]
     public function render()
     {
@@ -325,7 +340,7 @@ class DispensingEncounter extends Component
 
         $stocks = $this->fetchStocks();
 
-        $summaries = DB::select("
+        $summaries = DB::connection('hospital')->select("
             SELECT drug_concat, SUM(qtyissued) qty_issued, MAX(dodtepost) last_issue
                 FROM hrxo
             JOIN hdmhdr ON hrxo.dmdcomb = hdmhdr.dmdcomb AND hrxo.dmdctr = hdmhdr.dmdctr
@@ -333,12 +348,14 @@ class DispensingEncounter extends Component
             GROUP BY drug_concat
         ");
 
-        $departments = DB::select("SELECT * FROM hdept WHERE deptstat = 'A'");
+        $departments = DB::connection('hospital')->select("SELECT * FROM hdept WHERE deptstat = 'A'");
 
+        $clinicalCheck = $this->clinicalCheck();
         $udddsReady = $this->toecode === 'ADM' && UdddsService::hasHrxoColumns();
         return view('livewire.pharmacy.dispensing.dispensing-encounter', compact(
             'orders',
             'udddsReady',
+            'clinicalCheck',
             'stocks',
             'departments',
             'summaries',
@@ -491,15 +508,81 @@ class DispensingEncounter extends Component
         }
     }
 
+    private array $processingSteps = [];
+    private array $processingOutcome = ['status' => 'error', 'message' => 'No changes were confirmed. Refresh the orders before continuing.'];
+
+    private function processingStep(int $index, ?string $detail = null): void
+    {
+        $this->stream(to: 'dispensing-progress-' . $this->getId(), content: view(
+            'livewire.pharmacy.dispensing.processing-steps',
+            ['steps' => $this->processingSteps, 'active' => $index, 'detail' => $detail]
+        )->render(), replace: true);
+    }
+
+    private function processingProblem(string $message, bool $warning = false): void
+    {
+        $this->processingOutcome = ['status' => 'error', 'message' => $message];
+        $warning ? $this->warning($message) : $this->error($message);
+    }
+
+    private function processDispensing(string $operation): array
+    {
+        $this->processingSteps = $operation === 'charge'
+            ? ['Validate selected orders', 'Wait for inventory access', 'Create charge slip and charge items', 'Update linked queue', 'Commit changes and prepare charge slip']
+            : ['Refresh advisories and validate request', 'Wait for inventory access', 'Check orders and available stock', 'Issue medicines and record stock movements', 'Update queue and UDDDS schedule', 'Commit changes'];
+        $this->processingOutcome = ['status' => 'error', 'message' => 'No changes were confirmed. Refresh the orders before continuing.'];
+        try {
+            $this->processingStep(0);
+            if ($operation === 'issue') $this->clinicalCheck();
+            $requiredStatus = $operation === 'charge' ? 'U' : 'P';
+            if (!$this->selectionMatchesStatus($requiredStatus)) {
+                $this->processingProblem($operation === 'charge' ? 'Select only pending items to charge.' : 'Select only charged items to issue.', true);
+                return $this->processingOutcome;
+            }
+            app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($operation) {
+                $operation === 'charge' ? $this->perform_charge_items() : $this->perform_issue_order();
+            }, function ($stage) {
+                if ($stage === 'committing' && !in_array($this->processingOutcome['status'], ['success', 'warning'], true)) return;
+                $this->processingStep(match ($stage) {
+                    'waiting' => 1,
+                    'acquired' => 2,
+                    default => count($this->processingSteps) - 1,
+                });
+            });
+            // The transaction has returned: only now may the UI report success.
+            if ($this->processingOutcome['status'] === 'success' || $this->processingOutcome['status'] === 'warning') {
+                $this->processingStep(count($this->processingSteps));
+                if ($operation === 'charge') {
+                    $this->dispatch('open-charge-slip', pcchrgcod: $this->processingOutcome['pcchrgcod']);
+                } elseif ($this->processingOutcome['status'] === 'warning') {
+                    $this->warning($this->processingOutcome['message']);
+                } else {
+                    $this->success($this->processingOutcome['message']);
+                }
+            }
+            return $this->processingOutcome;
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            return ['status' => 'error', 'message' => implode(' ', \Illuminate\Support\Arr::flatten($exception->errors()))];
+        } catch (\Throwable $exception) {
+            report($exception);
+            return ['status' => 'uncertain', 'message' => 'The result could not be confirmed. Refresh the orders before trying again.'];
+        }
+    }
+
     public function charge_items()
     {
+        return $this->processDispensing('charge');
+    }
+
+    private function perform_charge_items()
+    {
         if ($problem = app(UdddsService::class)->generatedOrderProblem($this->selected_items)) {
-            $this->error($problem);
+            $this->processingProblem($problem);
             return;
         }
 
         if (!$this->selectionMatchesStatus('U')) {
-            $this->warning('Select only pending items to charge.');
+            $this->processingProblem('Select only pending items to charge.', true);
             return;
         }
 
@@ -507,13 +590,15 @@ class DispensingEncounter extends Component
         $cnt = 0;
         $pcchrgcod = 'P' . date('y') . '-' . sprintf('%07d', $charge_code->id);
 
-        foreach ($this->selected_items as $docointkey) {
-            $cnt = DB::update(
+        foreach ($this->selected_items as $index => $docointkey) {
+            $this->processingStep(2, 'Processing item ' . ($index + 1) . ' of ' . count($this->selected_items));
+            $cnt = DB::connection('hospital')->update(
                 "UPDATE hospital.dbo.hrxo SET pcchrgcod = '" . $pcchrgcod . "', estatus = 'P' WHERE docointkey = '" . $docointkey . "' AND ((estatus = 'U' OR orderfrom = 'DRUMK' OR pchrgup = 0) AND pcchrgcod IS NULL)"
             );
         }
 
         if ($cnt && $cnt != 0) {
+            $this->processingStep(3, $this->queueId ? null : 'No linked queue to update.');
             // Auto-link charge slip number and update queue status to ready
             if ($this->queueId) {
                 $queue = PrescriptionQueue::find($this->queueId);
@@ -539,9 +624,9 @@ class DispensingEncounter extends Component
                 }
             }
 
-            $this->dispatch('open-charge-slip', pcchrgcod: $pcchrgcod);
+            $this->processingOutcome = ['status' => 'success', 'message' => 'Items charged successfully. Charge slip: ' . $pcchrgcod, 'pcchrgcod' => $pcchrgcod];
         } else {
-            $this->error('No item to charge.');
+            $this->processingProblem('No item to charge.');
         }
     }
 
@@ -557,23 +642,35 @@ class DispensingEncounter extends Component
 
     public function issue_order()
     {
+        return $this->processDispensing('issue');
+    }
+
+    private function perform_issue_order()
+    {
+        $keys = array_map(function ($key) { return trim((string) $key, "'\""); }, $this->selected_items);
+        $orders = DrugOrder::whereIn('docointkey', $keys)->orderBy('docointkey')->lockForUpdate()->get();
+        if ($orders->isEmpty() || $orders->count() !== count($keys) || $orders->contains(function ($order) { return (float) $order->qtyissued > 0 || $order->estatus === 'S'; })) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['transaction' => 'Some selected orders are already issued or changed. Refresh the list.']);
+        }
         if ($problem = app(UdddsService::class)->generatedOrderProblem($this->selected_items)) {
-            $this->error($problem);
+            $this->processingProblem($problem);
             return;
         }
+
+        app(\App\Services\Pharmacy\InventoryMutation::class)->reserveStock($orders, $this->location_id);
 
         $enccode = $this->decryptEnccode();
         $cnt = 0;
 
         if (!$this->selectionMatchesStatus('P')) {
-            $this->warning('Select only charged items to issue.');
+            $this->processingProblem('Select only charged items to issue.', true);
             return;
         }
 
         $selected_items = array_map(fn($item) => "'$item'", $this->selected_items);
         $selected_items_string = implode(',', $selected_items);
 
-        $rxos = collect(DB::select("SELECT * FROM hrxo WHERE docointkey IN (" . $selected_items_string . ") AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"))->all();
+        $rxos = collect(DB::connection('hospital')->select("SELECT * FROM hrxo WHERE docointkey IN (" . $selected_items_string . ") AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"))->all();
 
         $this->type = $this->resolveTransactionType();
 
@@ -583,7 +680,8 @@ class DispensingEncounter extends Component
 
         $tag = $this->type;
 
-        foreach ($rxos as $rxo) {
+        foreach ($rxos as $index => $rxo) {
+            $this->processingStep(3, 'Processing item ' . ($index + 1) . ' of ' . count($rxos));
             $stocks = $this->fetchStocksForIssue($rxo);
 
             if ($stocks) {
@@ -603,7 +701,7 @@ class DispensingEncounter extends Component
                                 $stock_bal = $stock->stock_bal - $total_deduct;
                                 $total_deduct = 0;
                             }
-                            $cnt = DB::update(
+                            $cnt = DB::connection('hospital')->update(
                                 "UPDATE hospital.dbo.pharm_drug_stocks SET stock_bal = '" . $stock_bal . "' WHERE id = '" . $stock->id . "'"
                             );
                         } else {
@@ -642,7 +740,7 @@ class DispensingEncounter extends Component
                 }
 
                 if ($cnt == 1) {
-                    $cnt = DB::update(
+                    $cnt = DB::connection('hospital')->update(
                         "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $tag . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
                     );
                     $this->logHrxoIssue(
@@ -664,7 +762,7 @@ class DispensingEncounter extends Component
                 }
             } else {
                 $insuf = Drug::select('drug_concat')->where('dmdcomb', $rxo->dmdcomb)->where('dmdctr', $rxo->dmdctr)->first();
-                return $this->error('Insufficient Stock Balance. ' . $insuf->drug_concat);
+                return $this->processingProblem('Insufficient Stock Balance. ' . $insuf->drug_concat);
             }
         }
 
@@ -672,21 +770,29 @@ class DispensingEncounter extends Component
             $this->showIssueModal = false;
             $this->resetIssueFlags();
 
+            $this->processingStep(4);
             // Auto-update queue status when items are issued
             $this->autoUpdateQueueOnIssue();
 
             $activation = app(UdddsService::class)->activateOnIssued(array_map(fn ($order) => $order->docointkey, $rxos));
             if (!$activation['ok']) {
-                $this->warning('Order issued; UDDDS was not activated: ' . $activation['message']);
+                $this->processingOutcome = ['status' => 'warning', 'message' => 'Order issued; UDDDS was not activated: ' . $activation['message']];
                 return;
             }
-            $this->success('Order issued successfully.');
+            $this->processingOutcome = ['status' => 'success', 'message' => 'Order issued successfully.'];
         } else {
-            $this->error('No item to issue.');
+            $this->processingProblem('No item to issue.');
         }
     }
 
     public function add_item()
+    {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_add_item();
+        });
+    }
+
+    private function perform_add_item()
     {
         $this->validate([
             'order_qty' => ['required', 'numeric', 'min:1'],
@@ -718,7 +824,7 @@ class DispensingEncounter extends Component
 
             $udddsColumns = $udddsFields ? ', ' . implode(', ', array_keys($udddsFields)) : '';
             $udddsValues = $udddsFields ? ', ' . implode(', ', array_map(fn ($value) => $value === false ? '0' : "'" . str_replace("'", "''", (string) $value) . "'", array_values($udddsFields))) : '';
-            DB::insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
+            DB::connection('hospital')->insert("INSERT INTO hospital.dbo.hrxo(docointkey, enccode, hpercode, rxooccid, rxoref, dmdcomb, repdayno1, rxostatus,
                             rxolock, rxoupsw, rxoconfd, dmdctr, estatus, entryby, ordcon, orderupd, locacode, orderfrom, issuetype,
                             has_tag, tx_type, ris, pchrgqty, pchrgup, pcchrgamt, dodate, dotime, dodtepost, dotmepost, dmdprdte, exp_date, loc_code, item_id, remarks, prescription_data_id, prescribed_by, original_enccode{$udddsColumns} )
                         VALUES ( '" . $docointkey . "', '" . $targetEnccode . "', '" . $this->hpercode . "', '1', '1', '" . $dmdcomb . "', '1', 'A',
@@ -894,7 +1000,7 @@ class DispensingEncounter extends Component
 
         $placeholders = implode(',', array_fill(0, count($this->selected_items), '?'));
 
-        DB::delete(
+        DB::connection('hospital')->delete(
             "DELETE FROM hrxo
                     WHERE docointkey IN ($placeholders)
                     AND estatus = 'U' AND (pcchrgcod IS NULL OR pcchrgcod = '')",
@@ -907,6 +1013,14 @@ class DispensingEncounter extends Component
 
     public function return_issued(DrugOrder $item)
     {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () use ($item) {
+            return $this->perform_return_issued($item);
+        });
+    }
+
+    private function perform_return_issued(DrugOrder $item)
+    {
+        $item = DrugOrder::where('docointkey', $item->docointkey)->lockForUpdate()->firstOrFail();
         $this->validate([
             'return_qty' => ['required', 'numeric', 'min:1', 'max:' . $item->qtyissued],
             'unit_price' => 'required',
@@ -950,7 +1064,7 @@ class DispensingEncounter extends Component
         ], \App\Services\Pharmacy\UdddsTransactionMetadata::forReturn($item));
         $returnColumns = implode(', ', array_keys($returnFields));
         $returnPlaceholders = implode(', ', array_fill(0, count($returnFields), '?'));
-        DB::insert("INSERT INTO hospital.dbo.hrxoreturn ({$returnColumns}) VALUES ({$returnPlaceholders})", array_values($returnFields));
+        DB::connection('hospital')->insert("INSERT INTO hospital.dbo.hrxoreturn ({$returnColumns}) VALUES ({$returnPlaceholders})", array_values($returnFields));
 
         $item->pcchrgamt = $item->pchrgup * ($item->qtyissued - $this->return_qty);
         $item->qtyissued -= $this->return_qty;
@@ -1042,6 +1156,13 @@ class DispensingEncounter extends Component
     }
 
     public function update_qty()
+    {
+        return app(\App\Services\Pharmacy\InventoryMutation::class)->run(function () {
+            return $this->perform_update_qty();
+        });
+    }
+
+    private function perform_update_qty()
     {
         $this->validate([
             'order_qty' => ['required', 'numeric', 'min:1'],
@@ -1239,7 +1360,7 @@ class DispensingEncounter extends Component
             default => "AND enctr.toecode != 'WALKN'",
         };
 
-        $this->patient_encounters = collect(DB::select("
+        $this->patient_encounters = collect(DB::connection('hospital')->select("
             SELECT TOP 20
                 enctr.enccode,
                 enctr.toecode,
@@ -1282,7 +1403,7 @@ class DispensingEncounter extends Component
             ->has('data_active')
             ->get();
 
-        $this->selected_encounter_orders = DB::select("
+        $this->selected_encounter_orders = DB::connection('hospital')->select("
             SELECT hrxo.docointkey, hrxo.pcchrgcod, hrxo.dodate, hrxo.pchrgqty, hrxo.estatus,
                    hrxo.qtyissued, hrxo.pchrgup, hrxo.pcchrgamt, {$drugDescription} AS drug_concat,
                    hcharge.chrgdesc, hrxo.remarks, hrxo.tx_type, hrxo.prescription_data_id,
@@ -1422,7 +1543,7 @@ class DispensingEncounter extends Component
         $from = Carbon::parse($this->rx_browse_date)->startOfDay();
         $to = Carbon::parse($this->rx_browse_date)->endOfDay();
 
-        $this->rx_browse_results = DB::select("
+        $this->rx_browse_results = DB::connection('hospital')->select("
             SELECT
                 enctr.enccode, opd.opddate, opd.opdtime, enctr.hpercode,
                 pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
@@ -1451,7 +1572,7 @@ class DispensingEncounter extends Component
         $wardFilter = $this->rx_browse_wardcode ? "AND ward.wardcode = ?" : "";
         $params = $this->rx_browse_wardcode ? [$this->rx_browse_wardcode] : [];
 
-        $this->rx_browse_results = DB::select("
+        $this->rx_browse_results = DB::connection('hospital')->select("
             SELECT
                 enctr.enccode, adm.admdate, enctr.hpercode,
                 pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
@@ -1483,7 +1604,7 @@ class DispensingEncounter extends Component
         $from = Carbon::parse($this->rx_browse_date)->subDay()->startOfDay();
         $to = Carbon::parse($this->rx_browse_date)->endOfDay();
 
-        $this->rx_browse_results = DB::select("
+        $this->rx_browse_results = DB::connection('hospital')->select("
             SELECT
                 enctr.enccode, er.erdate, er.ertime, enctr.hpercode,
                 pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
@@ -1523,7 +1644,7 @@ class DispensingEncounter extends Component
         $this->rx_charge_code = null;
         $drugName = $this->resolveDrugNameFromCodes($dmdcomb, $dmdctr);
 
-        $this->rx_available_charges = DB::select("
+        $this->rx_available_charges = DB::connection('hospital')->select("
             SELECT
                 pharm_drug_stocks.chrgcode,
                 hcharge.chrgdesc,
@@ -1846,7 +1967,7 @@ class DispensingEncounter extends Component
     {
         $udddsColumns = UdddsService::hrxoSelectColumns();
         if ($this->toecode == 'WALKN') {
-            return DB::select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
+            return DB::connection('hospital')->select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                                 pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                                 FROM henctr enctr
                                 INNER JOIN hospital.dbo.hrxo ON enctr.enccode = hrxo.enccode
@@ -1858,7 +1979,7 @@ class DispensingEncounter extends Component
                                 ORDER BY dodate DESC");
         }
 
-        return DB::select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
+        return DB::connection('hospital')->select("SELECT {$udddsColumns}, docointkey, pcchrgcod, dodate, pchrgqty, estatus, qtyissued, pchrgup, pcchrgamt, drug_concat, chrgdesc, remarks, mssikey, tx_type, prescription_data_id, qtybal, original_enccode,
                             pd.qty as rx_qty, pd.frequency as rx_frequency, pd.duration as rx_duration, pd.remark as rx_remark, pd.addtl_remarks as rx_addtl_remarks
                             FROM hospital.dbo.hrxo
                             INNER JOIN hdmhdr ON hdmhdr.dmdcomb = hrxo.dmdcomb AND hdmhdr.dmdctr = hrxo.dmdctr
@@ -1901,7 +2022,7 @@ class DispensingEncounter extends Component
             $genericFilter = $this->buildStockTextFilter((string) $this->generic);
         }
 
-        return DB::select("SELECT TOP " . $this->stocksDisplayCount . "
+        return DB::connection('hospital')->select("SELECT TOP " . $this->stocksDisplayCount . "
                             pharm_drug_stocks.dmdcomb, pharm_drug_stocks.dmdctr, $drugDescription AS drug_concat, hcharge.chrgdesc,
                             pharm_drug_stocks.chrgcode, hdmhdrprice.retail_price, dmselprice, pharm_drug_stocks.loc_code,
                             pharm_drug_stocks.dmdprdte as dmdprdte, SUM(stock_bal) as stock_bal, MAX(id) as id, MIN(exp_date) as exp_date,
@@ -1981,7 +2102,7 @@ class DispensingEncounter extends Component
 
     private function fetchStocksForIssue($rxo): array
     {
-        return DB::select(
+        return DB::connection('hospital')->select(
             "SELECT pharm_drug_stocks.*, hdmhdrprice.dmduprice
                 FROM pharm_drug_stocks
                 JOIN hdmhdrprice ON pharm_drug_stocks.dmdprdte = hdmhdrprice.dmdprdte
@@ -1998,7 +2119,7 @@ class DispensingEncounter extends Component
     private function logHrxoIssue($docointkey, $enccode, $hpercode, $dmdcomb, $dmdctr, $pchrgqty, $employeeid, $orderfrom, $pcchrgcod, $pchrgup, $ris, $prescription_data_id, $date, $dmdprdte): void
     {
         if ($prescription_data_id) {
-            PrescriptionDataIssued::create([
+            PrescriptionDataIssued::on('hospital')->create([
                 'presc_data_id' => $prescription_data_id,
                 'docointkey' => $docointkey,
                 'qtyissued' => $pchrgqty,
@@ -2009,19 +2130,19 @@ class DispensingEncounter extends Component
                 $rx_data = $this->findActivePrescriptionDataMatch($enccode, $dmdcomb, $dmdctr);
 
                 if ($rx_data) {
-                    PrescriptionDataIssued::create([
+                    PrescriptionDataIssued::on('hospital')->create([
                         'presc_data_id' => $rx_data->id,
                         'docointkey' => $docointkey,
                         'qtyissued' => $pchrgqty,
                     ]);
 
-                    DB::update(
+                    DB::connection('hospital')->update(
                         "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
                         [$rx_data->id, $rx_data->entry_by, $docointkey]
                     );
 
                     $rx_data->stat = 'I';
-                    $rx_data->save();
+                    $rx_data->setConnection('hospital')->save();
                 }
             }
         }
@@ -2163,7 +2284,7 @@ class DispensingEncounter extends Component
             $params = array_merge($params, $queueEnccodes);
         }
 
-        $this->chargedEncounters = DB::select("
+        $this->chargedEncounters = DB::connection('hospital')->select("
             SELECT DISTINCT
                 hrxo.enccode,
                 hrxo.pcchrgcod,

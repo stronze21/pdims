@@ -85,93 +85,14 @@ class QueueController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        try {
-            \Log::info('Update queue status called', [
-                'queue_id' => $id,
-                'action' => $request->input('action'),
-                'user' => auth()->user()->employeeid ?? 'unknown'
-            ]);
-
-            $queue = PrescriptionQueue::findOrFail($id);
-
-            DB::connection('webapp')->beginTransaction();
-
-            try {
-                $oldStatus = $queue->queue_status;
-                $action = $request->input('action');
-
-                \Log::info('Processing action', [
-                    'old_status' => $oldStatus,
-                    'action' => $action
-                ]);
-
-                switch ($action) {
-                    case 'start_preparing':
-                        $queue->update([
-                            'queue_status' => 'preparing',
-                            'preparing_at' => now(),
-                            'prepared_by' => auth()->user()->employeeid,
-                        ]);
-                        break;
-
-                    case 'mark_ready':
-                        $queue->update([
-                            'queue_status' => 'ready',
-                            'ready_at' => now(),
-                        ]);
-                        break;
-
-                    case 'mark_dispensed':
-                        $queue->update([
-                            'queue_status' => 'dispensed',
-                            'dispensed_at' => now(),
-                            'dispensed_by' => auth()->user()->employeeid,
-                        ]);
-                        break;
-
-                    case 'cancel':
-                        $queue->update([
-                            'queue_status' => 'cancelled',
-                            'cancelled_at' => now(),
-                            'cancelled_by' => auth()->user()->employeeid,
-                            'cancellation_reason' => $request->input('remarks'),
-                        ]);
-                        break;
-
-                    default:
-                        DB::connection('webapp')->rollBack();
-                        return response()->json(['message' => 'Invalid action'], 400);
-                }
-
-                PrescriptionQueueLog::create([
-                    'queue_id' => $queue->id,
-                    'status_from' => $oldStatus,
-                    'status_to' => $queue->queue_status,
-                    'changed_by' => auth()->user()->employeeid,
-                    'remarks' => $request->input('remarks'),
-                ]);
-
-                DB::connection('webapp')->commit();
-
-                \Log::info('Queue status updated successfully', [
-                    'queue_id' => $id,
-                    'new_status' => $queue->queue_status
-                ]);
-
-                return response()->json($queue->fresh(['patient', 'prescription']));
-            } catch (\Exception $e) {
-                DB::connection('webapp')->rollBack();
-                \Log::error('Database error in updateStatus: ' . $e->getMessage());
-                \Log::error('Stack trace: ' . $e->getTraceAsString());
-                return response()->json(['message' => 'Database error: ' . $e->getMessage()], 500);
-            }
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Log::error('Queue not found: ' . $id);
-            return response()->json(['message' => 'Queue not found'], 404);
-        } catch (\Exception $e) {
-            \Log::error('Error in updateStatus: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
-        }
+        $statuses = ['start_preparing' => 'preparing', 'mark_ready' => 'ready', 'mark_dispensed' => 'dispensed', 'cancel' => 'cancelled'];
+        $status = $statuses[$request->input('action')] ?? null;
+        if (!$status) return response()->json(['message' => 'Invalid action'], 400);
+        if (!PrescriptionQueue::whereKey($id)->exists()) return response()->json(['message' => 'Queue not found'], 404);
+        $result = app(\App\Services\Pharmacy\PrescriptionQueueService::class)->updateQueueStatus(
+            $id, $status, optional($request->user())->employeeid, $request->input('remarks')
+        );
+        if (!$result['success']) return response()->json(['message' => $result['message']], 409);
+        return response()->json($result['queue']->load(['patient', 'prescription']));
     }
 }

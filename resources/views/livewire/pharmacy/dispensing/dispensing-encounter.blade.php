@@ -3,6 +3,55 @@
 @endphp
 
 <div class="flex flex-col h-full" x-data="{
+    processingBusy: false, processingResult: null, processingTitle: '', processingCount: 0, processingElapsed: 0, processingTimer: null,
+    processingCleanup: null,
+    init() {
+        this.processingCleanup = Livewire.hook('request', ({payload, fail, respond}) => {
+            const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            const ours = (data.components || []).some(item => JSON.parse(item.snapshot).memo.id === this.$wire.$id &amp;&amp; (item.calls || []).some(call => ['charge_items', 'issue_order'].includes(call.method)));
+            if (!ours) return;
+            fail(({preventDefault}) => { preventDefault(); this.processingFailed(); });
+            respond(packet => {
+                const response = packet.response;
+                const read = response.text.bind(response);
+                response.text = async () => {
+                    try {
+                        const content = await read();
+                        if (response.ok) JSON.parse(content);
+                        return content;
+                    } catch (error) { this.processingFailed(); throw error; }
+                };
+            });
+        });
+    },
+    processingFailed() {
+        clearInterval(this.processingTimer);
+        this.processingBusy = false;
+        this.processingResult = { status: 'uncertain', message: 'The result could not be confirmed. Refresh the orders before trying again.' };
+    },
+    async startDispensing(operation) {
+        if (this.processingBusy) return;
+        if (this.processingResult?.status === 'uncertain') { this.$refs.processingDialog.showModal(); return; }
+        this.processingBusy = true;
+        this.processingResult = null;
+        this.processingTitle = operation === 'charge' ? 'Charging selected items' : 'Issuing selected medicines';
+        this.processingCount = this.selectedItems.length;
+        this.processingElapsed = 0;
+        this.$refs.processingSteps.textContent = 'Sending request…';
+        this.$refs.processingDialog.showModal();
+        const started = Date.now();
+        this.processingTimer = setInterval(() => this.processingElapsed = Math.floor((Date.now() - started) / 1000), 1000);
+        try {
+            const result = await this.$wire.call(operation === 'charge' ? 'charge_items' : 'issue_order');
+            this.processingResult = result &amp;&amp; result.status ? result : { status: 'uncertain', message: 'The result could not be confirmed. Refresh the orders before trying again.' };
+        } catch (error) {
+            this.processingResult = { status: 'uncertain', message: 'The result could not be confirmed. Refresh the orders before trying again.' };
+        } finally {
+            clearInterval(this.processingTimer);
+            this.processingBusy = false;
+        }
+    },
+    destroy() { clearInterval(this.processingTimer); if (this.processingCleanup) this.processingCleanup(); },
     selectedItems: @entangle('selected_items'),
     orderStates: {},
     selectionMatches(status) {
@@ -48,8 +97,16 @@
         this.selectedItems = [];
         $wire.call('updateSelectedItems', this.selectedItems);
     }
-}">
+}" x-on:start-dispensing-charge="startDispensing('charge')">
+    @include('livewire.pharmacy.dispensing.processing-dialog')
     <span class="hidden" x-effect="orderStates = @js(collect($orders)->mapWithKeys(fn ($order) => [$order->docointkey => ['estatus' => $order->estatus, 'pcchrgcod' => $order->pcchrgcod]])->all())"></span>
+    @if ($this->hasEncounter)
+        @can('view-drug-clinical')
+            <div class="p-3" wire:poll.30s.visible>
+                <livewire:pharmacy.drug-clinical-panel :check="$clinicalCheck ?? []" :location="(string) $location_id" />
+            </div>
+        @endcan
+    @endif
     {{-- Queue Controller Bar (always visible) --}}
     <div class="border-b border-primary/20">
         {{-- Queue Header Bar --}}
@@ -452,7 +509,7 @@
                                 x-bind:disabled="!selectionMatches('U')"
                                 icon="o-credit-card"
                                 class="btn-sm btn-info btn-outline"
-                                wire:click="charge_items" />
+                                x-on:click="startDispensing('charge')" />
 
                             <x-mary-button label="Issue"
                                 x-bind:disabled="!selectionMatches('P')"
@@ -862,6 +919,12 @@
         @endif
 
         <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
+            @can('view-drug-clinical')
+                @if ($showAddItemModal && $item_dmdcomb !== null && $item_dmdctr !== null)
+                    <livewire:pharmacy.drug-clinical-panel :comb="(string) $item_dmdcomb" :ctr="(string) $item_dmdctr" :location="(string) $item_loc_code" :check="$clinicalCheck ?? []" :key="'stock-clinical-'.$item_dmdcomb.'-'.$item_dmdctr" />
+                @endif
+            @endcan
+
             <div class="space-y-4">
                 <div class="text-sm font-medium text-base-content/70">
                     Selected stock item
@@ -952,6 +1015,12 @@
 
         {{-- Add Prescribed Item Modal (OPD/WALKN) --}}
         <x-mary-modal wire:model="showPrescribedItemModal" title="Add Prescribed Item" class="backdrop-blur">
+            @can('view-drug-clinical')
+                @if ($showPrescribedItemModal && $rx_dmdcomb !== null && $rx_dmdctr !== null)
+                    <livewire:pharmacy.drug-clinical-panel :comb="(string) $rx_dmdcomb" :ctr="(string) $rx_dmdctr" :location="(string) $location_id" :check="$clinicalCheck ?? []" :key="'rx-clinical-'.$rx_dmdcomb.'-'.$rx_dmdctr" />
+                @endif
+            @endcan
+
             <div class="space-y-4">
                 <div class="grid grid-cols-1 gap-4">
                     @if ($selected_prescription_data)
@@ -1163,7 +1232,7 @@
             <x-slot:actions>
                 <x-mary-button label="Cancel" @click="$wire.showIssueModal = false" />
                 <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success"
-                    wire:click="issue_order" spinner />
+                    x-on:click="startDispensing('issue')" x-bind:disabled="processingBusy" />
             </x-slot:actions>
         </x-mary-modal>
 
@@ -2042,6 +2111,8 @@
     @script
         <script>
             document.addEventListener('keydown', e => {
+                const processing = $wire.$el.querySelector('dialog[aria-labelledby="dispensing-processing-title"]');
+                if (processing?.open) return;
                 // Skip if user is typing in an input/textarea/select
                 const tag = e.target.tagName;
                 const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
@@ -2049,7 +2120,7 @@
                 // Ctrl+C - Charge items
                 if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
                     e.preventDefault();
-                    $wire.charge_items();
+                    $wire.$el.dispatchEvent(new CustomEvent('start-dispensing-charge'));
                 }
                 // Ctrl+I - Open Issue modal
                 if (e.ctrlKey && e.key === 'i') {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-29
+
+### Improvements
+
+- Added pharmacy reports for medicine issuance, returns, stock reconciliation, deliveries, and expiry, with location and fund filters, complete printing, and Excel downloads.
+- Stock reconciliation identifies missing historical balances and unexplained differences without changing inventory.
+- Reports can optionally summarize equivalent medicines within each fund source, with the same grouping applied to print and Excel downloads.
+
 ## 2026-10-21
 
 ### Improvements

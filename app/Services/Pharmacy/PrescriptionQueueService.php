@@ -51,6 +51,20 @@ class PrescriptionQueueService
             // Validate required fields
             $validated = $this->validateQueueData($data);
 
+            $db = DB::connection('webapp');
+            if ($db->getDriverName() === 'sqlsrv') {
+                $resource = 'pdims-queue:' . hash('sha256', $validated['location_code'] . ':' . ($validated['queue_prefix'] ?? 'RX') . ':' . now()->toDateString());
+                $lock = $db->selectOne("DECLARE @result int; EXEC @result = sp_getapplock @Resource = ?, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000; SELECT @result AS result;", [$resource]);
+                if (!$lock || (int) $lock->result < 0) throw new \RuntimeException('Queue is busy. Please try again.');
+            }
+            $existing = PrescriptionQueue::where('prescription_id', $validated['prescription_id'])
+                ->where('location_code', $validated['location_code'])->whereDate('queued_at', today())
+                ->where('queue_status', '<>', 'cancelled')->lockForUpdate()->first();
+            if ($existing) {
+                DB::connection('webapp')->commit();
+                return ['success' => true, 'queue' => $existing, 'message' => 'Existing queue returned'];
+            }
+
             // Generate queue number
             $queueData = PrescriptionQueue::generateQueueNumber(
                 $validated['location_code'],
@@ -115,8 +129,19 @@ class PrescriptionQueueService
     {
         DB::connection('webapp')->beginTransaction();
         try {
-            $queue = PrescriptionQueue::findOrFail($queueId);
+            $queue = PrescriptionQueue::whereKey($queueId)->lockForUpdate()->firstOrFail();
             $oldStatus = $queue->queue_status;
+
+            if ($oldStatus === $newStatus) {
+                DB::connection('webapp')->commit();
+                return ['success' => true, 'queue' => $queue, 'message' => 'Queue already has this status'];
+            }
+            if (!in_array($newStatus, ['waiting', 'preparing', 'charging', 'ready', 'dispensed', 'cancelled'], true)) {
+                throw new \InvalidArgumentException('Invalid queue status.');
+            }
+            if (in_array($oldStatus, ['dispensed', 'cancelled'], true)) {
+                throw new \InvalidArgumentException('A completed or cancelled queue cannot be changed through a status update.');
+            }
 
             // Update based on status
             $updates = ['queue_status' => $newStatus];
