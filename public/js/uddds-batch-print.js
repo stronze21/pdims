@@ -2,6 +2,15 @@ window.udddsBatchLoader = function (wire, codes) {
     return {
         codes: codes, next: 0, loading: false, modalOpen: codes.length > 0,
         error: '', ready: false,
+        get previewState() {
+            if (!this.codes.length || this.error) return 'error';
+            return this.ready ? 'ready' : 'loading';
+        },
+        notifyPreview(state) {
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'pdims-charge-slip-state', state }, window.location.origin);
+            }
+        },
         async load() {
             if (this.loading || this.ready || !this.codes.length) return;
             this.loading = true;
@@ -16,12 +25,14 @@ window.udddsBatchLoader = function (wire, codes) {
                     this.$refs.receipts.insertAdjacentHTML('beforeend', result.html);
                     this.next++;
                 }
-                this.ready = true;
                 this.modalOpen = false;
                 await this.$nextTick();
                 if (document.fonts) await document.fonts.ready;
                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                this.print();
+                this.ready = true;
+                if (window.parent === window && new URLSearchParams(window.location.search).get('preview') !== '1') {
+                    this.print();
+                }
             } catch (error) {
                 this.error = 'Could not load ' + this.codes[this.next] + '. ' +
                     (error instanceof Error && error.message ? error.message : 'Please retry.');

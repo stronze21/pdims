@@ -10,16 +10,16 @@ use Livewire\Component;
 class DrugClinicalPanel extends Component
 {
     #[Reactive]
-    public string $comb = '';
+    public ?string $comb = null;
 
     #[Reactive]
-    public string $ctr = '';
+    public ?string $ctr = null;
 
     #[Reactive]
-    public string $location = '';
+    public ?string $location = null;
 
     #[Reactive]
-    public array $check = [];
+    public ?array $check = null;
 
     public function render()
     {
@@ -29,7 +29,8 @@ class DrugClinicalPanel extends Component
         $failed = false;
         $names = collect();
         try {
-            if ($this->comb !== '' && $this->ctr !== '') {
+            if ($this->comb !== null && $this->comb !== ''
+                && $this->ctr !== null && $this->ctr !== '') {
                 $details = app(DrugClinicalService::class)->details($this->comb, $this->ctr, $this->location ?: null);
                 $names = \Illuminate\Support\Facades\DB::connection('hospital')->table('pharm_clinical_ingredients')->pluck('name', 'id');
                 $service = app(DrugEquivalenceService::class);

@@ -6,16 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? config('app.name', 'Pharmacy System') }}</title>
 
+    @include('layouts.partials.theme-init')
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     @livewireStyles
 
 </head>
 
-<body class="min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
+<body class="pdims-theme min-h-screen font-sans antialiased bg-base-200 pb-20 lg:pb-0">
 
     {{-- NAVBAR (Top Header) --}}
-    <x-mary-nav sticky full-width>
+    <x-mary-nav sticky full-width class="brand-navbar">
         <x-slot:brand>
             {{-- Drawer toggle for sidebar --}}
             <label for="main-drawer" class="mr-3 lg:hidden">
@@ -23,7 +25,7 @@
             </label>
 
             {{-- Brand Name --}}
-            <div class="text-lg font-semibold text-primary">{{ config('app.name') }}</div>
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-3" aria-label="Pharmacy home"><img src="{{ asset('images/hospital-logo.png') }}" alt="" class="h-9 w-9 object-contain"><span class="text-lg font-semibold tracking-tight text-primary">{{ config('app.name') }}</span></a>
         </x-slot:brand>
 
         {{-- Right Side Actions --}}
@@ -38,7 +40,7 @@
                     <span class="sm:hidden">Preview</span>
                 </button>
             @endif
-            <x-mary-theme-toggle class="btn btn-circle btn-ghost" />
+            <x-appearance-toggle class="btn btn-circle btn-ghost" />
             <x-mary-button icon="o-bell" tooltip-bottom="Notifications" class="tooltip-bottom btn-ghost btn-sm" />
             <x-mary-button icon="o-user-circle" tooltip-bottom="Profile" class="tooltip-bottom btn-ghost btn-sm" />
         </x-slot:actions>
@@ -48,7 +50,7 @@
     {{-- MAIN BODY --}}
     <x-mary-main with-nav full-width>
         {{-- SIDEBAR (Collapsible + Drawer) --}}
-        <x-slot:sidebar drawer="main-drawer" collapsible class="border-r bg-base-100 flex flex-col">
+        <x-slot:sidebar drawer="main-drawer" collapsible class="brand-sidebar border-r bg-base-100 flex flex-col">
             {{-- User Info --}}
             @if ($user = auth()->user())
                 <x-mary-list-item :item="$user" value="name" sub-value="email" no-separator no-hover

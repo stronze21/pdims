@@ -232,12 +232,12 @@
         <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto max-h-[calc(100vh-300px)]" id="stocks-table-body">
                 <table class="table table-sm">
-                    <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
+                    <thead class="bg-base-200 text-base-content sticky top-0 z-10">
                         <tr>
                             <th class="py-6 px-4 border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -257,7 +257,7 @@
                             </th>
                             <th class="py-6 px-4 border-r border-slate-500">
                                 <div
-                                    class="flex items-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                    class="flex items-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -269,7 +269,7 @@
                             <th class="py-6 px-4 border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -290,7 +290,7 @@
                             <th class="py-6 px-4 text-end border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center justify-end space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center justify-end space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -306,7 +306,7 @@
                             <th class="py-6 px-4 text-end border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center justify-end space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center justify-end space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -327,7 +327,7 @@
                             <th class="py-6 px-4 text-center border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center justify-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center justify-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -348,7 +348,7 @@
                             <th class="py-6 px-4 text-center border-r border-slate-500">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center justify-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center justify-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -369,7 +369,7 @@
                             <th class="py-6 px-4">
                                 <div class="flex flex-col space-y-2">
                                     <div
-                                        class="flex items-center justify-center space-x-2 text-white text-xs font-bold uppercase tracking-wide">
+                                        class="flex items-center justify-center space-x-2 text-base-content text-xs font-bold uppercase tracking-wide">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                             viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

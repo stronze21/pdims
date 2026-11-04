@@ -29,19 +29,19 @@
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm table-zebra">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                <thead class="bg-base-200 text-base-content">
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">#</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Date</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">PO #</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">SI #</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Supplier</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">#</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Date</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">PO #</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">SI #</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Supplier</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
                             Items</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
                             Amount</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Source of Fund</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Type</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Source of Fund</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Type</th>
                     </tr>
                 </thead>
                 <tbody>

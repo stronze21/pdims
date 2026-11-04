@@ -19,14 +19,14 @@
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                <thead class="bg-base-200 text-base-content">
                     <tr>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Source of Fund</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Description</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Status</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Created By</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase">Updated By</th>
-                        <th class="py-4 px-4 text-white text-xs font-bold uppercase text-center">Actions</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Source of Fund</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Description</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Status</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Created By</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase">Updated By</th>
+                        <th class="py-4 px-4 text-base-content text-xs font-bold uppercase text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>

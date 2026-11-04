@@ -13,7 +13,7 @@
         </div>
         <button class="btn btn-sm btn-primary" onclick="printMe()">Print</button>
     </div>
-    <div id="print" class="bg-white text-black w-box-border pos-receipt">
+    <div id="print" data-charge-slip-preview="ready" class="bg-white text-black w-box-border pos-receipt">
         <div class="p-2">
             <div class="flex flex-col text-xs/4">
                 <h5 class="mb-0 text-2xl text-left">
@@ -147,7 +147,7 @@
 @push('scripts')
     <script>
         function printMe() {
-            window.onafterprint = function () {
+            if (window.parent === window) window.onafterprint = function () {
                 if (window.opener) {
                     window.opener.focus(); // return focus to dispensing window
                 }

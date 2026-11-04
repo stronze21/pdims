@@ -22,6 +22,12 @@ class ProtectSubmissions
         $payload = $request->except(['_token', '_submission_key']);
         $originalPayload = $payload;
         $key = $request->header('Idempotency-Key', $request->input('_submission_key'));
+        if ($key === null && $request->isMethod('POST')
+            && ($request->is('api/prescription-queue/create')
+                || preg_match('~^api/queues/[^/]+/update-status$~D', $request->path()))) {
+            return $next($request);
+        }
+
         if ($request->is('livewire/*')) {
             // Livewire 2 generates a transport-only ID for every update; it is not
             // part of the user's operation and must not turn a retry into a new write.

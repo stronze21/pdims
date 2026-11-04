@@ -5,15 +5,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#047857">
 
     <title>Portal Administration - {{ config('app.name', 'PDIMS') }}</title>
+
+    @include('layouts.partials.theme-init')
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
 
-<body class="min-h-screen bg-base-200 text-base-content antialiased">
+<body class="pdims-theme min-h-screen bg-base-200 text-base-content antialiased">
     <div class="relative min-h-screen overflow-hidden">
         <div class="pointer-events-none absolute inset-0">
             <div class="absolute -left-24 top-20 h-72 w-72 rounded-full bg-primary/10 blur-3xl"></div>
@@ -22,7 +24,7 @@
         </div>
 
         <div class="relative flex min-h-screen">
-            <aside class="hidden w-80 shrink-0 border-r border-base-300 bg-base-100/90 backdrop-blur-xl lg:flex lg:flex-col">
+            <aside class="brand-sidebar hidden w-80 shrink-0 border-r border-base-300 bg-base-100/90 backdrop-blur-xl lg:flex lg:flex-col">
                 <div class="border-b border-base-300 px-6 py-6">
                     <div class="flex items-center gap-3">
                         <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-content shadow-lg shadow-primary/20">
@@ -129,7 +131,7 @@
             </aside>
 
             <div class="flex min-w-0 flex-1 flex-col">
-                <header class="sticky top-0 z-30 border-b border-base-300 bg-base-100/85 backdrop-blur-xl">
+                <header class="brand-navbar sticky top-0 z-30 border-b border-base-300 bg-base-100/85 backdrop-blur-xl">
                     <div class="flex items-center gap-4 px-4 py-3 lg:px-6">
                         <label for="portal-drawer" class="btn btn-ghost btn-sm lg:hidden">
                             <x-mary-icon name="o-bars-3" class="h-5 w-5" />
@@ -155,7 +157,7 @@
                                 </ul>
                             </div>
 
-                            <x-mary-theme-toggle class="btn btn-circle btn-ghost" />
+                            <x-appearance-toggle class="btn btn-circle btn-ghost" />
                             <a href="{{ route('settings.portal.manual') }}" class="btn btn-ghost btn-sm hidden sm:inline-flex">
                                 <x-mary-icon name="o-book-open" class="h-4 w-4" />
                                 Manual

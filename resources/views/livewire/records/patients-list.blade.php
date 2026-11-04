@@ -16,223 +16,180 @@
         </div>
     </x-slot>
 
-    <div class="container px-4 py-4 mx-auto space-y-4">
+    <div class="space-y-5 lg:-mx-6 lg:-mt-4">
+        <header class="-mb-2 border-b border-base-300 pb-3">
+            <h1 class="text-2xl font-black tracking-tight">Patient Registry</h1>
+            <p class="mt-1 text-sm text-base-content/60">Search and review hospital patient records</p>
+        </header>
 
-        {{-- Compact Search Panel --}}
-        <x-mary-card shadow separator class="bg-base-100">
-            <div class="flex items-end gap-3">
-                <div class="flex-1 grid grid-cols-1 gap-3 md:grid-cols-5">
-                    <x-mary-input label="Hospital #" wire:model.defer="searchHpercode" placeholder="Hospital #"
-                        icon="o-hashtag" inline />
+        <div class="grid gap-5 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.7fr)]">
+            <form wire:submit="searchPatients" class="rounded-xl border border-base-300 bg-base-100 p-5 xl:min-h-96">
+                <h2 class="font-bold">Check for an existing patient</h2>
+                <p class="mb-4 mt-1 text-xs text-base-content/60">Use the available identity details to avoid creating a duplicate hospital record.</p>
 
-                    <x-mary-input label="First Name" wire:model.defer="searchFirstName" placeholder="First name"
-                        icon="o-user" inline />
-
-                    <x-mary-input label="Middle" wire:model.defer="searchMiddleName" placeholder="Middle" icon="o-user"
-                        inline />
-
-                    <x-mary-input label="Last Name" wire:model.defer="searchLastName" placeholder="Last name"
-                        icon="o-user" inline />
-
-                    <x-mary-input label="Birth Date" wire:model.defer="searchDob" type="date" icon="o-cake"
-                        inline />
-                </div>
-
-                <div class="flex gap-2">
-                    <x-mary-button icon="o-x-mark" wire:click="clearSearch" class="btn-ghost btn-sm"
-                        tooltip="Clear (Esc)" spinner />
-                    <x-mary-button label="Search" icon="o-magnifying-glass" wire:click="searchPatients"
-                        class="btn-primary btn-sm" tooltip="Search (Enter)" spinner="searchPatients" />
-                    <x-mary-button icon="o-user-plus" wire:click="openNewPatientModal" class="btn-success btn-sm"
-                        tooltip="New Patient" />
-                </div>
-            </div>
-        </x-mary-card>
-
-        {{-- Two Column Layout: Results | Patient Info + Encounters --}}
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
-
-            {{-- Search Results - 3 columns --}}
-            <div class="lg:col-span-3">
-                <x-mary-card shadow class="bg-base-100 h-[calc(100vh-280px)]">
-                    <x-slot:title>
-                        <div class="flex items-center justify-between">
-                            <span class="text-base font-bold">
-                                Search Results
-                                @if ($searchResults->count() > 0)
-                                    <x-mary-badge value="{{ $searchResults->count() }}"
-                                        class="ml-2 badge-primary badge-sm" />
-                                @endif
-                            </span>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    @foreach ([
+                        ['searchHpercode', 'Hospital No.', 'text'],
+                        ['searchLastName', 'Last Name', 'text'],
+                        ['searchFirstName', 'First Name', 'text'],
+                        ['searchMiddleName', 'Middle Name', 'text'],
+                        ['searchDob', 'Date of Birth', 'date'],
+                    ] as [$field, $label, $type])
+                        <div class="min-w-0">
+                            <label for="registry-{{ $field }}" class="mb-1.5 block text-xs font-semibold">{{ $label }}</label>
+                            <input id="registry-{{ $field }}" type="{{ $type }}" wire:model="{{ $field }}"
+                                autocomplete="off" class="input input-bordered h-10 w-full" />
+                            @error($field)
+                                <p class="mt-1 text-xs text-error">{{ $message }}</p>
+                            @enderror
                         </div>
-                    </x-slot:title>
+                    @endforeach
+                </div>
 
-                    <div class="overflow-y-auto h-[calc(100vh-360px)]">
-                        @if ($hasSearched && $searchResults->count() > 0)
-                            <table class="table w-full table-zebra table-xs">
-                                <thead class="sticky top-0 z-10 bg-base-200">
-                                    <tr class="text-xs uppercase">
-                                        <th class="w-24">Hospital #</th>
-                                        <th>Patient Name</th>
-                                        <th class="w-16">Sex</th>
-                                        <th class="w-24">Birth Date</th>
-                                        <th class="w-20">Age</th>
-                                        <th class="w-20">Status</th>
-                                        <th class="w-16"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($searchResults as $patient)
-                                        <tr class="transition-colors hover:bg-base-200 cursor-pointer {{ $selectedHpercode === $patient->hpercode ? 'bg-primary/20 font-medium' : '' }}"
-                                            wire:key="patient-{{ $patient->hpercode }}"
-                                            wire:click="selectPatient('{{ $patient->hpercode }}')">
-                                            <td class="font-mono text-xs">{{ $patient->hpercode }}</td>
-                                            <td>
-                                                <div class="font-medium text-sm">{{ $patient->fullname }}</div>
-                                                @if ($patient->patbplace)
-                                                    <div class="text-xs opacity-60">
-                                                        {{ Str::limit($patient->patbplace, 25) }}</div>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <x-mary-badge :value="$patient->patsex"
-                                                    class="{{ $patient->patsex === 'M' ? 'badge-info' : 'badge-secondary' }} badge-xs" />
-                                            </td>
-                                            <td class="text-xs">{{ $patient->bdate_format1() }}</td>
-                                            <td class="text-xs">{{ $patient->ageInYears() }}y</td>
-                                            <td>
-                                                <x-mary-badge :value="$patient->csstat()" class="badge-ghost badge-xs" />
-                                            </td>
-                                            <td>
-                                                <x-mary-icon name="o-chevron-right" class="w-4 h-4" />
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @elseif($hasSearched)
-                            <div class="flex flex-col items-center justify-center h-full py-12">
-                                <x-mary-icon name="o-magnifying-glass-circle" class="w-16 h-16 text-gray-300" />
-                                <p class="mt-3 font-medium text-gray-500">No patients found</p>
-                                <p class="text-sm text-gray-400">Try different search criteria</p>
-                            </div>
-                        @else
-                            <div class="flex flex-col items-center justify-center h-full py-12">
-                                <x-mary-icon name="o-user-group" class="w-16 h-16 text-gray-300" />
-                                <p class="mt-3 font-medium text-gray-500">Start searching</p>
-                                <p class="text-sm text-gray-400">Press Enter to search</p>
-                            </div>
-                        @endif
-                    </div>
-                </x-mary-card>
-            </div>
+                <div class="mt-4 flex flex-wrap justify-end gap-2">
+                    <x-mary-button label="Check Existing Patient" icon="o-magnifying-glass" type="submit"
+                        class="btn-primary h-10" spinner="searchPatients" />
+                    <button type="button" wire:click="clearSearch" class="btn btn-ghost h-10 border border-base-300">Clear</button>
+                </div>
+            </form>
 
-            {{-- Patient Details & Encounters - 2 columns --}}
-            <div class="lg:col-span-2 space-y-4">
+            <section class="flex min-h-80 min-w-0 flex-col overflow-hidden rounded-xl border border-base-300 bg-base-100 xl:h-96">
                 @if ($selectedPatient)
-                    {{-- Compact Patient Card --}}
-                    <x-mary-card shadow class="bg-gradient-to-br from-primary/10 to-secondary/10">
-                        <div class="space-y-2">
-                            <div class="flex items-start justify-between">
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-500 uppercase">Hospital #</p>
-                                    <p class="text-lg font-bold font-mono text-primary">
-                                        {{ $selectedPatient->hpercode }}</p>
-                                </div>
-                                <x-mary-button label="Walk-In" icon="o-arrow-right-circle" wire:click="initiateWalkIn"
-                                    spinner="initiateWalkIn" class="btn-error btn-sm" />
-                            </div>
-
-                            <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase">Patient Name</p>
-                                <p class="text-base font-bold">{{ $selectedPatient->fullname }}</p>
-                            </div>
-
-                            <div class="grid grid-cols-3 gap-2 text-xs">
-                                <div>
-                                    <p class="font-semibold text-gray-500 uppercase">Sex</p>
-                                    <x-mary-badge :value="$selectedPatient->gender()"
-                                        class="{{ $selectedPatient->patsex === 'M' ? 'badge-info' : 'badge-secondary' }} badge-xs" />
-                                </div>
-                                <div>
-                                    <p class="font-semibold text-gray-500 uppercase">Age</p>
-                                    <p class="font-medium">{{ $selectedPatient->ageInYears() }} years</p>
-                                </div>
-                                <div>
-                                    <p class="font-semibold text-gray-500 uppercase">Status</p>
-                                    <x-mary-badge :value="$selectedPatient->csstat()" class="badge-ghost badge-xs" />
-                                </div>
-                            </div>
-
-                            <div>
-                                <p class="text-xs font-semibold text-gray-500 uppercase">Birth Date</p>
-                                <p class="text-sm font-medium">{{ $selectedPatient->bdate_format1() }}</p>
-                            </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 bg-primary/5 px-5 py-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-lg font-bold">{{ $selectedPatient->patlast }}, {{ $selectedPatient->patfirst }} {{ $selectedPatient->patmiddle }}</h2>
+                            <span class="badge badge-outline">HN {{ $selectedPatient->hpercode }}</span>
                         </div>
-                    </x-mary-card>
+                        <div class="flex gap-2">
+                            <x-mary-button label="Walk-In" wire:click="initiateWalkIn" spinner="initiateWalkIn" class="btn-primary btn-sm" />
+                            <button type="button" wire:click="closeEncounterPreview" class="btn btn-ghost btn-sm border border-base-300">Close</button>
+                        </div>
+                    </div>
 
-                    {{-- Encounters Card --}}
-                    <x-mary-card shadow class="bg-base-100">
-                        <x-slot:title>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <x-mary-icon name="o-clipboard-document-list" class="w-4 h-4" />
-                                    <span class="text-sm font-bold">Encounters</span>
-                                </div>
-                                @if (count($patientEncounters) > 0)
-                                    <x-mary-badge value="{{ count($patientEncounters) }}"
-                                        class="badge-neutral badge-sm" />
-                                @endif
+                    <div class="min-h-0 flex-1 overflow-y-auto p-3" x-data="{ type: '', query: '' }" wire:key="preview-{{ $selectedHpercode }}">
+                        <div class="mb-2 flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+                            <span>Encounter status</span>
+                            @php
+                                $statusStyles = [
+                                    'active' => 'badge-soft badge-success',
+                                    'inactive' => 'badge-soft badge-warning',
+                                    'discharged' => 'badge-soft badge-info',
+                                ];
+                            @endphp
+                            @foreach ($statusStyles as $status => $style)
+                                <span class="badge badge-sm {{ $style }}">{{ ucfirst($status) }}</span>
+                            @endforeach
+                        </div>
+                        <div class="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-base-300 p-2">
+                            <div class="flex flex-wrap gap-2" aria-label="Encounter type">
+                                @foreach (['' => 'All Encounters', 'ER' => 'Emergency', 'ADM' => 'Inpatient', 'OPD' => 'Outpatient'] as $code => $label)
+                                    <button type="button" class="btn btn-xs rounded-full" :class="type === @js($code) ? 'btn-primary' : 'btn-ghost border-base-300'"
+                                        :aria-pressed="type === @js($code)" @click="type = @js($code)">{{ $label }}</button>
+                                @endforeach
                             </div>
-                        </x-slot:title>
+                            <input type="search" x-model.trim="query" aria-label="Search history" placeholder="Search history"
+                                class="input input-bordered input-sm w-full sm:max-w-xs" />
+                        </div>
 
-                        <div class="space-y-2 overflow-y-auto max-h-[calc(100vh-520px)]">
-                            @forelse($patientEncounters as $encounter)
-                                <div wire:click="viewEncounter('{{ $encounter['enccode'] }}')"
-                                    class="p-3 transition-all border rounded-lg cursor-pointer hover:shadow-md
-                                        {{ $encounter['status_badge'] === 'active' ? 'bg-success/5 border-success/30 hover:border-success' : 'bg-base-200 border-base-300 hover:border-base-400' }}"
-                                    wire:key="enc-{{ $encounter['enccode'] }}">
-                                    <div class="flex items-start justify-between mb-1">
-                                        <div class="flex gap-1">
-                                            <x-mary-badge :value="$encounter['toecode']"
-                                                class="badge-xs font-bold {{ $encounter['status_badge'] === 'active' ? 'badge-success' : 'badge-neutral' }}" />
-                                            <x-mary-badge :value="ucfirst($encounter['status_badge'])" class="badge-xs badge-outline" />
-                                        </div>
-                                        <x-mary-icon name="o-chevron-right" class="w-3 h-3 opacity-50" />
+                        <div class="space-y-2">
+                            @forelse ($patientEncounters as $encounter)
+                                @php
+                                    $diagnosis = trim(strip_tags($encounter['diagtext'] ?? ''));
+                                    $date = \Carbon\Carbon::parse($encounter['encdate']);
+                                    $typeStyle = match ($encounter['toecode']) {
+                                        'ER', 'ERADM' => 'badge-error',
+                                        'ADM' => 'badge-primary',
+                                        'OPD' => 'badge-secondary',
+                                        default => 'badge-neutral',
+                                    };
+                                @endphp
+                                <button type="button" wire:key="enc-{{ $encounter['enccode'] }}"
+                                    wire:click="viewEncounter(@js($encounter['enccode']))"
+                                    x-show="(!type || type === @js($encounter['toecode'])) && (!query || @js(strtolower($diagnosis.' '.$encounter['toecode'].' '.$date->format('M d, Y'))).includes(query.toLowerCase()))"
+                                    class="grid w-full cursor-pointer gap-2 rounded-xl border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-primary motion-safe:transition motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.008] lg:grid-cols-[7rem_minmax(0,1fr)_minmax(9rem,0.55fr)] lg:items-start">
+                                    <div class="space-y-1 text-xs">
+                                        <span class="badge badge-soft badge-sm {{ $typeStyle }}">{{ ['ER' => 'Emergency', 'ERADM' => 'Emergency', 'ADM' => 'Inpatient', 'OPD' => 'Outpatient'][$encounter['toecode']] ?? $encounter['toecode'] }}</span>
+                                        <div><span class="badge badge-sm {{ $statusStyles[$encounter['status_badge']] ?? 'badge-ghost' }}">{{ ucfirst($encounter['status_badge']) }}</span></div>
+                                        <div class="font-semibold">{{ $date->format('M d, Y') }}</div>
+                                        <div class="text-base-content/60">{{ $date->format('h:i A') }}</div>
                                     </div>
-
-                                    @if ($encounter['diagtext'])
-                                        <p class="text-xs text-gray-700 line-clamp-2 mb-1">
-                                            {!! $encounter['diagtext'] !!}
-                                        </p>
-                                    @else
-                                        <p class="text-xs italic text-gray-400 mb-1">No diagnosis</p>
-                                    @endif
-
-                                    <div class="flex items-center gap-1 text-xs text-gray-500">
-                                        <x-mary-icon name="o-calendar" class="w-3 h-3" />
-                                        {{ \Carbon\Carbon::parse($encounter['encdate'])->format('M d, Y h:i A') }}
+                                    <div class="min-w-0 break-words lg:px-3">
+                                        <p class="text-sm font-bold leading-snug">{{ $diagnosis ?: 'No diagnosis' }}</p>
+                                        <p class="mt-1 text-sm text-base-content/55">{{ $encounter['department'] ?? 'Department unavailable' }}</p>
                                     </div>
-                                </div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/50">Disposition</p>
+                                        <p class="mt-1 text-sm font-medium">{{ $encounter['disposition'] ?? 'Not recorded' }}</p>
+                                    </div>
+                                </button>
                             @empty
-                                <div class="flex flex-col items-center justify-center py-8 text-center">
-                                    <x-mary-icon name="o-clipboard-document-list" class="w-12 h-12 text-gray-300" />
-                                    <p class="mt-2 text-sm text-gray-500">No encounters</p>
-                                </div>
+                                <p class="py-8 text-center text-sm text-base-content/60">No encounters</p>
                             @endforelse
                         </div>
-                    </x-mary-card>
+                    </div>
                 @else
-                    <x-mary-card shadow class="bg-base-100 h-[calc(100vh-280px)]">
-                        <div class="flex flex-col items-center justify-center h-full text-center">
-                            <x-mary-icon name="o-user-circle" class="w-20 h-20 text-gray-300" />
-                            <p class="mt-3 font-medium text-gray-500">No Patient Selected</p>
-                            <p class="text-sm text-gray-400">Select a patient to view details</p>
+                    <div class="grid flex-1 place-items-center p-6 text-center">
+                        <div>
+                            <x-mary-icon name="o-clock" class="mx-auto h-12 w-12 text-base-content/25" />
+                            <h2 class="mt-3 font-bold">Encounter preview</h2>
+                            <p class="mt-1 text-sm text-base-content/60">Select Encounters from a patient row below.</p>
                         </div>
-                    </x-mary-card>
+                    </div>
                 @endif
-            </div>
+            </section>
         </div>
+
+        <section class="overflow-hidden rounded-xl border border-base-300 bg-base-100">
+            <header class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-5 py-3">
+                <div>
+                    <h2 class="font-bold">Patient records</h2>
+                    <p class="text-xs text-base-content/60">Matching records based on the submitted identity details</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-outline min-h-7 border-base-300 px-3 font-semibold">{{ $searchResults->count() }} {{ Str::plural('record', $searchResults->count()) }}</span>
+                    <x-mary-button label="Register Patient" type="button" wire:click="openNewPatientModal" class="btn-ghost btn-sm" />
+                </div>
+            </header>
+            <div class="max-h-[60dvh] overflow-auto">
+                <table class="table table-zebra w-full min-w-[46rem] table-fixed">
+                    <thead class="sticky top-0 bg-base-100 text-base-content/65">
+                        <tr>
+                            <th scope="col" style="width: 19%">Hospital #</th>
+                            <th scope="col" style="width: 17%">First Name</th>
+                            <th scope="col" style="width: 15%">Middle Name</th>
+                            <th scope="col" style="width: 12.5%">Last Name</th>
+                            <th scope="col" style="width: 14.5%">Date of Birth</th>
+                            <th scope="col" style="width: 22%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($searchResults as $patient)
+                            <tr wire:key="patient-{{ $patient->hpercode }}" class="hover:bg-base-200">
+                                <td class="whitespace-nowrap">
+                                    <span class="font-mono">{{ $patient->hpercode }}</span>
+                                    <button type="button" class="btn btn-ghost btn-xs"
+                                        x-data="{ copied: false }" @click="await navigator.clipboard.writeText(@js($patient->hpercode)); copied = true; setTimeout(() => copied = false, 1500)"
+                                        x-text="copied ? 'Copied' : 'Copy'">Copy</button>
+                                </td>
+                                <td>{{ $patient->patfirst }}</td>
+                                <td>{{ $patient->patmiddle ?: '—' }}</td>
+                                <td>{{ $patient->patlast }}</td>
+                                <td class="whitespace-nowrap">{{ $patient->patbdate?->format('F j, Y') ?? '—' }}</td>
+                                <td class="text-right">
+                                    <button type="button" class="btn btn-primary btn-sm" wire:click="selectPatient(@js($patient->hpercode))">Encounters</button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="py-10 text-center text-base-content/65">
+                                    {{ $hasSearched ? 'No patients match your search.' : 'Enter patient details above to search.' }}
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 
     {{-- New Patient Modal --}}
@@ -269,12 +226,6 @@
                     return;
                 }
 
-                // Enter to search (allow in input fields)
-                if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
-                    e.preventDefault();
-                    $wire.call('searchPatients');
-                }
-
                 // Escape to clear
                 if (e.key === 'Escape') {
                     e.preventDefault();
@@ -284,7 +235,7 @@
 
             // Focus first input on component mount
             setTimeout(() => {
-                const firstInput = document.querySelector('input[wire\\:model\\.defer="searchHpercode"]');
+                const firstInput = document.getElementById('registry-searchHpercode');
                 if (firstInput) {
                     firstInput.focus();
                 }

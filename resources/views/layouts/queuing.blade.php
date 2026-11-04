@@ -7,6 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Queue Display' }} - {{ config('app.name') }}</title>
 
+    @include('layouts.partials.theme-init')
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 
@@ -42,7 +44,7 @@
     </style>
 </head>
 
-<body class="font-sans antialiased">
+<body class="pdims-theme font-sans antialiased">
     <div class="min-h-screen">
         {{ $slot }}
     </div>

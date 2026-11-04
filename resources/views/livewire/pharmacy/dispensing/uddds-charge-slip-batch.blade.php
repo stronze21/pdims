@@ -1,7 +1,9 @@
 <div class="container max-w-xl mx-auto mt-5 pos-print-page">
     @include('livewire.pharmacy.dispensing.pos-receipt-styles')
-    <script src="{{ asset('js/uddds-batch-print.js') }}?v=3"></script>
+    <script src="{{ asset('js/uddds-batch-print.js') }}?v=4"></script>
     <div x-data="udddsBatchLoader($wire, @js($codes))" x-init="$nextTick(() => load())"
+        data-charge-slip-preview="loading" x-bind:data-charge-slip-preview="previewState"
+        x-effect="notifyPreview(previewState)"
         :class="{ 'batch-incomplete': !ready }" class="batch-incomplete">
         <style>
             [x-cloak] { display: none !important; }

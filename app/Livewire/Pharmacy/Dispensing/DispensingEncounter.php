@@ -350,7 +350,9 @@ class DispensingEncounter extends Component
 
         $departments = DB::connection('hospital')->select("SELECT * FROM hdept WHERE deptstat = 'A'");
 
-        $clinicalCheck = $this->clinicalCheck();
+        $clinicalCheck = $this->showPrescribedItemModal && $this->rx_dmdcomb !== null && $this->rx_dmdctr !== null
+            ? $this->clinicalCheck()
+            : [];
         $udddsReady = $this->toecode === 'ADM' && UdddsService::hasHrxoColumns();
         return view('livewire.pharmacy.dispensing.dispensing-encounter', compact(
             'orders',

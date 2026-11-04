@@ -3,9 +3,11 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Queue Controller' }} - {{ config('app.name') }}</title>
+
+    @include('layouts.partials.theme-init')
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -53,9 +55,9 @@
     </style>
 </head>
 
-<body class="min-h-screen antialiased bg-base-200">
+<body class="pdims-theme min-h-screen antialiased bg-base-200">
     {{-- Top Navigation Bar - Fixed --}}
-    <div class="sticky top-0 z-50 border-b shadow-md bg-base-100 border-base-300">
+    <div class="brand-navbar sticky top-0 z-50 border-b bg-base-100 border-base-300">
         <div class="px-4 py-3">
             <div class="flex items-center justify-between">
                 {{-- Left: App Info --}}
@@ -79,7 +81,7 @@
 
                 {{-- Right: Actions --}}
                 <div class="flex items-center gap-2">
-                    <x-mary-theme-toggle class="btn btn-circle btn-ghost btn-sm" />
+                    <x-appearance-toggle class="btn btn-circle btn-ghost btn-sm" />
 
                     <div class="dropdown dropdown-end">
                         <label tabindex="0" class="btn btn-circle btn-ghost btn-sm">

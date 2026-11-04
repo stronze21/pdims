@@ -24,12 +24,12 @@
             .uddds-queue .uddds-actions { margin-left: auto; }
         }
         .uddds-queue .uddds-loading-modal { position: fixed; inset: 0; z-index: 900; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, 0.5); }
-        .uddds-queue .uddds-loading-panel { width: 100%; max-width: 360px; padding: 24px; border-radius: 8px; background: #fff; color: #0f172a; text-align: center; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2); }
-        .uddds-queue .uddds-loading-spinner { display: inline-block; width: 32px; height: 32px; margin-bottom: 12px; border: 3px solid #cbd5e1; border-top-color: #047857; border-radius: 50%; animation: uddds-loading-spin 0.8s linear infinite; }
+        .uddds-queue .uddds-loading-panel { width: 100%; max-width: 360px; padding: 24px; border-radius: 8px; background: var(--color-base-100); color: var(--color-base-content); text-align: center; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2); }
+        .uddds-queue .uddds-loading-spinner { display: inline-block; width: 32px; height: 32px; margin-bottom: 12px; border: 3px solid var(--color-base-300); border-top-color: var(--color-primary); border-radius: 50%; animation: uddds-loading-spin 0.8s linear infinite; }
         @keyframes uddds-loading-spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { .uddds-queue .uddds-loading-spinner { animation: none; } }
         .uddds-queue .uddds-fund-modal { position: fixed; inset: 0; z-index: 850; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(15,23,42,0.5); }
-        .uddds-queue .uddds-fund-panel { width: 100%; max-width: 680px; padding: 24px; background: #fff; color: #0f172a; border-radius: 8px; }
+        .uddds-queue .uddds-fund-panel { width: 100%; max-width: 680px; padding: 24px; background: var(--color-base-100); color: var(--color-base-content); border-radius: 8px; }
         .uddds-queue .uddds-fund-list { max-height: 60vh; overflow-y: auto; margin-top: 12px; }
     </style>
     @if ($fundModalOpen)

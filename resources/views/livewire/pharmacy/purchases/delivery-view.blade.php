@@ -135,20 +135,20 @@
         <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="table table-sm table-zebra">
-                    <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                    <thead class="bg-base-200 text-base-content">
                         <tr>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Lot #</th>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Description</th>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">QTY
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Lot #</th>
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Description</th>
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">QTY
                             </th>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Unit
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Unit
                                 Cost</th>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Retail
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Retail
                                 Price</th>
-                            <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
+                            <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-right">Total
                                 Amount</th>
                             @if ($details->status == 'pending')
-                                <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">
+                                <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">
                                     Actions</th>
                             @endif
                         </tr>

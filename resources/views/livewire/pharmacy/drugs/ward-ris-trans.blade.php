@@ -39,17 +39,17 @@
     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto max-h-[calc(100vh-350px)]">
             <table class="table table-sm">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
+                <thead class="bg-base-200 text-base-content sticky top-0 z-10">
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Reference</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date Issued</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">From</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">To Ward</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Item</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Reference</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Date Issued</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">From</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">To Ward</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Item</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Issued
                             QTY</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Fund Source</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Actions</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Fund Source</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>

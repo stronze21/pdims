@@ -5,9 +5,143 @@
 <div class="flex flex-col h-full" x-data="{
     processingBusy: false, processingResult: null, processingTitle: '', processingCount: 0, processingElapsed: 0, processingTimer: null,
     processingCleanup: null,
+    chargePreviewUrl: '',
+    chargePreviewState: 'loading',
+    openChargeSlipPreview(url) {
+        if (this.$refs.chargeSlipPreview.open) return;
+        const preview = new URL(url, window.location.origin);
+        preview.searchParams.set('preview', '1');
+        this.chargePreviewState = 'loading';
+        this.chargePreviewUrl = preview.href;
+        this.$refs.chargeSlipPreview.showModal();
+    },
+    checkChargeSlipPreview(frame) {
+        try {
+            const page = frame.contentDocument;
+            if (page?.URL === 'about:blank') return;
+            this.chargePreviewState = page?.querySelector('[data-charge-slip-preview]')?.dataset.chargeSlipPreview ?? 'error';
+        } catch (error) {
+            this.chargePreviewState = 'error';
+        }
+    },
+    printChargeSlipPreview() {
+        const frame = this.$refs.chargeSlipFrame;
+        if (!frame) return;
+        this.checkChargeSlipPreview(frame);
+        if (this.chargePreviewState !== 'ready') return;
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+    },
+    pendingDialog: null,
+    failedDialog: null,
+    async openPreparedDialog(model, method = null, ...args) {
+        const dialog = document.getElementById('dispensing-' + model);
+        if (!dialog || dialog.open || this.pendingDialog || this.processingBusy) return;
+        this.failedDialog = null;
+        if (!method) {
+            this.$wire.$set(model, true, false);
+            dialog.showModal();
+            return;
+        }
+
+        this.pendingDialog = { model, method };
+        dialog.showModal();
+        try {
+            await this.$wire.call(method, ...args);
+        } catch (error) {
+            if (this.pendingDialog?.model === model) this.failedDialog = model;
+        } finally {
+            if (this.pendingDialog?.model === model) this.pendingDialog = null;
+        }
+    },
+    syncPreparedDialog(dialog, model) {
+        const visible = this.pendingDialog?.model === model || this.failedDialog === model || this.$wire[model];
+        if (visible && !dialog.open) dialog.showModal();
+        if (!visible && dialog.open) dialog.close();
+    },
+    dismissPreparedDialog(model, closeMethod) {
+        if (this.pendingDialog?.model === model) return;
+        const wasReady = this.$wire[model];
+        if (this.failedDialog === model) this.failedDialog = null;
+        this.$wire.$set(model, false, false);
+        if (wasReady && closeMethod) this.$wire.call(closeMethod);
+    },
+    stockLoading: false,
+    stockLoadError: false,
+    stockReady: false,
+    issueLoading: false,
+    issueLoadError: false,
+    issueReady: false,
+    async openIssueDialog() {
+        if (this.processingBusy || this.issueLoading || this.$refs.issueDialog.open) return;
+        this.issueReady = false;
+        this.issueLoadError = false;
+        this.issueLoading = true;
+        this.$refs.issueDialog.showModal();
+        try {
+            await this.$wire.openIssueModal();
+            if (!this.issueLoading) return;
+            this.issueReady = this.$wire.showIssueModal;
+            if (!this.issueReady) this.closeIssueDialog();
+        } catch (error) {
+            this.issueLoadError = true;
+        } finally {
+            this.issueLoading = false;
+        }
+    },
+    closeIssueDialog() {
+        this.issueReady = false;
+        this.$wire.showIssueModal = false;
+        this.$refs.issueDialog.close();
+    },
+    async openStockItem(...stock) {
+        if (this.stockLoading || this.$refs.addStockDialog.open) return;
+        this.stockReady = false;
+        this.stockLoadError = false;
+        this.stockLoading = true;
+        this.$refs.addStockDialog.showModal();
+        try {
+            await this.$wire.selectStock(...stock);
+            if (!this.stockLoading) return;
+            this.stockReady = this.$wire.showAddItemModal;
+            this.stockLoadError = !this.stockReady;
+            if (this.stockReady) this.$nextTick(() => this.$refs.addStockQuantity.querySelector('input').focus());
+        } catch (error) {
+            this.stockLoadError = true;
+        } finally {
+            this.stockLoading = false;
+        }
+    },
+    closeStockDialog() {
+        this.stockReady = false;
+        this.$wire.showAddItemModal = false;
+        this.$refs.addStockDialog.close();
+    },
     init() {
         this.processingCleanup = Livewire.hook('request', ({payload, fail, respond}) => {
             const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            const pending = this.pendingDialog;
+            if (pending &amp;&amp; (data.components || []).some(item => JSON.parse(item.snapshot).memo.id === this.$wire.$id
+                &amp;&amp; (item.calls || []).some(call => call.method === pending.method))) {
+                fail(({preventDefault}) => {
+                    if (this.pendingDialog?.model !== pending.model) return;
+                    preventDefault();
+                    this.failedDialog = pending.model;
+                    this.pendingDialog = null;
+                });
+            }
+            const loadingStock = (data.components || []).some(item => JSON.parse(item.snapshot).memo.id === this.$wire.$id &amp;&amp; (item.calls || []).some(call => call.method === 'selectStock'));
+            if (loadingStock) fail(({preventDefault}) => {
+                preventDefault();
+                this.stockLoading = false;
+                this.stockLoadError = true;
+            });
+            const loadingIssue = (data.components || []).some(item => JSON.parse(item.snapshot).memo.id === this.$wire.$id &amp;&amp; (item.calls || []).some(call => call.method === 'openIssueModal'));
+            if (loadingIssue) fail(({preventDefault}) => {
+                preventDefault();
+                this.issueLoading = false;
+                this.issueLoadError = true;
+            });
             const ours = (data.components || []).some(item => JSON.parse(item.snapshot).memo.id === this.$wire.$id &amp;&amp; (item.calls || []).some(call => ['charge_items', 'issue_order'].includes(call.method)));
             if (!ours) return;
             fail(({preventDefault}) => { preventDefault(); this.processingFailed(); });
@@ -63,7 +197,7 @@
     chargeSlipUrl(fallback) {
         const codes = [...new Set(this.selectedItems.map(key => this.orderStates[key]?.pcchrgcod).filter(Boolean))];
         return codes.length > 1
-            ? '{{ route('dispensing.uddds.chargeslips') }}' + '?codes=' + encodeURIComponent(codes.join(','))
+            ? '{{ route('dispensing.uddds.chargeslips', [], false) }}' + '?codes=' + encodeURIComponent(codes.join(','))
             : fallback;
     },
     toggleItem(event, pcchrgcod) {
@@ -97,16 +231,12 @@
         this.selectedItems = [];
         $wire.call('updateSelectedItems', this.selectedItems);
     }
-}" x-on:start-dispensing-charge="startDispensing('charge')">
+}" x-on:start-dispensing-charge="startDispensing('charge')" x-on:open-dispensing-issue="openIssueDialog()"
+    x-on:open-dispensing-dialog="openPreparedDialog(...$event.detail)"
+    x-on:preview-charge-slip="openChargeSlipPreview($event.detail.url)">
     @include('livewire.pharmacy.dispensing.processing-dialog')
+    @include('livewire.pharmacy.dispensing.charge-slip-preview')
     <span class="hidden" x-effect="orderStates = @js(collect($orders)->mapWithKeys(fn ($order) => [$order->docointkey => ['estatus' => $order->estatus, 'pcchrgcod' => $order->pcchrgcod]])->all())"></span>
-    @if ($this->hasEncounter)
-        @can('view-drug-clinical')
-            <div class="p-3" wire:poll.30s.visible>
-                <livewire:pharmacy.drug-clinical-panel :check="$clinicalCheck ?? []" :location="(string) $location_id" />
-            </div>
-        @endcan
-    @endif
     {{-- Queue Controller Bar (always visible) --}}
     <div class="border-b border-primary/20">
         {{-- Queue Header Bar --}}
@@ -367,7 +497,7 @@
                     an
                     encounter to begin dispensing.</p>
                 <x-mary-button label="Search Patient & Encounter" icon="o-magnifying-glass" class="btn-primary btn-lg"
-                    wire:click="openEncounterSelector" />
+                    x-on:click="openPreparedDialog('showEncounterSelectorModal', 'openEncounterSelector')" />
             </div>
         </div>
     @else
@@ -415,10 +545,10 @@
                             </div>
                         @endif
                         <x-mary-button label="Browse Encounters" icon="o-queue-list"
-                            class="btn-sm btn-outline btn-accent" wire:click="openEncounterSelector"
+                            class="btn-sm btn-outline btn-accent" x-on:click="openPreparedDialog('showEncounterSelectorModal', 'openEncounterSelector')"
                             tooltip-bottom="Browse Encounters (F3)" />
                         <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-outline"
-                            wire:click="openChangePatient" tooltip-bottom="Change Patient (F2)" />
+                            x-on:click="openPreparedDialog('showEncounterSelectorModal', 'openChangePatient')" tooltip-bottom="Change Patient (F2)" />
                     </div>
                 </div>
             </div>
@@ -452,24 +582,24 @@
                                 class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 p-2 shadow-lg border border-base-200">
 
                                 <li>
-                                    <a wire:click="$set('showPrescriptionListModal', true)">
+                                    <button type="button" x-on:click="openPreparedDialog('showPrescriptionListModal')">
                                         <x-heroicon-o-clipboard-document-list class="w-4 h-4"/>
                                         Prescriptions
-                                    </a>
+                                    </button>
                                 </li>
 
                                 <li>
-                                    <a wire:click="openPrintPrescriptionsModal">
+                                    <button type="button" x-on:click="openPreparedDialog('showPrintModal', 'openPrintPrescriptionsModal')">
                                         <x-heroicon-o-printer class="w-4 h-4"/>
                                         Print Rx
-                                    </a>
+                                    </button>
                                 </li>
 
                                 <li>
-                                    <a wire:click="$set('showSummaryModal', true)">
+                                    <button type="button" x-on:click="openPreparedDialog('showSummaryModal')">
                                         <x-heroicon-o-document-text class="w-4 h-4"/>
                                         Summary of Issued
-                                    </a>
+                                    </button>
                                 </li>
 
                                 <li>
@@ -515,7 +645,7 @@
                                 x-bind:disabled="!selectionMatches('P')"
                                 icon="o-paper-airplane"
                                 class="btn-sm btn-success"
-                                wire:click="openIssueModal" />
+                                x-on:click="openIssueDialog()" />
 
                         </div>
                         @endif
@@ -567,8 +697,9 @@
                                     </td>
                                     <td class="text-center">
                                         @if ($rxo->pcchrgcod)
-                                            <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}"
-                                                x-bind:href="chargeSlipUrl('{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod) }}')"
+                                            <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod, false) }}"
+                                                x-bind:href="chargeSlipUrl(@js(route('dispensing.rxo.chargeslip', $rxo->pcchrgcod, false)))"
+                                                x-on:click="if (!$event.ctrlKey && !$event.metaKey && !$event.shiftKey && !$event.altKey) { $event.preventDefault(); openChargeSlipPreview($el.href) }"
                                                 target="_blank" rel="noopener noreferrer"
                                                 class="link link-primary text-xs">
                                                 {{ $rxo->pcchrgcod }}
@@ -612,7 +743,7 @@
                                                 @include('livewire.pharmacy.dispensing.uddds-schedule-summary')
                                                 <button type="button" class="btn btn-ghost btn-xs" wire:click="removeUdddsEnrollment(@js($rxo->docointkey))" wire:confirm="Remove this UDDDS enrollment?">Remove UDDDS</button>
                                             @elseif ($rxo->estatus === 'S')
-                                                <button type="button" class="btn btn-outline btn-xs" wire:click="openUdddsEnrollment(@js($rxo->docointkey))">Enable UDDDS</button>
+                                                <button type="button" class="btn btn-outline btn-xs" x-on:click="openPreparedDialog('udddsModalOpen', 'openUdddsEnrollment', @js($rxo->docointkey))">Enable UDDDS</button>
                                             @endif
                                         @endif
 
@@ -652,7 +783,7 @@
                                                 @if ($rxo->estatus == 'U' && !$rxo->pcchrgcod)
                                                     <li>
                                                         <a
-                                                            wire:click="openUpdateQtyModal('{{ $rxo->docointkey }}', {{ $rxo->pchrgqty }}, {{ $rxo->pchrgup }})">
+                                                            x-on:click="openPreparedDialog('showUpdateQtyModal', 'openUpdateQtyModal', @js($rxo->docointkey), @js($rxo->pchrgqty), @js($rxo->pchrgup))">
                                                             <x-heroicon-o-pencil-square class="w-4 h-4" /> Edit Qty
                                                         </a>
                                                     </li>
@@ -661,7 +792,7 @@
                                                 @if ($rxo->estatus == 'S' && $rxo->qtyissued > 0)
                                                     <li>
                                                         <a
-                                                            wire:click="openReturnModal('{{ $rxo->docointkey }}', {{ $rxo->pchrgup }})">
+                                                            x-on:click="openPreparedDialog('showReturnModal', 'openReturnModal', @js($rxo->docointkey), @js($rxo->pchrgup))">
                                                             <x-heroicon-o-arrow-uturn-left class="w-4 h-4" /> Return
                                                         </a>
                                                     </li>
@@ -669,7 +800,7 @@
 
                                                 <li>
                                                     <a
-                                                        wire:click="openRemarksModal('{{ $rxo->docointkey }}', '{{ addslashes($rxo->remarks) }}')">
+                                                        x-on:click="openPreparedDialog('showRemarksModal', 'openRemarksModal', @js($rxo->docointkey), @js($rxo->remarks))">
                                                         <x-heroicon-o-chat-bubble-left class="w-4 h-4" /> Remarks
                                                     </a>
                                                 </li>
@@ -750,9 +881,9 @@
                                 @forelse ($stocks as $stock)
                                     <tr class="cursor-pointer hover"
                                         wire:key="stock-{{ $stock->id }}-{{ $stock->chrgcode }}"
-                                        @if ($can_add_items) wire:click="selectStock('{{ $stock->id }}', '{{ $stock->chrgcode }}', '{{ $stock->dmdcomb }}',
-                                        '{{ $stock->dmdctr }}', '{{ $stock->loc_code }}', '{{ $stock->dmdprdte }}', '{{ $stock->exp_date }}',
-                                        '{{ $stock->stock_bal }}', '{{ $stock->dmselprice }}', '{{ addslashes($stock->drug_concat) }}')" @endif>
+                                        @if ($can_add_items) @click="openStockItem(@js($stock->id), @js($stock->chrgcode), @js($stock->dmdcomb),
+                                        @js($stock->dmdctr), @js($stock->loc_code), @js((string) $stock->dmdprdte), @js((string) $stock->exp_date),
+                                        @js($stock->stock_bal), @js($stock->dmselprice), @js($stock->drug_concat))" @endif>
                                         <td class="text-xs">
                                             <div class="font-medium truncate max-w-[280px]"
                                                 title="{{ $stock->drug_concat }}">
@@ -851,14 +982,14 @@
                                         @if ($toecode == 'OPD' || $toecode == 'WALKN')
                                             <button class="btn btn-xs btn-primary tooltip tooltip-left"
                                                 data-tip="Add Prescribed Item"
-                                                wire:click="openPrescribedItemModal({{ $presc_data->id }},'{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}','{{ $presc_data->qty }}')">
+                                                x-on:click="openPreparedDialog('showPrescribedItemModal', 'openPrescribedItemModal', @js($presc_data->id), @js($presc_data->dmdcomb), @js($presc_data->dmdctr), @js($presc->empid), @js($presc_data->qty))">
                                                 <x-heroicon-o-plus class="w-3 h-3" />
                                             </button>
                                         @endif
 
                                         <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
                                             data-tip="Deactivate Rx"
-                                            wire:click="confirmDeactivateRx({{ $presc_data->id }})">
+                                            x-on:click="openPreparedDialog('showDeactivateRxModal', 'confirmDeactivateRx', @js($presc_data->id))">
                                             <x-heroicon-o-x-mark class="w-3 h-3" />
                                         </button>
                                     @endif
@@ -905,26 +1036,43 @@
         </div>
 
         {{-- Add Stock Item Modal --}}
-        @if ($udddsModalOpen)
-            <div class="modal modal-open" role="dialog" aria-modal="true" aria-labelledby="uddds-enroll-title">
-                <div class="modal-box">
-                    <h3 id="uddds-enroll-title" class="font-semibold">Enable UDDDS</h3>
-                    @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
-                    <div class="modal-action">
-                        <button type="button" class="btn btn-ghost" wire:click="$set('udddsModalOpen', false)">Cancel</button>
-                        <button type="button" class="btn btn-primary" wire:click="saveUdddsEnrollment" wire:loading.attr="disabled" @disabled($rx_order_type !== 'BASIC')>Enable</button>
+        <x-dispensing-dialog model="udddsModalOpen" title="Enable UDDDS">
+            @if ($udddsModalOpen)
+                @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
+            @endif
+            <x-slot:actions>
+                <button type="button" class="btn btn-ghost" x-on:click="dismissPreparedDialog(model, closeMethod)">Cancel</button>
+                <button type="button" class="btn btn-primary" wire:click="saveUdddsEnrollment" wire:loading.attr="disabled" @disabled($rx_order_type !== 'BASIC')>Enable</button>
+            </x-slot:actions>
+        </x-dispensing-dialog>
+
+        {{-- The browser owns the dialog's open attribute; Livewire still updates its contents. --}}
+        <dialog wire:ignore.self x-ref="addStockDialog" class="modal backdrop-blur" aria-labelledby="add-stock-title"
+            @cancel.prevent="if (!stockLoading) closeStockDialog()"
+            x-effect="if (stockReady && !$wire.showAddItemModal) closeStockDialog()">
+            <div class="modal-box">
+            <h2 id="add-stock-title" class="mb-5 text-xl font-bold">Add Item</h2>
+            <button type="button" class="btn btn-circle btn-sm btn-ghost absolute end-2 top-2"
+                aria-label="Close" :disabled="stockLoading" @click="closeStockDialog()">×</button>
+
+            <div x-show="stockLoading" x-cloak class="space-y-4" role="status">
+                <span class="sr-only">Loading stock item</span>
+                <div class="skeleton h-4 w-32"></div>
+                <div class="skeleton h-16 w-full"></div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="skeleton col-span-2 h-32"></div>
+                    <div class="space-y-3">
+                        <div class="skeleton h-12 w-full"></div>
+                        <div class="skeleton h-12 w-full"></div>
                     </div>
                 </div>
+                <div class="skeleton h-20 w-full"></div>
             </div>
-        @endif
+            <p x-show="stockLoadError" x-cloak role="alert" class="text-sm text-error">
+                Could not load the stock item. Close this dialog and select the item again.
+            </p>
 
-        <x-mary-modal wire:model="showAddItemModal" title="Add Item" class="backdrop-blur">
-            @can('view-drug-clinical')
-                @if ($showAddItemModal && $item_dmdcomb !== null && $item_dmdctr !== null)
-                    <livewire:pharmacy.drug-clinical-panel :comb="(string) $item_dmdcomb" :ctr="(string) $item_dmdctr" :location="(string) $item_loc_code" :check="$clinicalCheck ?? []" :key="'stock-clinical-'.$item_dmdcomb.'-'.$item_dmdctr" />
-                @endif
-            @endcan
-
+            <div x-show="stockReady" x-cloak>
             <div class="space-y-4">
                 <div class="text-sm font-medium text-base-content/70">
                     Selected stock item
@@ -989,9 +1137,9 @@
                     </div>
                 @endif
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="col-span-2">
+                    <div class="col-span-2" x-ref="addStockQuantity">
                         <x-mary-input label="Quantity" wire:model.live="order_qty" type="number" min="1"
-                            class="input-lg text-6xl text-center font-bold h-32 pr-4" autofocus />
+                            class="input-lg text-6xl text-center font-bold h-32 pr-4" />
                     </div>
                     <div class="space-y-2">
                         <x-mary-input label="Unit Price" wire:model.live="unit_price" type="number" step="0.01" />
@@ -1007,14 +1155,17 @@
                 </div>
             </div>
             @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
-            <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showAddItemModal = false" />
-                <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_item" spinner />
-            </x-slot:actions>
-        </x-mary-modal>
+            </div>
+            <div class="modal-action">
+                <x-mary-button label="Cancel" @click="closeStockDialog()" x-bind:disabled="stockLoading" />
+                <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_item" spinner
+                    x-show="stockReady" x-cloak />
+            </div>
+            </div>
+        </dialog>
 
         {{-- Add Prescribed Item Modal (OPD/WALKN) --}}
-        <x-mary-modal wire:model="showPrescribedItemModal" title="Add Prescribed Item" class="backdrop-blur">
+        <x-dispensing-dialog model="showPrescribedItemModal" title="Add Prescribed Item">
             @can('view-drug-clinical')
                 @if ($showPrescribedItemModal && $rx_dmdcomb !== null && $rx_dmdctr !== null)
                     <livewire:pharmacy.drug-clinical-panel :comb="(string) $rx_dmdcomb" :ctr="(string) $rx_dmdctr" :location="(string) $location_id" :check="$clinicalCheck ?? []" :key="'rx-clinical-'.$rx_dmdcomb.'-'.$rx_dmdctr" />
@@ -1107,14 +1258,14 @@
             </div>
             @include('livewire.pharmacy.dispensing.uddds-schedule-fields')
             <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showPrescribedItemModal = false" />
+                <x-mary-button label="Cancel" x-on:click="dismissPreparedDialog(model, closeMethod)" />
                 <x-mary-button label="Add Item" icon="o-plus" class="btn-primary" wire:click="add_prescribed_item"
                     spinner />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
         {{-- Update Qty Modal --}}
-        <x-mary-modal wire:model="showUpdateQtyModal" title="Update Order Quantity" class="backdrop-blur">
+        <x-dispensing-dialog model="showUpdateQtyModal" title="Update Order Quantity">
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <x-mary-input label="Quantity" wire:model="order_qty" type="number" min="1"
@@ -1129,19 +1280,13 @@
                 </div>
             </div>
             <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showUpdateQtyModal = false" />
+                <x-mary-button label="Cancel" x-on:click="dismissPreparedDialog(model, closeMethod)" />
                 <x-mary-button label="Update" icon="o-check" class="btn-primary" wire:click="update_qty" spinner />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
         {{-- Return Issued Modal --}}
-        <x-mary-modal wire:model="showReturnModal" wire:key="return-issued-modal"
-            title="Return Issued Item" class="backdrop-blur" persistent
-            x-on:keydown.escape.window="if (open) $wire.closeReturnModal()">
-            <button type="button" class="btn btn-circle btn-sm btn-ghost absolute end-2 top-2"
-                aria-label="Close return modal" wire:click="closeReturnModal">
-                <x-heroicon-o-x-mark class="w-5 h-5" />
-            </button>
+        <x-dispensing-dialog model="showReturnModal" title="Return Issued Item" close-method="closeReturnModal">
             <div class="space-y-4">
                 <x-mary-input label="Return Quantity" wire:model="return_qty" type="number" min="1"
                     class="input-lg text-center font-bold" autofocus />
@@ -1156,10 +1301,10 @@
                 <x-mary-button label="Return Item" icon="o-arrow-uturn-left" class="btn-error"
                     wire:click="return_issued('{{ $docointkey }}')" spinner />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
         {{-- Deactivate Prescription Modal --}}
-        <x-mary-modal wire:model="showDeactivateRxModal" title="Deactivate Prescription" class="backdrop-blur">
+        <x-dispensing-dialog model="showDeactivateRxModal" title="Deactivate Prescription">
             <div class="space-y-4">
                 <div class="p-3 rounded-lg bg-warning/10">
                     <p class="text-sm">This will mark the prescription as inactive. Please provide a reason.</p>
@@ -1167,15 +1312,31 @@
                 <x-mary-input label="Reason / Remarks" wire:model="adttl_remarks" placeholder="Enter reason..." />
             </div>
             <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showDeactivateRxModal = false" />
+                <x-mary-button label="Cancel" x-on:click="dismissPreparedDialog(model, closeMethod)" />
                 <x-mary-button label="Deactivate" icon="o-x-mark" class="btn-error" wire:click="deactivate_rx"
                     spinner />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
         {{-- Issue Confirmation Modal --}}
-        <x-mary-modal wire:model="showIssueModal" title="Issue Selected Items" class="backdrop-blur">
-            <div class="space-y-4">
+        <dialog wire:ignore.self x-ref="issueDialog" class="modal backdrop-blur" aria-labelledby="issue-dialog-title"
+            x-on:cancel.prevent="if (!issueLoading && !processingBusy) closeIssueDialog()"
+            x-effect="if (issueReady && !$wire.showIssueModal) closeIssueDialog()">
+            <div class="modal-box">
+            <h2 id="issue-dialog-title" class="mb-5 text-xl font-bold" tabindex="-1" autofocus>Issue Selected Items</h2>
+            <button type="button" class="btn btn-circle btn-sm btn-ghost absolute end-2 top-2"
+                aria-label="Close" x-bind:disabled="issueLoading || processingBusy" x-on:click="closeIssueDialog()">×</button>
+            <div x-show="issueLoading" x-cloak class="space-y-4" role="status">
+                <span class="sr-only">Loading issue options</span>
+                <div class="skeleton h-11 w-full"></div>
+                <div class="skeleton h-4 w-12"></div>
+                <div class="skeleton h-32 w-full"></div>
+                <div class="skeleton h-10 w-full"></div>
+            </div>
+            <p x-show="issueLoadError" x-cloak role="alert" class="text-sm text-error">
+                Could not load the issue options. Close this dialog and try again.
+            </p>
+            <div x-show="issueReady" x-cloak class="space-y-4">
                 <div class="p-3 rounded-lg bg-info/10">
                     <p class="text-sm">Issue all charged items to the patient.</p>
                 </div>
@@ -1229,16 +1390,16 @@
                     </div>
                 @endif
             </div>
-            <x-slot:actions>
-                <x-mary-button label="Cancel" @click="$wire.showIssueModal = false" />
+            <div class="modal-action">
+                <x-mary-button label="Cancel" x-on:click="closeIssueDialog()" x-bind:disabled="issueLoading || processingBusy" />
                 <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success"
-                    x-on:click="startDispensing('issue')" x-bind:disabled="processingBusy" />
-            </x-slot:actions>
-        </x-mary-modal>
+                    x-show="issueReady" x-cloak x-on:click="startDispensing('issue')" x-bind:disabled="!issueReady || processingBusy" />
+            </div>
+            </div>
+        </dialog>
 
         {{-- Summary Modal --}}
-        <x-mary-modal wire:model="showSummaryModal" title="Summary of Issued Drugs and Meds" class="backdrop-blur"
-            box-class="max-w-3xl">
+        <x-dispensing-dialog model="showSummaryModal" title="Summary of Issued Drugs and Meds" box-class="max-w-3xl">
             <table class="table table-xs">
                 <thead>
                     <tr class="bg-base-200">
@@ -1262,12 +1423,12 @@
                 </tbody>
             </table>
             <x-slot:actions>
-                <x-mary-button label="Close" @click="$wire.showSummaryModal = false" />
+                <x-mary-button label="Close" x-on:click="dismissPreparedDialog(model, closeMethod)" />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
         {{-- Prescription List Modal (All including inactive) --}}
-        <x-mary-modal wire:model="showPrescriptionListModal" title="All Prescriptions" class="backdrop-blur" box-class="max-w-4xl">
+        <x-dispensing-dialog model="showPrescriptionListModal" title="All Prescriptions" box-class="max-w-4xl">
             <table class="table table-xs">
                 <thead>
                     <tr class="bg-base-200">
@@ -1290,7 +1451,7 @@
                                 </td>
                                 <td class="text-xs cursor-pointer"
                                     @if ($presc_all_data->stat == 'A') @if ($toecode == 'OPD' || $toecode == 'WALKN')
-                                    wire:click="openPrescribedItemFromAll({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}','{{ $presc_all_data->qty }}')"
+                                    x-on:click="openPreparedDialog('showPrescribedItemModal', 'openPrescribedItemFromAll', @js($presc_all_data->id), @js($presc_all_data->dmdcomb), @js($presc_all_data->dmdctr), @js($presc_all->empid), @js($presc_all_data->qty))"
                                     @else
                                     wire:click="searchGenericFromAll({{ $presc_all_data->id }},'{{ explode(',', $presc_all_data->dm->drug_concat())[0] }}','{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')" @endif
                                     @endif>
@@ -1331,7 +1492,7 @@
                                         @if ($presc_all_data->stat == 'A')
                                             <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
                                                 data-tip="Deactivate"
-                                                wire:click="confirmDeactivatePrescription({{ $presc_all_data->id }},'{{ $presc_all_data->dmdcomb }}','{{ $presc_all_data->dmdctr }}','{{ $presc_all->empid }}')">
+                                                x-on:click="openPreparedDialog('showDeactivateRxModal', 'confirmDeactivatePrescription', @js($presc_all_data->id), @js($presc_all_data->dmdcomb), @js($presc_all_data->dmdctr), @js($presc_all->empid))">
                                                 <x-heroicon-o-x-mark class="w-3 h-3" />
                                             </button>
                                         @else
@@ -1410,11 +1571,7 @@
                                             @if ($extra_all_data->stat == 'A')
                                                 <button class="btn btn-xs btn-ghost btn-error tooltip tooltip-left"
                                                     data-tip="Deactivate"
-                                                    wire:click="$wire.$set('rx_id', {{ $extra_all_data->id }});
-                                                                $wire.$set('rx_dmdcomb', '{{ $extra_all_data->dmdcomb }}');
-                                                                $wire.$set('rx_dmdctr', '{{ $extra_all_data->dmdctr }}');
-                                                                $wire.$set('empid', '{{ $extra_all->empid }}');
-                                                                $wire.$set('showDeactivateRxModal', true)">
+                                                    x-on:click="openPreparedDialog('showDeactivateRxModal', 'confirmDeactivatePrescription', @js($extra_all_data->id), @js($extra_all_data->dmdcomb), @js($extra_all_data->dmdctr), @js($extra_all->empid))">
                                                     <x-heroicon-o-x-mark class="w-3 h-3" />
                                                 </button>
                                             @else
@@ -1434,14 +1591,13 @@
                 </tbody>
             </table>
             <x-slot:actions>
-                <x-mary-button label="Close" @click="$wire.showPrescriptionListModal = false" />
+                <x-mary-button label="Close" x-on:click="dismissPreparedDialog(model, closeMethod)" />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
     @endif {{-- End: @if (!$hasEncounter) --}}
 
     {{-- Encounter / Prescription Selector Modal --}}
-    <x-mary-drawer wire:model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" class="backdrop-blur"
-        box-class="max-w-5xl">
+    <x-dispensing-dialog model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" box-class="max-w-5xl" drawer>
         @php
             $encounterBrowserLoadingTargets = 'switchSelectorMode,selectorSearchPatients,selectorSelectPatient,selectorClearPatient,selectEncounterPrescriptions,encounter_area_filter,encounter_detail_tab,setRxBrowseArea,setRxBrowseTagFilter,loadRxBrowseResults,rx_browse_search,rx_browse_date,rx_browse_wardcode';
         @endphp
@@ -1677,7 +1833,11 @@
                                                                     <button
                                                                         class="btn btn-xs btn-primary tooltip tooltip-left"
                                                                         data-tip="Add to Current Encounter"
-                                                                        wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')">
+                                                                        @if (in_array($toecode, ['OPD', 'WALKN'], true))
+                                                                            x-on:click="openPreparedDialog('showPrescribedItemModal', 'addPrescriptionFromEncounter', @js($selData->id), @js($selData->dmdcomb), @js($selData->dmdctr), @js($selPresc->empid), @js($selData->qty))"
+                                                                        @else
+                                                                            wire:click="addPrescriptionFromEncounter({{ $selData->id }}, '{{ $selData->dmdcomb }}', '{{ $selData->dmdctr }}', '{{ $selPresc->empid }}', '{{ $selData->qty }}')"
+                                                                        @endif>
                                                                         <x-heroicon-o-plus class="w-3 h-3" />
                                                                     </button>
                                                                 @endif
@@ -1994,23 +2154,22 @@
             </div>
         </div>
         <x-slot:actions>
-            <x-mary-button label="Close" @click="$wire.showEncounterSelectorModal = false" />
+            <x-mary-button label="Close" x-on:click="dismissPreparedDialog(model, closeMethod)" />
         </x-slot:actions>
-    </x-mary-modal>
+    </x-dispensing-dialog>
 
     {{-- Inline Remarks Edit --}}
-        <x-mary-modal wire:model="showRemarksModal" wire:key="edit-remarks-modal" title="Edit Remarks" class="backdrop-blur">
+        <x-dispensing-dialog model="showRemarksModal" title="Edit Remarks" close-method="closeRemarksModal">
             <x-mary-input label="Remarks" wire:model="new_remarks" placeholder="Enter remarks..." />
             <x-slot:actions>
                 <x-mary-button id="cancel-remarks-modal" label="Cancel" wire:click="closeRemarksModal" />
                 <x-mary-button label="Save" icon="o-check" class="btn-primary" wire:click="update_remarks"
                     spinner />
             </x-slot:actions>
-        </x-mary-modal>
+        </x-dispensing-dialog>
 
     {{-- Print Prescriptions Modal --}}
-    <x-mary-modal wire:model="showPrintModal" title="Print Prescriptions" class="backdrop-blur"
-        box-class="max-w-3xl">
+    <x-dispensing-dialog model="showPrintModal" title="Print Prescriptions" box-class="max-w-3xl">
         <div class="space-y-4">
             <div class="p-3 rounded-lg bg-base-200">
                 <div class="text-sm">
@@ -2100,19 +2259,18 @@
             @endif
         </div>
         <x-slot:actions>
-            <x-mary-button label="Cancel" @click="$wire.showPrintModal = false" />
+            <x-mary-button label="Cancel" x-on:click="dismissPreparedDialog(model, closeMethod)" />
             <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary"
                 wire:click="printPrescriptions" spinner />
         </x-slot:actions>
-    </x-mary-modal>
+    </x-dispensing-dialog>
 
 
     {{-- Keyboard Shortcuts --}}
     @script
         <script>
             document.addEventListener('keydown', e => {
-                const processing = $wire.$el.querySelector('dialog[aria-labelledby="dispensing-processing-title"]');
-                if (processing?.open) return;
+                if ($wire.$el.querySelector('dialog[open]')) return;
                 // Skip if user is typing in an input/textarea/select
                 const tag = e.target.tagName;
                 const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
@@ -2125,7 +2283,7 @@
                 // Ctrl+I - Open Issue modal
                 if (e.ctrlKey && e.key === 'i') {
                     e.preventDefault();
-                    $wire.openIssueModal();
+                    $wire.$el.dispatchEvent(new CustomEvent('open-dispensing-issue'));
                 }
                 // Ctrl+A - Select all pending (only outside inputs)
                 if (e.ctrlKey && e.key === 'a' && !isInput) {
@@ -2153,22 +2311,22 @@
                 // F2 - Change patient
                 if (e.key === 'F2') {
                     e.preventDefault();
-                    $wire.openChangePatient();
+                    $wire.$el.dispatchEvent(new CustomEvent('open-dispensing-dialog', { detail: ['showEncounterSelectorModal', 'openChangePatient'] }));
                 }
                 // F3 - Browse encounters
                 if (e.key === 'F3') {
                     e.preventDefault();
-                    $wire.openEncounterSelector();
+                    $wire.$el.dispatchEvent(new CustomEvent('open-dispensing-dialog', { detail: ['showEncounterSelectorModal', 'openEncounterSelector'] }));
                 }
                 // F4 - Prescriptions list
                 if (e.key === 'F4') {
                     e.preventDefault();
-                    $wire.set('showPrescriptionListModal', true);
+                    $wire.$el.dispatchEvent(new CustomEvent('open-dispensing-dialog', { detail: ['showPrescriptionListModal'] }));
                 }
                 // F5 - Summary
                 if (e.key === 'F5') {
                     e.preventDefault();
-                    $wire.set('showSummaryModal', true);
+                    $wire.$el.dispatchEvent(new CustomEvent('open-dispensing-dialog', { detail: ['showSummaryModal'] }));
                 }
                 // F6 - Open Issued with Return in new tab
                 if (e.key === 'F6') {
@@ -2183,11 +2341,9 @@
             $wire.on('open-charge-slip', ({
                 pcchrgcod
             }) => {
-                window.open(
-                    '{{ url('/dispensing/encounter/charge') }}' + '/' + pcchrgcod,
-                    '_blank',
-                    'noopener,noreferrer'
-                );
+                const url = @js(route('dispensing.rxo.chargeslip', ['pcchrgcod' => '__slip__'], false))
+                    .replace('__slip__', encodeURIComponent(pcchrgcod));
+                $wire.$el.dispatchEvent(new CustomEvent('preview-charge-slip', { detail: { url } }));
             });
 
             $wire.on('open-print-window', ({

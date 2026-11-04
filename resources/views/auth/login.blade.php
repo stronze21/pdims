@@ -1,114 +1,102 @@
 <x-guest-layout>
-    <div class="min-h-screen flex">
-        <!-- LEFT SIDE - Branding -->
-        <div
-            class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-info via-info to-success text-white p-12 flex-col justify-between">
-            <div class="flex flex-col items-center justify-center h-full">
-                <div class="text-center">
-                    <x-mary-icon name="o-beaker" class="w-32 h-32 mx-auto mb-8 opacity-90" />
-                    <h1 class="text-5xl font-bold mb-4">MMMH&MC</h1>
-                    <p class="text-xl opacity-90">Pharmacy Management System</p>
+    <main class="pharmacy-login" x-data="pharmacyAppearance" :data-login-theme="dark ? 'dark' : 'light'">
+        <button type="button" class="login-theme-toggle" @click="toggleTheme()" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" aria-label="Switch to dark mode" x-cloak>
+            <x-mary-icon name="o-moon" class="w-5 h-5" x-show="!dark" />
+            <x-mary-icon name="o-sun" class="w-5 h-5" x-show="dark" />
+        </button>
+        <aside class="login-brand" aria-label="MMMH&MC Pharmacy Management System">
+            <div class="login-hospital">
+                <img src="{{ asset('images/hospital-logo.png') }}" alt="MMMH&MC hospital seal" width="56" height="56">
+                <span>Mariano Marcos Memorial Hospital<br>and Medical Center</span>
+            </div>
+            <div class="login-brand-content">
+                <div class="login-product-mark"><x-mary-icon name="o-beaker" class="w-6 h-6" /><span>Pharmacy Management System</span></div>
+                <h1>Your pharmacy.<br><span>Connected.</span></h1>
+                <p>One workspace for pharmacy dispensing,<br class="login-wide-break"> inventory, and reporting.</p>
+                <div class="login-capabilities" aria-label="Pharmacy capabilities">
+                    <span><x-mary-icon name="o-cube" class="w-4 h-4" /> Inventory</span>
+                    <span><x-mary-icon name="o-beaker" class="w-4 h-4" /> Dispensing</span>
+                    <span><x-mary-icon name="o-chart-bar" class="w-4 h-4" /> Reporting</span>
                 </div>
             </div>
-
-            <div class="text-sm opacity-60">
-                © {{ date('Y') }} Mariano Marcos Memorial Hospital and Medical Center
+            <div class="login-brand-footer">
+                <div class="login-access-note"><x-mary-icon name="o-shield-check" class="w-5 h-5" /><span>For authorized pharmacy personnel</span></div>
+                <p class="login-copyright">&copy; {{ date('Y') }} Mariano Marcos Memorial Hospital and Medical Center</p>
             </div>
-        </div>
+        </aside>
 
-        <!-- RIGHT SIDE - Login Form -->
-        <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-base-100">
-            <div class="w-full max-w-md">
-                <!-- Mobile Logo -->
-                <div class="lg:hidden text-center mb-8">
-                    <div class="inline-flex items-center gap-3 mb-4">
-                        <x-mary-icon name="o-beaker" class="w-10 h-10 text-primary" />
-                        <div class="text-left">
-                            <h1 class="text-xl font-bold">MMMH&MC</h1>
-                            <p class="text-sm text-base-content/60">Pharmacy System</p>
+        <section class="login-panel" aria-labelledby="login-heading">
+            <div class="login-content">
+                <div class="login-mobile-brand">
+                    <img src="{{ asset('images/hospital-logo.png') }}" alt="" width="44" height="44">
+                    <div><strong>MMMH&MC</strong><span>Pharmacy Management System</span></div>
+                </div>
+
+                <div class="login-card">
+                    <div class="login-form-mark"><x-mary-icon name="o-arrow-right-on-rectangle" class="w-6 h-6" /></div>
+                    <header class="login-heading">
+                        <h2 id="login-heading">Welcome back</h2>
+                        <p>Enter your credentials to access your pharmacy workspace.</p>
+                    </header>
+
+                    @if ($errors->any())
+                        <div class="login-message login-message-error" role="alert" id="login-errors">
+                            <strong>Unable to sign in</strong>
+                            <ul class="list-disc pl-5 mt-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
-                    </div>
-                </div>
+                    @endif
 
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold mb-2">Welcome Back</h2>
-                    <p class="text-base-content/60">Sign in to access the pharmacy management system</p>
-                </div>
+                    @session('status')
+                        <div class="login-message login-message-success" role="status">{{ $value }}</div>
+                    @endsession
 
-                <!-- Validation Errors -->
-                @if ($errors->any())
-                    <x-mary-alert icon="o-exclamation-triangle" class="alert-error mb-6">
-                        <ul class="list-disc list-inside">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </x-mary-alert>
-                @endif
-
-                <!-- Status Message -->
-                @session('status')
-                    <x-mary-alert icon="o-check-circle" class="alert-success mb-6">
-                        {{ $value }}
-                    </x-mary-alert>
-                @endsession
-
-                <form method="POST" action="{{ route('login') }}" class="space-y-6">
-                    @csrf
-
-                    <!-- Email Input -->
-                    <div>
-                        <x-label for="email" value="Email Address" class="mb-2" />
-                        <x-mary-input id="email" type="email" name="email" :value="old('email')" required autofocus
-                            autocomplete="username" placeholder="your.email@hospital.gov.ph" icon="o-envelope"
-                            class="input-lg" />
-                    </div>
-
-                    <!-- Password Input -->
-                    <div>
-                        <x-label for="password" value="Password" class="mb-2" />
-                        <x-mary-input id="password" type="password" name="password" required
-                            autocomplete="current-password" placeholder="Enter your password" icon="o-lock-closed"
-                            class="input-lg" />
-                    </div>
-
-                    <!-- Remember Me & Forgot Password -->
-                    <div class="flex items-center justify-between">
-                        <label for="remember_me" class="flex items-center cursor-pointer">
-                            <x-mary-checkbox id="remember_me" name="remember" />
-                            <span class="ms-2 text-sm">Remember me</span>
-                        </label>
-
-                        @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}"
-                                class="text-sm text-primary hover:text-primary/80 font-medium">
-                                Forgot password?
-                            </a>
-                        @endif
-                    </div>
-                    <!-- Login Button -->
-                    <x-mary-button type="submit" class="btn-primary w-full btn-lg" icon="o-arrow-right-on-rectangle">
-                        Sign In
-                    </x-mary-button>
-                </form>
-
-                <!-- Help Text -->
-                <div class="mt-8 text-center">
-                    <x-mary-alert icon="o-information-circle" class="alert-info">
-                        <div class="text-sm">
-                            <strong>Need help?</strong> Contact the IT Department or Pharmacy Administration for
-                            login
-                            assistance.
+                    <form method="POST" action="{{ route('login') }}" class="login-form" x-data="{ showPassword: false, submitting: false, capsLock: false }" @submit="submitting = true" @pageshow.window="submitting = false">
+                        @csrf
+                        <div class="login-field">
+                            <label for="email">Email address</label>
+                            <div class="login-input-wrap">
+                                <x-mary-icon name="o-envelope" class="login-field-icon" />
+                                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" placeholder="your.email@hospital.gov.ph" @error('email') aria-invalid="true" aria-describedby="login-errors" @enderror>
+                            </div>
                         </div>
-                    </x-mary-alert>
-                </div>
+                        <div class="login-field">
+                            <label for="password">Password</label>
+                            <div class="login-input-wrap">
+                                <x-mary-icon name="o-lock-closed" class="login-field-icon" />
+                                <input id="password" type="password" :type="showPassword ? 'text' : 'password'" name="password" required autocomplete="current-password" placeholder="Enter your password" class="login-password" @keydown="capsLock = $event.getModifierState('CapsLock')" @keyup="capsLock = $event.getModifierState('CapsLock')" @blur="capsLock = false" aria-describedby="password-caps-lock{{ $errors->has('password') ? ' login-errors' : '' }}" @error('password') aria-invalid="true" @enderror>
+                                <button type="button" class="login-password-toggle" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" aria-label="Show password" aria-controls="password" x-cloak>
+                                    <x-mary-icon name="o-eye" class="w-5 h-5" x-show="!showPassword" />
+                                    <x-mary-icon name="o-eye-slash" class="w-5 h-5" x-show="showPassword" />
+                                </button>
+                            </div>
+                        </div>
+                        <p id="password-caps-lock" class="login-caps-lock" x-show="capsLock" x-cloak role="status">Caps Lock is on.</p>
+                        <div class="login-options">
+                            <label for="remember_me"><input id="remember_me" type="checkbox" name="remember" @checked(old('remember'))> <span>Remember me</span></label>
+                            @if (Route::has('password.request'))
+                                <a href="{{ route('password.request') }}">Forgot password?</a>
+                            @endif
+                        </div>
+                        <button type="submit" class="login-submit" :disabled="submitting">
+                            <span role="status" aria-live="polite" x-text="submitting ? 'Signing in…' : 'Sign in'">Sign in</span>
+                            <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
+                        </button>
+                    </form>
 
-                <!-- Security Notice -->
-                <div class="mt-6 text-center text-xs text-base-content/50">
-                    <p>This system is for authorized pharmacy personnel only.</p>
-                    <p class="mt-1">All activities are logged and monitored.</p>
+                    <div class="login-help">
+                        <x-mary-icon name="o-question-mark-circle" class="w-5 h-5 shrink-0" />
+                        <div><h3>Need help signing in?</h3><p>Contact the IT Department or Pharmacy Administration for login assistance.</p></div>
+                    </div>
                 </div>
+                <footer class="login-security">
+                    <x-mary-icon name="o-shield-check" class="w-4 h-4 shrink-0" />
+                    <p>This system is for authorized pharmacy personnel only.<br>All activities are logged and monitored.</p>
+                </footer>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 </x-guest-layout>

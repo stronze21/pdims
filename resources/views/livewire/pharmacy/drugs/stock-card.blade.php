@@ -67,22 +67,22 @@
     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <div id="print" class="w-full">
             <table class="table table-sm w-full" id="table">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
+                <thead class="bg-base-200 text-base-content sticky top-0 z-10">
                     @if ($chrgdesc)
                         <tr>
-                            <td colspan="8" class="text-white text-center font-bold py-2">{{ $chrgdesc }}</td>
+                            <td colspan="8" class="text-base-content text-center font-bold py-2">{{ $chrgdesc }}</td>
                         </tr>
                     @endif
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Drug</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Date</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Reference</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Beginning Balance
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Drug</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Date</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Reference</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Beginning Balance
                         </th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Receipt</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Issued</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Pullout</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Balance</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Receipt</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Issued</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Pullout</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Balance</th>
                     </tr>
                 </thead>
                 <tbody>

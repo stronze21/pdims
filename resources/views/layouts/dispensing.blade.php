@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#047857">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -14,6 +14,8 @@
     {{-- <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" /> --}}
 
     <!-- Scripts -->
+    @include('layouts.partials.theme-init')
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Styles -->
@@ -21,47 +23,47 @@
     <script src="https://code.jquery.com/jquery-3.6.3.min.js"></script>
 </head>
 
-<body class="font-sans antialiased bg-base-50">
+<body class="pdims-theme font-sans antialiased bg-base-200">
     @php
         $dispensingLocation = auth()->user()?->pharm_location?->description
             ?? auth()->user()?->location?->description
             ?? 'Pharmacy';
     @endphp
     <!-- Minimal Top Bar -->
-    <div class="border-b shadow-sm bg-base border-base-200">
+    <div class="brand-navbar border-b bg-base-100 border-base-300">
         <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <!-- Left side - Logo/Title -->
                 <div class="flex items-center">
                     <div class="flex items-center flex-shrink-0">
                         <x-heroicon-o-computer-desktop class="w-8 h-8 text-primary" />
-                        <span class="ml-2 text-xl font-semibold text-base-900">{{ $dispensingLocation }} (Dispensing)</span>
+                        <span class="ml-2 text-xl font-semibold text-base-content">{{ $dispensingLocation }} (Dispensing)</span>
                     </div>
                 </div>
 
                 <!-- Right side - User info and actions -->
                 <div class="flex items-center space-x-4">
                     <!-- Current Date/Time -->
-                    <div class="text-sm text-base-500">
+                    <div class="text-sm text-base-content/70">
                         <div>{{ now()->format('M d, Y') }}</div>
                         <div class="text-xs">{{ now()->format('h:i A') }}</div>
                     </div>
 
-                    <x-mary-theme-toggle class="btn btn-circle btn-ghost" />
+                    <x-appearance-toggle class="btn btn-circle btn-ghost" />
 
                     <!-- User Menu -->
                     <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open"
                             class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                             <div class="flex items-center space-x-2">
-                                <div class="flex items-center justify-center w-8 h-8 text-base rounded-full bg-primary">
+                                <div class="flex items-center justify-center w-8 h-8 text-primary-content rounded-full bg-primary">
                                     {{ substr(auth()->user()->name, 0, 1) }}
                                 </div>
                                 <div class="text-left">
-                                    <div class="text-sm font-medium text-base-700">{{ auth()->user()->name }}</div>
-                                    <div class="text-xs text-base-500">{{ ucfirst(auth()->user()->role) }}</div>
+                                    <div class="text-sm font-medium text-base-content">{{ auth()->user()->name }}</div>
+                                    <div class="text-xs text-base-content/70">{{ ucfirst(auth()->user()->role) }}</div>
                                 </div>
-                                <x-heroicon-o-chevron-down class="w-4 h-4 text-base-400" />
+                                <x-heroicon-o-chevron-down class="w-4 h-4 text-base-content/70" />
                             </div>
                         </button>
                         <div x-show="open" @click.away="open = false"
@@ -71,10 +73,10 @@
                             x-transition:leave="transition ease-in duration-75"
                             x-transition:leave-start="transform opacity-100 scale-100"
                             x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 z-50 w-48 mt-2 origin-top-right rounded-md shadow-lg bg-base ring-1 ring-black ring-opacity-5 bg-base">
+                            class="absolute right-0 z-50 w-48 mt-2 origin-top-right rounded-md shadow-lg bg-base-100 ring-1 ring-black ring-opacity-5 bg-base-100">
                             <div class="py-1 bg-base-100 rounded-md">
                                 <a href="{{ route('dashboard') }}"
-                                    class="flex items-center px-4 py-2 text-sm text-base-700 hover:bg-base-100">
+                                    class="flex items-center px-4 py-2 text-sm text-base-content hover:bg-base-100">
                                     <x-heroicon-o-home class="w-4 h-4 mr-2" />
                                     Back to Dashboard
                                 </a>
@@ -82,7 +84,7 @@
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit"
-                                        class="flex items-center w-full px-4 py-2 text-sm text-base-700 hover:bg-base-100">
+                                        class="flex items-center w-full px-4 py-2 text-sm text-base-content hover:bg-base-100">
                                         <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4 mr-2" />
                                         Logout
                                     </button>
@@ -93,7 +95,7 @@
 
                     <!-- Fullscreen Toggle -->
                     <button onclick="toggleFullscreen()"
-                        class="p-2 rounded-lg text-base-400 hover:text-base-600 hover:bg-base-100"
+                        class="p-2 rounded-lg text-base-content/70 hover:text-base-content hover:bg-base-100"
                         title="Toggle Fullscreen">
                         <x-heroicon-o-arrows-pointing-out class="w-5 h-5" />
                     </button>

@@ -43,26 +43,26 @@
     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-3">
         <div class="overflow-x-auto max-h-[calc(100vh-300px)]">
             <table class="table table-sm" id="table">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 sticky top-0 z-10">
+                <thead class="bg-base-200 text-base-content sticky top-0 z-10">
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4">Generic</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Remaining
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4">Generic</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Remaining
                         </th>
                         <th
-                            class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right bg-blue-800/40">
+                            class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right bg-blue-800/40">
                             30-day Moving Average</th>
                         <th
-                            class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right bg-blue-800/40">
+                            class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right bg-blue-800/40">
                             Critical Level</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Prev. Week
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Prev. Week
                             Ave.</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Per Week
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Per Week
                             Average</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Max Level
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Max Level
                         </th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-right">Stock
                             Order QTY</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Reorder
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-3 px-4 text-center">Reorder
                             Point</th>
                     </tr>
                 </thead>

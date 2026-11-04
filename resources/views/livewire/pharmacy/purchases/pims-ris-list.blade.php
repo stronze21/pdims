@@ -31,9 +31,9 @@
     <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="table table-sm table-zebra">
-                <thead class="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700">
+                <thead class="bg-base-200 text-base-content">
                     <tr>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">
                             <a wire:click.prevent="sortBy('tbl_ris.risno')" href="#" class="hover:text-blue-200 cursor-pointer">
                                 RIS No.
                                 @if ($sortField === 'tbl_ris.risno')
@@ -41,7 +41,7 @@
                                 @endif
                             </a>
                         </th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">
                             <a wire:click.prevent="sortBy('tbl_ris.risdate')" href="#" class="hover:text-blue-200 cursor-pointer">
                                 RIS Date
                                 @if ($sortField === 'tbl_ris.risdate')
@@ -49,12 +49,12 @@
                                 @endif
                             </a>
                         </th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Purpose</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Items / Amount</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Requested By</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Status</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Status</th>
-                        <th class="text-white text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">Actions</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Purpose</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Items / Amount</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Requested By</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Status</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4">Delivery Status</th>
+                        <th class="text-base-content text-xs font-bold uppercase tracking-wide py-4 px-4 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-04
+
+### Improvements
+
+- Added an in-page charge slip preview with print and PDF options for individual and batch slips in Dispensing.
+- Opened dispensing dialogs immediately, with loading feedback for forms that need to fetch or prepare data.
+
+### Errors and fixes
+
+- Kept the Add Item dialog open when stock details finish loading in Dispensing.
+- Fixed light and dark appearance resetting when navigating between pages.
+
+- Fixed low-contrast pharmacy table headings in light mode by pairing the header background and text with the active theme.
+
+## 2026-11-03
+
+### Improvements
+
+- Applied the EMR hospital theme throughout pharmacy, portal, dispensing, queue, and account pages, with consistent typography, navigation, forms, tables, and dialogs. Light and dark appearance now follows one remembered preference across pages and browser tabs; printed documents stay light.
+- Redesigned pharmacy sign-in using the EMR hospital theme, with responsive layouts, remembered light and dark appearance, password visibility, Caps Lock guidance, and sign-in progress feedback.
+
 ## 2026-10-29
 
 ### Improvements

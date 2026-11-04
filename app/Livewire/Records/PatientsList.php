@@ -3,6 +3,7 @@
 namespace App\Livewire\Records;
 
 use App\Models\Record\Encounters\EncounterLog;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Record\Patients\Patient;
@@ -13,15 +14,25 @@ class PatientsList extends Component
     use Toast;
 
     // Search filters
-    public $searchHpercode = '';
-    public $searchFirstName = '';
-    public $searchMiddleName = '';
-    public $searchLastName = '';
-    public $searchDob = '';
+    #[Url(as: 'hospitalNumber', except: '')]
+    public string $searchHpercode = '';
+
+    #[Url(as: 'firstName', except: '')]
+    public string $searchFirstName = '';
+
+    #[Url(as: 'middleName', except: '')]
+    public string $searchMiddleName = '';
+
+    #[Url(as: 'lastName', except: '')]
+    public string $searchLastName = '';
+
+    #[Url(as: 'birthDate', except: '')]
+    public string $searchDob = '';
 
     // Selected patient data
     public $selectedPatient = null;
-    public $selectedHpercode = null;
+    #[Url(as: 'previewPatient', except: null)]
+    public ?string $selectedHpercode = null;
     public $patientEncounters = [];
 
     // New patient form
@@ -33,11 +44,23 @@ class PatientsList extends Component
 
     // State
     public $searchResults = [];
-    public $hasSearched = false;
+    #[Url(except: false)]
+    public bool $hasSearched = false;
 
     public function mount()
     {
-        $this->searchResults = collect();
+        $this->searchResults = $this->hasSearched ? $this->findPatients() : collect();
+
+        if ($this->hasSearched && $this->selectedHpercode !== null) {
+            $patient = $this->searchResults->firstWhere('hpercode', $this->selectedHpercode);
+
+            if ($patient) {
+                $this->selectedPatient = $patient;
+                $this->loadPatientEncounters();
+            } else {
+                $this->resetSelection();
+            }
+        }
     }
 
     public function searchPatients()
@@ -45,7 +68,21 @@ class PatientsList extends Component
         $this->hasSearched = true;
         $this->resetSelection();
 
-        // Build query
+        $this->searchResults = $this->findPatients();
+
+        if ($this->searchResults->isEmpty()) {
+            $this->warning('No patients found matching your criteria.');
+        } else {
+            $this->success('Found ' . $this->searchResults->count() . ' patient(s).');
+
+            if ($this->searchResults->count() === 1) {
+                $this->selectPatient($this->searchResults->first()->hpercode);
+            }
+        }
+    }
+
+    private function findPatients()
+    {
         $query = Patient::query();
 
         if ($this->searchHpercode) {
@@ -68,22 +105,12 @@ class PatientsList extends Component
             $query->whereRaw('CONVERT(date, patbdate) = ?', [$this->searchDob]);
         }
 
-        $this->searchResults = $query
+        return $query
             ->orderBy('patlast')
             ->orderBy('patfirst')
             ->limit(100)
             ->get();
 
-        if ($this->searchResults->isEmpty()) {
-            $this->warning('No patients found matching your criteria.');
-        } else {
-            $this->success('Found ' . $this->searchResults->count() . ' patient(s).');
-
-            // Auto-select if only 1 result
-            if ($this->searchResults->count() === 1) {
-                $this->selectPatient($this->searchResults->first()->hpercode);
-            }
-        }
     }
 
     public function selectPatient($hpercode)
@@ -103,26 +130,44 @@ class PatientsList extends Component
             ->where('toecode', '!=', 'WALKN')
             ->where('toecode', '!=', '32')
             ->with([
-                'opd:enccode,opddtedis,opdstat',
-                'er:enccode,erdtedis,erstat',
-                'adm:enccode,disdate,admstat',
+                'opd' => fn ($query) => $this->withEncounterDescriptions($query, 'opddisp'),
+                'er' => fn ($query) => $this->withEncounterDescriptions($query, 'dispcode'),
+                'adm' => fn ($query) => $this->withEncounterDescriptions($query, 'dispcode'),
                 'diagnosis:enccode,diagtext',
                 'accountTrack:enccode,billstat'
             ])
             ->orderBy('encdate', 'desc')
             ->get()
             ->map(function ($encounter) {
+                $log = match ($encounter->toecode) {
+                    'OPD' => $encounter->opd,
+                    'ER' => $encounter->er,
+                    'ADM' => $encounter->adm,
+                    default => null,
+                };
+
                 return [
                     'enccode' => $encounter->enccode,
                     'toecode' => $encounter->toecode,
                     'encdate' => $encounter->encdate,
                     'encstat' => $encounter->encstat,
                     'diagtext' => $encounter->diagnosis->diagtext ?? null,
+                    'department' => $log?->department_description,
+                    'disposition' => $log?->disposition_description,
                     'billstat' => $encounter->accountTrack->billstat ?? null,
                     'is_discharged' => $this->isEncounterDischarged($encounter),
                     'status_badge' => $this->getEncounterStatus($encounter),
                 ];
             });
+    }
+
+    private function withEncounterDescriptions($query, string $dispositionColumn): void
+    {
+        $table = $query->getRelated()->getTable();
+
+        $query->leftJoin('hospital.dbo.htypser as service', 'service.tscode', '=', "$table.tscode")
+            ->leftJoin('hospital.dbo.hdisposition as disposition', 'disposition.dispcode', '=', "$table.$dispositionColumn")
+            ->select("$table.*", 'service.tsdesc as department_description', 'disposition.dispdesc as disposition_description');
     }
 
     private function isEncounterDischarged($encounter)
@@ -259,6 +304,11 @@ class PatientsList extends Component
         $this->searchResults = collect();
         $this->resetSelection();
         $this->info('Search cleared.');
+    }
+
+    public function closeEncounterPreview(): void
+    {
+        $this->resetSelection();
     }
 
     private function resetSelection()
