@@ -14,7 +14,10 @@ class SubmissionScripts
             && method_exists($response, 'getContent') && is_string($response->getContent())) {
             $html = $response->getContent();
             if (stripos($html, '</head>') !== false) {
-                $script = '<script src="' . e(asset('js/submissions.js')) . '" defer></script>';
+                // Change the URL with the file contents so cached clients receive guard fixes.
+                $scriptPath = public_path('js/submissions.js');
+                $version = is_file($scriptPath) ? hash_file('sha256', $scriptPath) : '1';
+                $script = '<script src="' . e(asset('js/submissions.js') . '?v=' . $version) . '" defer></script>';
                 $response->setContent(preg_replace('~</head>~i', $script . '</head>', $html, 1));
             }
         }
