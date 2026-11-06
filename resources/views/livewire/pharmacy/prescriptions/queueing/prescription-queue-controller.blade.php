@@ -1,4 +1,4 @@
-<div class="p-6 space-y-6">
+<div class="p-6 space-y-6" wire:poll.5s="refreshQueues">
     {{-- Current Queue Window --}}
     <div class="grid grid-cols-12 gap-6">
         {{-- Left: Current Queue (col-4) --}}

@@ -112,13 +112,18 @@ class PrescriptionQueueController extends Component
 
     public function handleQueueStatusChanged($event)
     {
-        if ($event['assigned_window'] == $this->selectedWindow) {
-            $this->loadCurrentQueue();
-        }
+        $this->refreshQueues();
     }
 
     public function handleQueueCalled($event)
     {
+        $this->refreshQueues();
+    }
+
+    #[On('refresh-queues')]
+    public function refreshQueues()
+    {
+        // External EMR writes may not broadcast; polling uses this same refresh path.
         $this->loadCurrentQueue();
     }
 
@@ -361,9 +366,7 @@ class PrescriptionQueueController extends Component
         $this->nextChargingQueue = $chargingQueues->first();
         $this->otherChargingQueues = $chargingQueues->skip(1)->values()->all();
 
-        if ($this->currentQueue) {
-            $this->currentQueueId = $this->currentQueue->id;
-        }
+        $this->currentQueueId = $this->currentQueue?->id;
     }
 
     public function updatedSelectedWindow($value)
