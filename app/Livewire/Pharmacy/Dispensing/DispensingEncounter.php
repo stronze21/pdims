@@ -193,6 +193,7 @@ class DispensingEncounter extends Component
     public $printItems = [];
     public $printSelectedItems = [];
     public $printIncludeInactive = false;
+    public $printDeductIssued = true;
 
     // Modal States
     public $showAddItemModal = false;
@@ -2486,6 +2487,7 @@ class DispensingEncounter extends Component
         }
 
         $this->printIncludeInactive = false;
+        $this->printDeductIssued = true;
         $this->loadEncounterPrintItems();
         $this->showPrintModal = true;
     }
@@ -2528,6 +2530,7 @@ class DispensingEncounter extends Component
             'print_encounter_enccode' => $enccode,
             'print_encounter_items' => $this->printSelectedItems,
             'print_encounter_include_inactive' => $this->printIncludeInactive,
+            'print_encounter_deduct_issued' => $this->printDeductIssued,
         ]);
 
         $this->dispatch('open-print-window', url: url('/dispensing/prescription/print?enccode=' . urlencode($enccode)));

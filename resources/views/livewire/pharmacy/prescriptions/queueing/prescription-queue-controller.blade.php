@@ -429,6 +429,11 @@
                     </label>
                 </div>
 
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" wire:model.live="printDeductIssued">
+                    <span>Deduct already issued quantity (print remaining balance)</span>
+                </label>
+
                 @if (count($printItems) > 0)
                     <div>
                         <div class="flex justify-between items-center mb-3">

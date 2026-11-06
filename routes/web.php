@@ -208,7 +208,8 @@ Route::middleware([
         ORDER BY pd.created_at ASC
     ", array_merge([$queue->prescription_id], $printItems)));
 
-        $items = app(PrescriptionReactivationService::class)->enrichItemObjects($items);
+        $items = app(\App\Services\Pharmacy\PrescriptionPrintService::class)
+            ->prepare($items, (bool) session('print_deduct_issued', true));
 
         return view('pharmacy.prescriptions.print', [
             'queue' => $queue,
@@ -255,7 +256,8 @@ Route::middleware([
             ORDER BY pd.created_at ASC
         ", array_merge([$enccode], $printItems)));
 
-        $items = app(PrescriptionReactivationService::class)->enrichItemObjects($items);
+        $items = app(\App\Services\Pharmacy\PrescriptionPrintService::class)
+            ->prepare($items, (bool) session('print_encounter_deduct_issued', true));
 
         return view('pharmacy.dispensing.print-prescription', [
             'encounter' => $encounter,

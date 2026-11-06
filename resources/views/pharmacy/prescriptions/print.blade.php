@@ -164,6 +164,8 @@
                     {{ $index + 1 }}. {{ $item->drug_concat }}
                 </div>
                 <div class="item-details">
+                    <div><strong>{{ $item->deduct_issued ? 'Remaining Quantity' : 'Full Prescribed Quantity' }}:</strong> {{ $item->print_qty ?? 'Unable to calculate' }}</div>
+                    <div><strong>Already Issued:</strong> {{ $item->qty_issued }}</div>
                     <div><strong>Qty per Administration:</strong> {{ $item->qty_per_administration }}</div>
                     <div><strong>Schedule:</strong> {{ $item->schedule_text ?: 'N/A' }}</div>
                     <div><strong>Days to Cover:</strong> {{ $item->days_to_cover ?: 'N/A' }}</div>

@@ -66,6 +66,7 @@ class PrescriptionQueueController extends Component
     public $printItems = [];
     public $selectedItems = [];
     public $printIncludeInactive = false;
+    public $printDeductIssued = true;
 
 
     public function boot(PrescriptionQueueService $queueService)
@@ -818,6 +819,7 @@ class PrescriptionQueueController extends Component
     {
         $this->printQueueId = $queueId;
         $this->printIncludeInactive = false;
+        $this->printDeductIssued = true;
         $this->printQueue = PrescriptionQueue::with(['patient', 'prescription'])
             ->find($queueId);
 
@@ -869,6 +871,7 @@ class PrescriptionQueueController extends Component
             'print_queue_id' => $this->printQueueId,
             'print_items' => $this->selectedItems,
             'print_include_inactive' => $this->printIncludeInactive,
+            'print_deduct_issued' => $this->printDeductIssued,
         ]);
 
         // Dispatch event to open print window - route should be defined in web.php
