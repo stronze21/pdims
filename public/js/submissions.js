@@ -92,6 +92,8 @@
     installAxios();
     document.addEventListener('DOMContentLoaded', installAxios);
 
+    // Queue polling only reads state and must not lock interactive controls.
+    const passiveMethods = new Set(['$refresh', '$set', 'refreshQueues']);
     let activeActions = 0;
     const disabled = new Set();
     const lockActions = () => {
@@ -115,7 +117,7 @@
         window.Livewire.__submissionHooks3 = true;
         window.Livewire.hook('request', ({ payload, respond, fail }) => {
             const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
-            if (!(data.components || []).some(component => (component.calls || []).some(call => !['$refresh', '$set'].includes(call.method)))) return;
+            if (!(data.components || []).some(component => (component.calls || []).some(call => !passiveMethods.has(call.method)))) return;
             const release = lockActions();
             // Restore before morphing so server-rendered disabled states remain authoritative.
             respond(release);
@@ -126,7 +128,7 @@
         if (!window.Livewire || window.Livewire.__submissionHooks2) return;
         window.Livewire.__submissionHooks2 = true;
         window.Livewire.hook('message.sent', message => {
-            if (message.updateQueue.some(update => update.type === 'callMethod' && !['$refresh', '$set'].includes(update.payload.method))) {
+            if (message.updateQueue.some(update => update.type === 'callMethod' && !passiveMethods.has(update.payload.method))) {
                 message.releaseSubmission = lockActions();
             }
         });
