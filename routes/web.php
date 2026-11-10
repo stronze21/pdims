@@ -36,6 +36,7 @@ use App\Livewire\Pharmacy\Purchases\EmergencyPurchases as PurchaseEmergencyPurch
 use App\Livewire\Pharmacy\Purchases\PimsRisList;
 use App\Livewire\Pharmacy\Purchases\ShowRis;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionEr;
+use App\Livewire\Pharmacy\Prescriptions\PrescriptionBalances;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionOpd;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatedToday;
 use App\Livewire\Pharmacy\Prescriptions\PrescriptionReactivatesTomorrow;
@@ -161,6 +162,7 @@ Route::middleware([
         ->name('settings.prescription-reorder');
 
     Route::prefix('rx')->name('rx.')->group(function () {
+        Route::get('/balances', PrescriptionBalances::class)->middleware('can:view-prescriptions')->name('balances');
         Route::get('/opd', PrescriptionOpd::class)->name('opd');
         Route::get('/ward', PrescriptionWard::class)->name('ward');
         Route::get('/uddds', UdddsWard::class)->middleware('can:view-prescriptions')->name('uddds');

@@ -122,6 +122,8 @@
                                     link="{{ route('rx.uddds') }}" />
                                 <x-mary-menu-item title="Emergency Room" icon="o-heart"
                                     link="{{ route('rx.er') }}" />
+                                <x-mary-menu-item title="Prescription Balances" icon="o-clipboard-document-list"
+                                    link="{{ route('rx.balances') }}" />
                             </x-mary-menu-sub>
                         @endcan
 
@@ -270,6 +272,10 @@
                             <span class="text-[11px] text-center leading-tight">UDDDS (Wards)</span>
                         </a>
 
+                        <a href="{{ route('rx.balances') }}" class="btn btn-outline h-auto min-h-20 flex-col gap-1 py-3">
+                            <x-heroicon-o-clipboard-document-list class="w-5 h-5" />
+                            <span class="text-[11px] text-center leading-tight">Prescription Balances</span>
+                        </a>
 
                     @endcan
 
