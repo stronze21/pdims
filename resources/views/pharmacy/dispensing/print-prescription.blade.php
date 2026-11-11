@@ -4,197 +4,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prescription - {{ $encounter->patlast }}, {{ $encounter->patfirst }}</title>
+    <title>Prescription Form</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 16px; font: 10pt/1.3 Arial, sans-serif; color: #000; }
+        .toolbar, .form { max-width: 165mm; margin: 0 auto; }
+        .toolbar { text-align: right; margin-bottom: 12px; }
+        .form { border-top: 1px solid; padding-top: 16px; overflow-wrap: anywhere; }
+        .form + .form { margin-top: 24px; }
+        header { text-align: center; margin-bottom: 8px; }
+        header p, h1 { margin: 0 0 2px; }
+        h1 { font-size: 14pt; }
+        .form-code { font-size: 9pt; }
+        .field { display: flex; align-items: baseline; gap: 5px; margin-bottom: 4px; }
+        .line { display: block; flex: 1; min-width: 0; min-height: 1.4em; border-bottom: 1px solid; }
+        .field strong { flex-shrink: 0; }
+        .license { width: 45%; margin-left: auto; }
+        .patient { display: grid; grid-template-columns: minmax(0, 1fr) 12% 12%; gap: 10px; margin-bottom: 6px; }
+        .patient div:not(:first-child) { text-align: center; }
+        .location { display: grid; grid-template-columns: minmax(0, 1fr) 32%; gap: 16px; }
+        .rx { border-top: 3px double; padding-top: 8px; display: flex; gap: 8px; min-height: 48mm; }
+        .rx-mark { font: bold 23pt/1 Georgia, serif; }
+        .columns { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        ol { margin: 0; padding-left: 2em; }
+        li { padding-left: 2px; margin-bottom: 6px; break-inside: avoid; }
+        .quantity { white-space: nowrap; }
+        .directions { font-size: 9pt; }
+        .note { white-space: pre-line; }
+        .signature, .processing { break-inside: avoid; }
+        .signature { display: grid; grid-template-columns: minmax(0, 1fr) 42%; gap: 16px; align-items: end; }
+        .generics { margin: 0 0 4px; font: bold 15pt Georgia, serif; }
+        .credentials .field { display: grid; grid-template-columns: minmax(0, 1fr) 65px; }
+        .processing { border-top: 3px double; padding-top: 5px; display: grid; grid-template-columns: 60% minmax(0, 1fr); gap: 0 12px; }
+        .received { grid-column: 2; grid-row: 2; }
+        .costed { grid-column: 1; grid-row: 2; }
 
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-        }
-
-        .header h1 {
-            font-size: 20pt;
-            margin-bottom: 5px;
-        }
-
-        .header p {
-            font-size: 10pt;
-            margin: 2px 0;
-        }
-
-        .patient-info {
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .patient-info div {
-            margin-bottom: 5px;
-        }
-
-        .patient-info strong {
-            display: inline-block;
-            width: 120px;
-        }
-
-        .prescription-items {
-            margin-top: 20px;
-        }
-
-        .prescription-items h3 {
-            margin-bottom: 10px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-        }
-
-        .item {
-            margin-bottom: 15px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            page-break-inside: avoid;
-        }
-
-        .item-header {
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 11pt;
-        }
-
-        .item-details {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 5px;
-            font-size: 10pt;
-        }
-
-        .item-remarks {
-            margin-top: 5px;
-            font-style: italic;
-            color: #666;
-            font-size: 10pt;
-        }
-
-        .footer {
-            margin-top: 40px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .signature-line {
-            margin-top: 40px;
-            border-top: 1px solid #000;
-            width: 200px;
-            text-align: center;
-            padding-top: 5px;
-        }
+        @page { margin: 10mm; }
 
         @media print {
-            body {
-                padding: 0;
-            }
-
-            .no-print {
-                display: none;
-            }
-        }
-
-        .print-button {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background-color: #4F46E5;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14pt;
-        }
-
-        .print-button:hover {
-            background-color: #4338CA;
+            body { padding: 0; }
+            .toolbar { display: none; }
+            .form + .form { break-before: page; margin-top: 0; }
         }
     </style>
 </head>
 
 <body>
-    <button class="print-button no-print" onclick="window.print()">Print</button>
+    @php
+        $patientName = $patient
+            ? trim($patient->patlast . ', ' . $patient->patfirst . ' ' . $patient->patmiddle . ' ' . $patient->patsuffix)
+            : '';
+        $date = now();
+        $address = $patient?->primaryAddress ? $patient->getFullAddress() : '';
+        $pages = $items->values()->chunk(10);
+    @endphp
 
-    <div class="header">
-        <h1>PRESCRIPTION</h1>
-        <p>Mariano Marcos Memorial Hospital and Medical Center</p>
-        <p>Date: {{ now()->format('F d, Y h:i A') }}</p>
+    <div class="toolbar">
+        <button type="button" onclick="window.print()">Print</button>
     </div>
 
-    <div class="patient-info">
-        <div>
-            <div><strong>Patient Name:</strong> {{ $encounter->patlast }}, {{ $encounter->patfirst }} {{ $encounter->patmiddle }}</div>
-            <div><strong>Hospital #:</strong> {{ $encounter->hpercode }}</div>
-        </div>
-        <div>
-            <div><strong>Encounter Type:</strong> {{ $encounter->toecode }}</div>
-            <div><strong>Encounter Date:</strong> {{ \Carbon\Carbon::parse($encounter->encdate)->format('m/d/Y h:i A') }}</div>
-        </div>
-    </div>
+    @foreach ($pages->isEmpty() ? [collect()] : $pages as $page)
+        @php
+            $firstNumber = $loop->index * 10 + 1;
+            $columns = [$page->take(6), $page->skip(6)];
+        @endphp
 
-    <div class="prescription-items">
-        <h3>Prescription Items ({{ count($items) }} item{{ count($items) > 1 ? 's' : '' }})</h3>
+        <main class="form">
+            <header>
+                <p class="form-code">MMMHMC-M-PHM/QP-002 Form 1 Rev. 1 – Prescription Form</p>
+                <p><strong>MARIANO MARCOS MEMORIAL HOSP. &amp; M.C.</strong></p>
+                <p><strong>BATAC CITY, ILOCOS NORTE</strong></p>
+                <h1>PRESCRIPTION FORM</h1>
+            </header>
 
-        @foreach ($items as $index => $item)
-            <div class="item">
-                <div class="item-header">
-                    {{ $index + 1 }}. {{ $item->drug_concat }}
-                </div>
-                <div class="item-details">
-                    <div><strong>{{ $item->deduct_issued ? 'Remaining Quantity' : 'Full Prescribed Quantity' }}:</strong> {{ $item->print_qty ?? 'Unable to calculate' }}</div>
-                    <div><strong>Already Issued:</strong> {{ $item->qty_issued }}</div>
-                    <div><strong>Qty per Administration:</strong> {{ $item->qty_per_administration }}</div>
-                    <div><strong>Schedule:</strong> {{ $item->schedule_text ?: 'N/A' }}</div>
-                    <div><strong>Days to Cover:</strong> {{ $item->days_to_cover ?: 'N/A' }}</div>
-                    <div><strong>Type:</strong> {{ $item->order_type ?? 'Basic' }}</div>
-                </div>
-                @if ($item->addtl_remarks)
-                    <div class="item-remarks">
-                        @if ($item->addtl_remarks)
-                            <div><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
+            <div class="field"><strong>PRINT:</strong><span class="line"></span><strong>MD</strong></div>
+            <div class="field license"><span class="line"></span><strong>LICENSE NO.</strong></div>
+
+            <div class="patient">
+                <div><span class="line">{{ $patientName }}</span><strong>NAME OF PATIENT</strong></div>
+                <div><span class="line">{{ $patient?->patbdate?->age }}</span><strong>AGE</strong></div>
+                <div><span class="line">{{ $patient?->patsex }}</span><strong>SEX</strong></div>
+            </div>
+
+            <div class="field"><strong>ADDRESS:</strong><span class="line">{{ $address }}</span></div>
+            <div class="location">
+                <div class="field"><strong>WARD/RM. NO.</strong><span class="line">{{ $wardRoom }}</span></div>
+                <div class="field"><strong>DATE:</strong><span class="line">{{ $date->format('m/d/Y') }}</span></div>
+            </div>
+
+            <section class="rx" aria-label="Prescription items">
+                <span class="rx-mark" aria-hidden="true">℞</span>
+                <div class="columns">
+                    @foreach ($columns as $column)
+                        @if ($column->isNotEmpty())
+                            <ol start="{{ $firstNumber + $loop->index * 6 }}">
+                                @foreach ($column as $item)
+                                    <li>
+                                        <strong>{{ $item->drug_concat }}</strong>
+                                        @if ($item->print_qty !== null)
+                                            <strong class="quantity">#{{ $item->print_qty }}</strong>
+                                        @endif
+                                        <div class="directions">
+                                            {{ $item->deduct_issued ? 'Remaining qty' : 'Full prescribed qty' }}
+                                            @if ($item->print_qty === null)
+                                                unavailable
+                                            @endif
+                                            · Issued {{ $item->qty_issued }}
+                                            · {{ $item->order_type ?: 'Basic' }}
+                                        </div>
+                                        <div class="directions">
+                                            Qty per dose {{ $item->qty_per_administration }}
+                                            @if ($item->schedule_text)
+                                                · {{ $item->schedule_text }}
+                                            @endif
+                                            @if ($item->days_to_cover)
+                                                · {{ $item->days_to_cover }} day(s)
+                                            @endif
+                                        </div>
+                                        @if ($item->addtl_remarks)
+                                            <div class="directions note"><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ol>
                         @endif
-                    </div>
-                @endif
-            </div>
-        @endforeach
-    </div>
+                    @endforeach
+                </div>
+            </section>
 
-    <div class="footer">
-        <div>
-            <div class="signature-line">
-                Prepared by
-            </div>
-        </div>
-        <div>
-            <div class="signature-line">
-                Pharmacist
-            </div>
-        </div>
-        <div>
-            <div class="signature-line">
-                Patient / Representative
-            </div>
-        </div>
-    </div>
+            <footer>
+                <div class="signature">
+                    <p class="generics">“mag generics tayo”</p>
+                    <div class="credentials">
+                        <div class="field"><span class="line"></span><strong>MD</strong></div>
+                        <div class="field"><span class="line"></span><strong>PTR NO.</strong></div>
+                        <div class="field"><span class="line"></span><strong>S2 NO.</strong></div>
+                    </div>
+                </div>
+                <div class="processing">
+                    <div class="field"><strong>FILLED BY:</strong><span class="line"></span></div>
+                    <div class="field costed"><strong>COSTED BY:</strong><span class="line"></span></div>
+                    <div class="field received"><strong>RCV'D BY:</strong><span class="line"></span></div>
+                </div>
+            </footer>
+        </main>
+    @endforeach
 </body>
 
 </html>

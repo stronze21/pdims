@@ -190,7 +190,7 @@ Route::middleware([
             return redirect()->back()->with('error', 'No items selected for printing');
         }
 
-        $queue = \App\Models\Pharmacy\Prescriptions\PrescriptionQueue::with(['patient'])
+        $queue = \App\Models\Pharmacy\Prescriptions\PrescriptionQueue::with('patient.primaryAddress.barangay', 'patient.primaryAddress.city', 'patient.primaryAddress.province')
             ->find($queueId);
 
         if (!$queue) {
@@ -210,12 +210,13 @@ Route::middleware([
         ORDER BY pd.created_at ASC
     ", array_merge([$queue->prescription_id], $printItems)));
 
-        $items = app(\App\Services\Pharmacy\PrescriptionPrintService::class)
-            ->prepare($items, (bool) session('print_deduct_issued', true));
+        $printService = app(\App\Services\Pharmacy\PrescriptionPrintService::class);
+        $items = $printService->prepare($items, (bool) session('print_deduct_issued', true));
 
         return view('pharmacy.prescriptions.print', [
-            'queue' => $queue,
-            'items' => $items
+            'patient' => $queue->patient,
+            'wardRoom' => $printService->wardRoom($queue->enccode),
+            'items' => $items,
         ]);
     })->name('prescriptions.print');
 
@@ -232,15 +233,10 @@ Route::middleware([
             return redirect()->back()->with('error', 'No items selected for printing');
         }
 
-        $encounter = collect(DB::select("
-            SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate,
-                   pat.patlast, pat.patfirst, pat.patmiddle
-            FROM hospital.dbo.henctr enctr WITH (NOLOCK)
-            INNER JOIN hospital.dbo.hperson pat WITH (NOLOCK) ON enctr.hpercode = pat.hpercode
-            WHERE enctr.enccode = ?
-        ", [$enccode]))->first();
+        $encounter = \App\Models\Record\Encounters\EncounterLog::with('patient.primaryAddress.barangay', 'patient.primaryAddress.city', 'patient.primaryAddress.province')
+            ->find($enccode);
 
-        if (!$encounter) {
+        if (!$encounter?->patient) {
             return redirect()->back()->with('error', 'Encounter not found');
         }
 
@@ -258,11 +254,12 @@ Route::middleware([
             ORDER BY pd.created_at ASC
         ", array_merge([$enccode], $printItems)));
 
-        $items = app(\App\Services\Pharmacy\PrescriptionPrintService::class)
-            ->prepare($items, (bool) session('print_encounter_deduct_issued', true));
+        $printService = app(\App\Services\Pharmacy\PrescriptionPrintService::class);
+        $items = $printService->prepare($items, (bool) session('print_encounter_deduct_issued', true));
 
         return view('pharmacy.dispensing.print-prescription', [
-            'encounter' => $encounter,
+            'patient' => $encounter->patient,
+            'wardRoom' => $printService->wardRoom($encounter->enccode),
             'items' => $items,
         ]);
     })->name('dispensing.print.prescription');

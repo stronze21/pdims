@@ -7,6 +7,25 @@ use Illuminate\Support\Facades\DB;
 
 class PrescriptionPrintService
 {
+    public function wardRoom(?string $encounterCode): string
+    {
+        if (! $encounterCode) {
+            return '';
+        }
+
+        $location = DB::connection('hospital')->table('hospital.dbo.hpatroom as assignment')
+            ->leftJoin('hospital.dbo.hward as ward', 'assignment.wardcode', '=', 'ward.wardcode')
+            ->leftJoin('hospital.dbo.hroom as room', 'assignment.rmintkey', '=', 'room.rmintkey')
+            ->where('assignment.enccode', $encounterCode)
+            ->orderByDesc('assignment.hprdate')
+            ->first(['ward.wardname', 'room.rmname']);
+
+        return implode(' / ', array_filter([
+            trim($location->wardname ?? ''),
+            trim($location->rmname ?? ''),
+        ]));
+    }
+
     public function prepare(iterable $items, bool $deductIssued = true): Collection
     {
         $items = collect($items);
