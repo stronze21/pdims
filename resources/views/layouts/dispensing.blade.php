@@ -23,7 +23,8 @@
     <script src="https://code.jquery.com/jquery-3.6.3.min.js"></script>
 </head>
 
-<body class="pdims-theme font-sans antialiased bg-base-200">
+<body class="pdims-theme font-sans antialiased bg-base-200"
+    @if (request()->routeIs('prescriptions.opd-walkthrough')) data-opd-training-page @endif>
     @php
         $dispensingLocation = auth()->user()?->pharm_location?->description
             ?? auth()->user()?->location?->description
@@ -226,6 +227,7 @@
                 <button
                     type="button"
                     class="btn btn-error"
+                    data-opd-action="confirm-call"
                     @click="$store.maryConfirm.confirm()"
                 >
                     Confirm

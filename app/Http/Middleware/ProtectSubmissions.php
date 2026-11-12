@@ -5,6 +5,8 @@ namespace App\Http\Middleware;
 use App\Services\SubmissionLedger;
 use Closure;
 use Illuminate\Http\Request;
+use Livewire\Mechanisms\HandleComponents\Checksum;
+use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
 
 class ProtectSubmissions
 {
@@ -12,6 +14,7 @@ class ProtectSubmissions
     {
         if ($request->isMethodSafe()) return $next($request);
         if ($request->is('livewire/upload-file')) return $next($request);
+        if ($request->is('livewire/update') && $this->isTrainingUpdate($request)) return $next($request);
 
         // Authentication has its own token/session lifecycle; never replay credentials.
         if ($request->is('login', 'logout', 'register', 'forgot-password', 'reset-password', 'two-factor-challenge', 'api/login', 'api/logout')
@@ -130,6 +133,33 @@ class ProtectSubmissions
             if (is_array($data)) $response->setContent(json_encode($data, JSON_THROW_ON_ERROR));
         }
         return $response;
+    }
+
+    private function isTrainingUpdate(Request $request): bool
+    {
+        $components = $request->input('components');
+        if (! is_array($components) || ! $components) {
+            return false;
+        }
+
+        // Training actions only change component state. Keep the SQL ledger for every
+        // other component, including when Livewire bundles updates in one request.
+        foreach ($components as $component) {
+            $encoded = is_array($component) ? ($component['snapshot'] ?? null) : null;
+            $snapshot = is_string($encoded) ? json_decode($encoded, true) : null;
+            if (($snapshot['memo']['name'] ?? null) !== 'pharmacy.training.opd-walkthrough'
+                || ! is_string($snapshot['checksum'] ?? null)) {
+                return false;
+            }
+
+            try {
+                Checksum::verify($snapshot);
+            } catch (CorruptComponentPayloadException) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function unique(array $calls)

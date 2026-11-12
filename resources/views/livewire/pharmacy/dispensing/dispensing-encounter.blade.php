@@ -235,8 +235,15 @@
     x-on:open-dispensing-dialog="openPreparedDialog(...$event.detail)"
     x-on:preview-charge-slip="openChargeSlipPreview($event.detail.url)">
     @include('livewire.pharmacy.dispensing.processing-dialog')
-    @include('livewire.pharmacy.dispensing.charge-slip-preview')
+    @unless($opdTraining ?? false)
+        @include('livewire.pharmacy.dispensing.charge-slip-preview')
+    @endunless
     <span class="hidden" x-effect="orderStates = @js(collect($orders)->mapWithKeys(fn ($order) => [$order->docointkey => ['estatus' => $order->estatus, 'pcchrgcod' => $order->pcchrgcod]])->all())"></span>
+    @if ($opdTraining ?? false)
+        @include('layouts.partials.opd-training-banner')
+        @includeWhen($trainingDisplay, 'layouts.partials.opd-training-tv')
+    @endif
+
     {{-- Queue Controller Bar (always visible) --}}
     <div class="border-b border-primary/20">
         {{-- Queue Header Bar --}}
@@ -270,7 +277,8 @@
                     @endif
                     @if ($currentQueueStatus === 'ready')
                         <x-mary-button label="Call for Patient" icon="o-megaphone"
-                            class="btn-sm btn-warning animate-pulse"
+                            :class="'btn-sm btn-warning '.(($opdTraining ?? false) ? '' : 'animate-pulse')"
+                            data-opd-action="call-patient"
                             wire:click="callForPatient"
                             wire:mary-confirm="Call patient for queue {{ $currentQueueNumber }}?" />
                     @endif
@@ -285,6 +293,7 @@
                     </div>
                 @endif
             </div>
+            @unless($opdTraining ?? false)
             <div class="flex flex-wrap items-center justify-start gap-2 w-full sm:w-auto sm:justify-end">
                 @if ($queueId)
                     @if ($currentQueueStatus !== 'dispensed')
@@ -306,6 +315,7 @@
                 <x-mary-button label="Back to Queue Controller" icon="o-arrow-left" class="btn-sm btn-outline"
                     wire:click="returnToQueueController" />
             </div>
+            @endunless
         </div>
 
         {{-- Expandable Queue Panel --}}
@@ -544,20 +554,29 @@
                                 <x-heroicon-o-lock-closed class="w-3 h-3" /> FINAL BILL
                             </div>
                         @endif
+                        @unless($opdTraining ?? false)
                         <x-mary-button label="Browse Encounters" icon="o-queue-list"
                             class="btn-sm btn-outline btn-accent" x-on:click="openPreparedDialog('showEncounterSelectorModal', 'openEncounterSelector')"
                             tooltip-bottom="Browse Encounters (F3)" />
                         <x-mary-button label="Change Patient" icon="o-arrows-right-left" class="btn-sm btn-outline"
                             x-on:click="openPreparedDialog('showEncounterSelectorModal', 'openChangePatient')" tooltip-bottom="Change Patient (F2)" />
+                        @endunless
                     </div>
                 </div>
             </div>
         </div>
 
         {{-- Main Content --}}
-        <div class="flex flex-1 min-w-0 overflow-hidden">
+        <div @class([
+            'flex flex-1 min-w-0',
+            'flex-col overflow-y-auto sm:flex-row sm:overflow-hidden' => $opdTraining ?? false,
+            'overflow-hidden' => !($opdTraining ?? false),
+        ])>
             {{-- Left: Orders Table --}}
-            <div class="flex flex-col flex-1 min-w-0 overflow-hidden border-r border-base-200">
+            <div @class([
+                'flex flex-col flex-1 min-w-0 overflow-hidden border-r border-base-200',
+                'min-h-64 shrink-0 sm:min-h-0 sm:shrink' => $opdTraining ?? false,
+            ])>
                 @if ($this->isMghTransaction())
                     <div class="flex items-start gap-2 px-4 py-2 text-sm border-b border-warning/30 bg-warning/10 text-warning-content">
                         <x-heroicon-o-information-circle class="w-5 h-5 mt-0.5 flex-shrink-0" />
@@ -573,7 +592,7 @@
 
                         <!-- TOOLS DROPDOWN -->
                         <div class="dropdown dropdown-start">
-                            <label tabindex="0" class="btn btn-sm btn-outline">
+                            <label tabindex="0" class="btn btn-sm btn-outline" data-opd-action="tools">
                                 <x-heroicon-o-wrench-screwdriver class="w-4 h-4 mr-1"/>
                                 Tools
                             </label>
@@ -581,20 +600,25 @@
                             <ul tabindex="0"
                                 class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 p-2 shadow-lg border border-base-200">
 
+                                @unless($opdTraining ?? false)
                                 <li>
                                     <button type="button" x-on:click="openPreparedDialog('showPrescriptionListModal')">
                                         <x-heroicon-o-clipboard-document-list class="w-4 h-4"/>
                                         Prescriptions
                                     </button>
                                 </li>
+                                @endunless
 
                                 <li>
-                                    <button type="button" x-on:click="openPreparedDialog('showPrintModal', 'openPrintPrescriptionsModal')">
+                                    <button type="button" data-opd-action="print-rx"
+                                        x-on:click="openPreparedDialog('showPrintModal', 'openPrintPrescriptionsModal')"
+                                        @disabled(($opdTraining ?? false) && $currentQueueStatus !== 'dispensed')>
                                         <x-heroicon-o-printer class="w-4 h-4"/>
                                         Print Rx
                                     </button>
                                 </li>
 
+                                @unless($opdTraining ?? false)
                                 <li>
                                     <button type="button" x-on:click="openPreparedDialog('showSummaryModal')">
                                         <x-heroicon-o-document-text class="w-4 h-4"/>
@@ -609,6 +633,7 @@
                                     </a>
                                 </li>
 
+                                @endunless
                             </ul>
                         </div>
 
@@ -628,21 +653,24 @@
 
                             <div class="border-l border-base-300 h-6 mx-1"></div>
 
+                            @unless($opdTraining ?? false)
                             <x-mary-button label="Delete"
                                 x-bind:disabled="!selectionMatches('U')"
                                 icon="o-trash"
                                 class="btn-sm btn-error btn-outline"
                                 wire:click="delete_item"
                                 wire:mary-confirm="Delete selected pending items?" />
+                            @endunless
 
-                            <x-mary-button label="Charge"
+                            <x-mary-button label="Charge" data-opd-action="charge"
                                 x-bind:disabled="!selectionMatches('U')"
                                 icon="o-credit-card"
                                 class="btn-sm btn-info btn-outline"
                                 x-on:click="startDispensing('charge')" />
 
-                            <x-mary-button label="Issue"
-                                x-bind:disabled="!selectionMatches('P')"
+                            <x-mary-button label="Issue" data-opd-action="issue"
+                                :data-opd-requires-call="($opdTraining ?? false) ? 'yes' : null"
+                                x-bind:disabled="!selectionMatches('P') || ($el.dataset.opdRequiresCall === 'yes' && !$wire.patientCalled)"
                                 icon="o-paper-airplane"
                                 class="btn-sm btn-success"
                                 x-on:click="openIssueDialog()" />
@@ -682,13 +710,15 @@
                                     <td>
                                         @if ($rxo->estatus == 'U' && !$rxo->pcchrgcod)
                                             <input type="checkbox"
-                                                class="checkbox checkbox-xs pending-checkbox"
+                                                class="checkbox checkbox-xs pending-checkbox" data-opd-action="select-order"
+                                                aria-label="Select {{ $rxo->drug_concat }}"
                                                 value="{{ $rxo->docointkey }}"
                                                 data-pcchrgcod="{{ $rxo->pcchrgcod }}"
                                                 :checked="selectedItems.includes('{{ $rxo->docointkey }}')"
                                                 x-on:change="toggleItem($event, '{{ $rxo->pcchrgcod }}')" />
                                         @elseif ($rxo->pcchrgcod)
-                                            <input type="checkbox" class="checkbox checkbox-xs"
+                                            <input type="checkbox" class="checkbox checkbox-xs" data-opd-action="select-order"
+                                                aria-label="Select {{ $rxo->drug_concat }}"
                                                 value="{{ $rxo->docointkey }}"
                                                 data-pcchrgcod="{{ $rxo->pcchrgcod }}"
                                                 :checked="selectedItems.includes('{{ $rxo->docointkey }}')"
@@ -696,7 +726,9 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        @if ($rxo->pcchrgcod)
+                                        @if ($rxo->pcchrgcod && ($opdTraining ?? false))
+                                            {{ $rxo->pcchrgcod }}
+                                        @elseif ($rxo->pcchrgcod)
                                             <a href="{{ route('dispensing.rxo.chargeslip', $rxo->pcchrgcod, false) }}"
                                                 x-bind:href="chargeSlipUrl(@js(route('dispensing.rxo.chargeslip', $rxo->pcchrgcod, false)))"
                                                 x-on:click="if (!$event.ctrlKey && !$event.metaKey && !$event.shiftKey && !$event.altKey) { $event.preventDefault(); openChargeSlipPreview($el.href) }"
@@ -773,6 +805,7 @@
                                         @endif
                                     </td>
                                     <td>
+                                        @unless($opdTraining ?? false)
                                         <div class="dropdown dropdown-end">
                                             <label tabindex="0" class="btn btn-ghost btn-xs tooltip tooltip-left"
                                                 data-tip="Actions">
@@ -807,6 +840,7 @@
 
                                             </ul>
                                         </div>
+                                        @endunless
                                     </td>
                                 </tr>
                             @empty
@@ -828,10 +862,13 @@
             </div>
 
             {{-- Right Sidebar: Stocks & Prescriptions --}}
-            <div class="flex flex-col w-full max-w-full xl:w-[420px] xl:min-w-[420px] overflow-hidden bg-base-100" x-data="{ stockCount: @entangle('stocksDisplayCount') }">
+            <div @class([
+                'flex flex-col w-full max-w-full xl:w-[420px] xl:min-w-[420px] overflow-hidden bg-base-100',
+                'min-h-64 shrink-0 sm:min-h-0 sm:w-64 lg:w-80' => $opdTraining ?? false,
+            ]) x-data="{ stockCount: @entangle('stocksDisplayCount') }">
 
                 {{-- Search & Filter --}}
-                <div class="p-2 space-y-2 border-b border-base-200">
+                <div class="p-2 space-y-2 border-b border-base-200" @if ($opdTraining ?? false) inert @endif>
                     <x-mary-input wire:model.live.debounce.300ms="generic" icon="o-magnifying-glass"
                         placeholder="Search drug name..." class="input-sm" clearable />
                     <x-mary-choices wire:model.live="charge_code_filter" :options="$charges" option-value="chrgcode"
@@ -972,7 +1009,7 @@
                                             @endif
                                         </div>
                                     </div>
-                                    @if ($can_add_items)
+                                    @if ($can_add_items && !($opdTraining ?? false))
                                         <button class="btn btn-xs btn-ghost tooltip tooltip-left"
                                             data-tip="Search in Stocks"
                                             wire:click="searchGenericItem({{ $presc_data->id }},'{{ $presc_data->dm->drug_concat }}','{{ $presc_data->dmdcomb }}','{{ $presc_data->dmdctr }}','{{ $presc->empid }}')">
@@ -1035,6 +1072,7 @@
             </div>
         </div>
 
+        @unless($opdTraining ?? false)
         {{-- Add Stock Item Modal --}}
         <x-dispensing-dialog model="udddsModalOpen" title="Enable UDDDS">
             @if ($udddsModalOpen)
@@ -1318,6 +1356,7 @@
             </x-slot:actions>
         </x-dispensing-dialog>
 
+        @endunless
         {{-- Issue Confirmation Modal --}}
         <dialog wire:ignore.self x-ref="issueDialog" class="modal backdrop-blur" aria-labelledby="issue-dialog-title"
             x-on:cancel.prevent="if (!issueLoading && !processingBusy) closeIssueDialog()"
@@ -1378,13 +1417,21 @@
 
                         @if ($toecode != 'ER')
                             <div>
-                                <label class="label font-bold"><span class="label-text">Department</span></label>
-                                <select wire:model="deptcode" class="w-full select select-bordered">
-                                    <option value="">Select department...</option>
+                                <label for="issue-department" class="label font-bold">
+                                    <span class="label-text">{{ $toecode === 'OPD' ? 'OPD clinic' : 'Department' }}</span>
+                                </label>
+                                <select id="issue-department" wire:model="deptcode" class="w-full select select-bordered"
+                                    data-opd-action="department" @if ($toecode === 'OPD') aria-describedby="issue-clinic-help" @endif>
+                                    <option value="">{{ $toecode === 'OPD' ? 'Select OPD clinic…' : 'Select department…' }}</option>
                                     @foreach ($departments as $dept)
                                         <option value="{{ $dept->deptcode }}">{{ $dept->deptname }}</option>
                                     @endforeach
                                 </select>
+                                @if ($toecode === 'OPD')
+                                    <p id="issue-clinic-help" class="mt-1 text-sm text-base-content/70">
+                                        {{ $prescriptionClinicCode ? 'Prefilled from the prescription’s OPD visit.' : 'Choose the clinic that prescribed the selected medication.' }}
+                                    </p>
+                                @endif
                             </div>
                         @endif
                     </div>
@@ -1392,12 +1439,13 @@
             </div>
             <div class="modal-action">
                 <x-mary-button label="Cancel" x-on:click="closeIssueDialog()" x-bind:disabled="issueLoading || processingBusy" />
-                <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success"
+                <x-mary-button label="Confirm Issue" icon="o-paper-airplane" class="btn-success" data-opd-action="confirm-issue"
                     x-show="issueReady" x-cloak x-on:click="startDispensing('issue')" x-bind:disabled="!issueReady || processingBusy" />
             </div>
             </div>
         </dialog>
 
+        @unless($opdTraining ?? false)
         {{-- Summary Modal --}}
         <x-dispensing-dialog model="showSummaryModal" title="Summary of Issued Drugs and Meds" box-class="max-w-3xl">
             <table class="table table-xs">
@@ -1594,8 +1642,10 @@
                 <x-mary-button label="Close" x-on:click="dismissPreparedDialog(model, closeMethod)" />
             </x-slot:actions>
         </x-dispensing-dialog>
+        @endunless
     @endif {{-- End: @if (!$hasEncounter) --}}
 
+    @unless($opdTraining ?? false)
     {{-- Encounter / Prescription Selector Modal --}}
     <x-dispensing-dialog model="showEncounterSelectorModal" title="Browse Encounters & Rx/Orders" box-class="max-w-5xl" drawer>
         @php
@@ -2168,6 +2218,7 @@
             </x-slot:actions>
         </x-dispensing-dialog>
 
+    @endunless
     {{-- Print Prescriptions Modal --}}
     <x-dispensing-dialog model="showPrintModal" title="Print Prescriptions" box-class="max-w-3xl">
         <div class="space-y-4">
@@ -2224,7 +2275,8 @@
                                 @foreach ($printItems as $pItem)
                                     <tr class="hover">
                                         <td>
-                                            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                                            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" data-opd-action="select-print-item"
+                                                aria-label="Include {{ $pItem['drug_concat'] }} in the prescription"
                                                 @if (in_array($pItem['id'], $printSelectedItems)) checked @endif
                                                 wire:click="togglePrintItemSelection({{ $pItem['id'] }})">
                                         </td>
@@ -2265,12 +2317,14 @@
         </div>
         <x-slot:actions>
             <x-mary-button label="Cancel" x-on:click="dismissPreparedDialog(model, closeMethod)" />
-            <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary"
+            <x-mary-button label="Print Selected Items" icon="o-printer" class="btn-primary" data-opd-action="print-selected"
+                :disabled="($opdTraining ?? false) && !$printSelectedItems"
                 wire:click="printPrescriptions" spinner />
         </x-slot:actions>
     </x-dispensing-dialog>
 
 
+    @unless($opdTraining ?? false)
     {{-- Keyboard Shortcuts --}}
     @script
         <script>
@@ -2358,4 +2412,5 @@
             });
         </script>
     @endscript
+    @endunless
 </div>

@@ -42,6 +42,8 @@
             {{-- Display Options --}}
             <div class="divider">Display Options</div>
 
+            <x-mary-checkbox wire:model="showWaitingColumn" label="Show Waiting column"
+                hint="Show compact queue numbers for prescriptions that have not been called yet." />
             <x-mary-checkbox wire:model="showPatientName" label="Show Patient Names"
                 hint="Display patient names on the queue screen (privacy consideration)" />
 

@@ -1,0 +1,78 @@
+.opd-spotlight {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    pointer-events: none;
+    --opd-spotlight-dim: rgb(4 20 18 / 28%);
+}
+
+.opd-spotlight-ring {
+    position: absolute;
+    border-radius: 10px;
+}
+
+.opd-spotlight-outline {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--color-primary);
+    border-radius: inherit;
+}
+
+.opd-spotlight-outline::before {
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    box-shadow: 0 0 0 150vmax var(--opd-spotlight-dim);
+    content: '';
+}
+
+.opd-spotlight-bubble {
+    position: absolute;
+    width: min(21rem, calc(100vw - 24px));
+    padding: 12px 14px;
+    border: 1px solid var(--color-primary);
+    border-radius: 12px;
+    background: var(--color-base-100);
+    color: var(--color-base-content);
+    box-shadow: 0 8px 24px rgb(4 20 18 / 20%);
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.opd-spotlight-bubble p {
+    margin-top: 3px;
+}
+
+.opd-spotlight-bubble::before {
+    position: absolute;
+    left: calc(var(--opd-tip) - 5px);
+    width: 10px;
+    height: 10px;
+    border: solid var(--color-primary);
+    border-width: 1px 0 0 1px;
+    background: inherit;
+    content: '';
+    transform: rotate(45deg);
+}
+
+.opd-spotlight-bubble[data-placement='below']::before {
+    top: -6px;
+}
+
+.opd-spotlight-bubble[data-placement='above']::before {
+    bottom: -6px;
+    transform: rotate(225deg);
+}
+
+.opd-spotlight-bubble[data-placement='beside']::before {
+    top: calc(var(--opd-tip) - 5px);
+    right: -6px;
+    left: auto;
+    transform: rotate(135deg);
+}

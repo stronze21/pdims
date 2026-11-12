@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Mary\Traits\Toast;
@@ -25,6 +26,7 @@ use App\Models\Record\Prescriptions\Prescription;
 use App\Models\Record\Prescriptions\PrescriptionData;
 use App\Services\Pharmacy\DrugEquivalenceService;
 use App\Services\Pharmacy\DrugDescription;
+use App\Services\Pharmacy\OpdIssuanceClinics;
 use App\Services\Pharmacy\UdddsService;
 use App\Models\Record\Prescriptions\PrescriptionDataIssued;
 use App\Models\Hospital\Ward;
@@ -169,6 +171,9 @@ class DispensingEncounter extends Component
     public $pay = false, $service = false, $doh_free = false;
     public $is_ris = false, $bnb = false;
     public $type, $deptcode;
+
+    #[Locked]
+    public ?string $prescriptionClinicCode = null;
 
     // Stock Item Selection
     public $item_id, $item_chrgcode, $item_dmdcomb, $item_dmdctr;
@@ -349,7 +354,11 @@ class DispensingEncounter extends Component
             GROUP BY drug_concat
         ");
 
-        $departments = DB::connection('hospital')->select("SELECT * FROM hdept WHERE deptstat = 'A'");
+        $departments = match (true) {
+            ! $this->showIssueModal => [],
+            $this->toecode === 'OPD' => app(OpdIssuanceClinics::class)->options($this->prescriptionClinicCode),
+            default => DB::connection('hospital')->select("SELECT deptcode, deptname FROM hdept WHERE deptstat = 'A'"),
+        };
 
         $clinicalCheck = $this->showPrescribedItemModal && $this->rx_dmdcomb !== null && $this->rx_dmdctr !== null
             ? $this->clinicalCheck()
@@ -640,6 +649,12 @@ class DispensingEncounter extends Component
             return;
         }
 
+        if ($this->toecode === 'OPD') {
+            $this->prescriptionClinicCode = app(OpdIssuanceClinics::class)
+                ->forSelectedOrders($this->selected_items, $this->decryptEnccode());
+            $this->deptcode = $this->prescriptionClinicCode;
+        }
+
         $this->showIssueModal = true;
     }
 
@@ -660,8 +675,6 @@ class DispensingEncounter extends Component
             return;
         }
 
-        app(\App\Services\Pharmacy\InventoryMutation::class)->reserveStock($orders, $this->location_id);
-
         $enccode = $this->decryptEnccode();
         $cnt = 0;
 
@@ -677,9 +690,18 @@ class DispensingEncounter extends Component
 
         $this->type = $this->resolveTransactionType();
 
-        if (!$this->isAdmittedEncounter() && $this->toecode != 'ER') {
+        if ($this->toecode === 'OPD') {
+            $clinics = app(OpdIssuanceClinics::class);
+            $preferred = $clinics->forSelectedOrders($keys, $enccode);
+            $this->validate(
+                ['deptcode' => ['required', 'string', \Illuminate\Validation\Rule::in($clinics->options($preferred)->pluck('deptcode')->all())]],
+                ['deptcode.required' => 'Select the prescribing OPD clinic.', 'deptcode.in' => 'Select a valid OPD clinic.'],
+            );
+        } elseif (!$this->isAdmittedEncounter() && $this->toecode != 'ER') {
             $this->validate(['deptcode' => 'required'], ['deptcode.required' => 'Please select department.']);
         }
+
+        app(\App\Services\Pharmacy\InventoryMutation::class)->reserveStock($orders, $this->location_id);
 
         $tag = $this->type;
 
@@ -743,8 +765,11 @@ class DispensingEncounter extends Component
                 }
 
                 if ($cnt == 1) {
+                    $postedAt = now();
                     $cnt = DB::connection('hospital')->update(
-                        "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = '" . $rxo->pchrgqty . "', tx_type = '" . $tag . "', dodtepost = '" . now() . "', dotmepost = '" . now() . "', deptcode = '" . $this->deptcode . "' WHERE docointkey = '" . $rxo->docointkey . "' AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)"
+                        "UPDATE hospital.dbo.hrxo SET estatus = 'S', qtyissued = ?, tx_type = ?, dodtepost = ?, dotmepost = ?, deptcode = ?
+                         WHERE docointkey = ? AND (estatus = 'P' OR orderfrom = 'DRUMK' OR pchrgup = 0)",
+                        [$rxo->pchrgqty, $tag, $postedAt, $postedAt, (string) $this->deptcode, $rxo->docointkey],
                     );
                     $this->logHrxoIssue(
                         $rxo->docointkey,
@@ -1783,6 +1808,7 @@ class DispensingEncounter extends Component
         $this->is_ris = false;
         $this->bnb = false;
         $this->deptcode = null;
+        $this->prescriptionClinicCode = null;
     }
 
     private function loadPrescriptions(string $enccode, $encounter): void

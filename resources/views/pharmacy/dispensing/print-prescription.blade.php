@@ -39,6 +39,16 @@
         .received { grid-column: 2; grid-row: 2; }
         .costed { grid-column: 1; grid-row: 2; }
 
+        @if ($opdTraining ?? false)
+            @media screen and (prefers-reduced-motion: no-preference) {
+                .form { animation: training-form-arrival 220ms ease-out both; }
+                @keyframes training-form-arrival {
+                    from { opacity: .6; }
+                    to { opacity: 1; }
+                }
+            }
+        @endif
+
         @page { margin: 10mm; }
 
         @media print {
@@ -60,7 +70,13 @@
     @endphp
 
     <div class="toolbar">
-        <button type="button" onclick="window.print()">Print</button>
+        @if ($opdTraining ?? false)
+            <a href="{{ route($prescriptionSource ? 'prescriptions.opd-walkthrough.'.$prescriptionSource : 'prescriptions.opd-walkthrough') }}">Restart walkthrough</a>
+            · <a href="{{ route('prescriptions.queue.controller2') }}">Exit walkthrough</a>
+            · <button type="button" disabled>Print</button>
+        @else
+            <button type="button" onclick="window.print()">Print</button>
+        @endif
     </div>
 
     @foreach ($pages->isEmpty() ? [collect()] : $pages as $page)
@@ -71,6 +87,9 @@
 
         <main class="form">
             <header>
+                @if ($opdTraining ?? false)
+                    <p><strong>TRAINING SAMPLE — SYNTHETIC PATIENT RECORD</strong></p>
+                @endif
                 <p class="form-code">MMMHMC-M-PHM/QP-002 Form 1 Rev. 1 – Prescription Form</p>
                 <p><strong>MARIANO MARCOS MEMORIAL HOSP. &amp; M.C.</strong></p>
                 <p><strong>BATAC CITY, ILOCOS NORTE</strong></p>

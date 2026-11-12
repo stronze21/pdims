@@ -1,4 +1,8 @@
-<div class="p-6 space-y-6" wire:poll.5s="refreshQueues">
+<div class="p-6 space-y-6" @unless($opdTraining ?? false) wire:poll.5s="refreshQueues" @endunless>
+    @if ($opdTraining ?? false)
+        @include('layouts.partials.opd-training-banner')
+        @includeWhen($trainingDisplay, 'layouts.partials.opd-training-tv')
+    @endif
     {{-- Current Queue Window --}}
     <div class="grid grid-cols-12 gap-6">
         {{-- Left: Current Queue (col-4) --}}
@@ -60,7 +64,11 @@
                                             $currentQueue->id;
                                     @endphp
                                     <button
-                                        onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                        @if ($opdTraining ?? false)
+                                            wire:click="openDispensing" data-opd-action="open-dispensing"
+                                        @else
+                                            onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                        @endif
                                         class="btn btn-accent btn-block btn-lg touch-target">
                                         <x-mary-icon name="o-beaker" class="w-5 h-5" />
                                         OPEN DISPENSING
@@ -109,6 +117,7 @@
                                 </div>
                             @endif
 
+                            @unless($opdTraining ?? false)
                             {{-- Next Queue (always visible) --}}
                             <button wire:click="nextQueue"
                                 class="btn btn-outline btn-primary btn-block btn-sm touch-target">
@@ -136,13 +145,15 @@
                                     Details
                                 </button>
                             </div>
+                            @endunless
                         </div>
                     </div>
                 @else
                     <div class="text-center py-8">
                         <x-mary-icon name="o-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
                         <div class="text-gray-500 mb-4">No active queue</div>
-                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target">
+                        <button wire:click="nextQueue" class="btn btn-primary btn-lg touch-target"
+                            data-opd-action="call-queue">
                             <x-mary-icon name="o-arrow-right" class="w-5 h-5" />
                             Call Next Queue
                         </button>
@@ -236,13 +247,13 @@
             <x-mary-card title="Queue List">
                 <x-slot:menu>
                     <div class="flex items-center gap-4">
-                        <x-mary-input type="date" wire:model.live="dateFilter" class="input-sm" />
+                        <x-mary-input type="date" wire:model.live="dateFilter" class="input-sm" :disabled="$opdTraining ?? false" />
                         <select wire:model.live="selectedWindow" class="select select-sm">
                             @for ($i = 1; $i <= $maxWindows; $i++)
                                 <option value="{{ $i }}">Window {{ $i }}</option>
                             @endfor
                         </select>
-                        @if (env('APP_ENV') === 'local')
+                        @if (env('APP_ENV') === 'local' && !($opdTraining ?? false))
                             <x-mary-button label="Batch Create Queues" icon="o-plus-circle"
                                 class="btn-primary btn-sm" wire:click="openBatchCreateModal">
                                 <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
@@ -309,10 +320,12 @@
                                                     Select
                                                 </button>
                                             @endif
+                                            @unless($opdTraining ?? false)
                                             <button wire:click="viewQueue({{ $queue->id }})"
                                                 class="btn btn-xs btn-ghost">
                                                 View
                                             </button>
+                                            @endunless
                                         </div>
                                     </td>
                                 </tr>
@@ -517,7 +530,7 @@
         </x-slot:actions>
     </x-mary-modal>
 
-    @if (env('APP_ENV') === 'local')
+    @if (env('APP_ENV') === 'local' && !($opdTraining ?? false))
         {{-- Batch Create Modal --}}
         <x-mary-modal wire:model="showBatchCreateModal" title="Batch Create Prescription Queues"
             class="backdrop-blur" box-class="max-w-2xl">
@@ -571,6 +584,7 @@
             </x-slot:actions>
         </x-mary-modal>
     @endif
+    @unless($opdTraining ?? false)
     {{-- Print Window Script --}}
     <script>
         document.addEventListener('livewire:initialized', () => {
@@ -579,4 +593,5 @@
             });
         });
     </script>
+    @endunless
 </div>

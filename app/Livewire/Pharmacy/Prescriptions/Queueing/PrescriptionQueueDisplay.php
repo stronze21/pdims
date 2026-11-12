@@ -48,19 +48,22 @@ class PrescriptionQueueDisplay extends Component
             ->limit($this->displaySettings->display_limit)
             ->get();
 
-        // Get waiting
-        $waiting = PrescriptionQueue::forLocation($this->locationCode)
-            ->waiting()
-            ->whereDate('queued_at', today())
-            ->orderByPriority()
-            ->limit(max(5, $this->displaySettings->display_limit - $ready->count()))
-            ->get();
-
         $this->showingQueues = [
             'charging' => $charging,
             'ready' => $ready,
-            'waiting' => $waiting,
         ];
+
+        if ($this->displaySettings->show_waiting_column) {
+            $this->showingQueues['waiting'] = PrescriptionQueue::forLocation($this->locationCode)
+                ->waiting()
+                ->whereNull('assigned_window')
+                ->whereNull('called_at')
+                ->whereDate('queued_at', today())
+                ->orderByPriority()
+                ->orderBy('id')
+                ->limit($this->displaySettings->display_limit)
+                ->get();
+        }
 
         // Get last called (most recently changed to ready)
         $this->lastCalledQueue = PrescriptionQueue::forLocation($this->locationCode)

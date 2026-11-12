@@ -55,11 +55,12 @@
     </style>
 </head>
 
-<body class="pdims-theme min-h-screen antialiased bg-base-200">
+<body class="pdims-theme min-h-screen antialiased bg-base-200"
+    @if (request()->routeIs('prescriptions.opd-walkthrough')) data-opd-training-page @endif>
     {{-- Top Navigation Bar - Fixed --}}
     <div class="brand-navbar sticky top-0 z-50 border-b bg-base-100 border-base-300">
         <div class="px-4 py-3">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 {{-- Left: App Info --}}
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2">
@@ -72,7 +73,7 @@
                 </div>
 
                 {{-- Center: Live Clock --}}
-                <div class="text-center">
+                <div class="hidden text-center md:block">
                     <div class="text-2xl font-bold tabular-nums" id="queue-clock">
                         {{ now()->format('h:i:s A') }}
                     </div>
@@ -81,6 +82,9 @@
 
                 {{-- Right: Actions --}}
                 <div class="flex items-center gap-2">
+                    @if (request()->routeIs('prescriptions.queue.controller2'))
+                        @include('layouts.partials.opd-walkthrough-picker')
+                    @endif
                     <x-appearance-toggle class="btn btn-circle btn-ghost btn-sm" />
 
                     <div class="dropdown dropdown-end">

@@ -18,6 +18,7 @@ class QueueDisplaySettings extends Component
     public $requireCashier = true;
     public $cashierLocation = '';
     public $showPatientName = false;
+    public bool $showWaitingColumn = false;
     public $playSoundAlert = true;
     public $showEstimatedWait = true;
 
@@ -37,8 +38,16 @@ class QueueDisplaySettings extends Component
         $this->requireCashier = $settings->require_cashier;
         $this->cashierLocation = $settings->cashier_location ?? '';
         $this->showPatientName = $settings->show_patient_name;
+        $this->showWaitingColumn = (bool) $settings->show_waiting_column;
         $this->playSoundAlert = $settings->play_sound_alert;
         $this->showEstimatedWait = $settings->show_estimated_wait;
+    }
+
+    public function updatedLocationCode(): void
+    {
+        if (filled($this->locationCode)) {
+            $this->loadSettings();
+        }
     }
 
     public function save()
@@ -59,6 +68,7 @@ class QueueDisplaySettings extends Component
                 'require_cashier' => $this->requireCashier,
                 'cashier_location' => $this->cashierLocation,
                 'show_patient_name' => $this->showPatientName,
+                'show_waiting_column' => $this->showWaitingColumn,
                 'play_sound_alert' => $this->playSoundAlert,
                 'show_estimated_wait' => $this->showEstimatedWait,
             ]

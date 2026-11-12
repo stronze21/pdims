@@ -1,0 +1,148 @@
+@media (prefers-reduced-motion: no-preference) {
+    [data-opd-training-page] main {
+        animation: opd-training-arrival 220ms ease-out both;
+    }
+}
+
+@keyframes opd-training-arrival {
+    from { opacity: .6; }
+    to { opacity: 1; }
+}
+
+.opd-training-tv-panel {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--color-base-100);
+    color: var(--color-base-content);
+    animation: opd-tv-enter 240ms ease-out both;
+}
+
+.opd-training-tv-toolbar {
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px clamp(16px, 3vw, 40px);
+    border-bottom: 1px solid var(--color-base-300);
+}
+
+@media (min-width: 801px) {
+    .opd-training-tv-toolbar {
+        min-height: 120px;
+    }
+}
+
+.opd-training-tv-content {
+    flex: 1;
+    overflow: auto;
+}
+
+.opd-training-tv-display {
+    min-height: 100%;
+}
+
+.opd-training-tv-display [data-opd-tv-columns] > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.opd-training-tv-display [data-opd-tv-queue] {
+    position: relative;
+    animation: opd-tv-card 580ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.opd-training-tv-display [data-opd-tv-queue]::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 35%, rgb(255 255 255 / 65%) 50%, transparent 65%);
+    content: '';
+    animation: opd-tv-sweep 680ms ease-out both;
+}
+
+@keyframes opd-tv-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes opd-tv-card {
+    from { opacity: .4; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes opd-tv-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+}
+
+.opd-spotlight[data-opd-tv] {
+    --opd-spotlight-dim: rgb(4 20 18 / 12%);
+}
+
+@media (max-width: 800px) {
+    .opd-training-tv-display > div:first-child > div,
+    .opd-training-tv-display > div:last-child > div {
+        padding-inline: 16px;
+    }
+
+    .opd-training-tv-display > div:last-child > div > div {
+        flex-wrap: wrap;
+        gap: 8px 16px;
+    }
+
+    .opd-training-tv-display [data-opd-tv-columns] > div {
+        padding: 12px;
+    }
+
+    .opd-training-tv-display h1,
+    .opd-training-tv-display h2,
+    .opd-training-tv-display .text-5xl {
+        font-size: clamp(1rem, 3.5vw, 1.75rem);
+    }
+
+    .opd-training-tv-display [data-opd-tv-queue] .text-7xl {
+        font-size: clamp(1.5rem, 6vw, 3.5rem);
+    }
+
+    .opd-training-tv-display [data-opd-tv-queue] .min-w-\[140px\] {
+        min-width: 0;
+        padding: 12px;
+    }
+}
+
+@media (max-width: 560px) {
+    .opd-training-tv-display [data-opd-tv-columns] {
+        flex-direction: column;
+    }
+
+    .opd-training-tv-display [data-opd-tv-columns] > div {
+        width: 100%;
+        border-right: 0;
+    }
+
+    .opd-training-tv-display [data-opd-tv-columns] > section {
+        width: 100%;
+        border-left: 0;
+    }
+
+    .opd-training-tv-display [data-opd-tv-columns] > section ul {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .opd-training-tv-panel,
+    .opd-training-tv-display [data-opd-tv-queue] {
+        animation: opd-tv-enter 100ms linear both;
+    }
+
+    .opd-training-tv-display [data-opd-tv-queue]::after {
+        animation: none;
+        content: none;
+    }
+}

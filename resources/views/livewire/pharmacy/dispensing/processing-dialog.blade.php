@@ -1,4 +1,7 @@
 <dialog x-ref="processingDialog" wire:ignore class="modal" aria-labelledby="dispensing-processing-title"
+    @if ($opdTraining ?? false)
+        data-opd-training-processing x-on:close="$dispatch('opd-training-processing-closed')"
+    @endif
     x-on:cancel="if (processingBusy) $event.preventDefault()">
     <div class="modal-box max-w-lg max-h-[90dvh] overflow-y-auto">
         <h2 id="dispensing-processing-title" tabindex="-1" autofocus class="text-lg font-semibold" x-text="processingTitle"></h2>
@@ -15,7 +18,7 @@
             </div>
         </template>
         <div class="modal-action">
-            <button type="button" class="btn btn-primary" x-bind:disabled="processingBusy"
+            <button type="button" class="btn btn-primary" x-bind:disabled="processingBusy" data-opd-action="processing-done"
                 x-on:click="$refs.processingDialog.close()" x-text="processingBusy ? 'Processing…' : 'Done'"></button>
         </div>
     </div>

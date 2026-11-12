@@ -20,6 +20,7 @@ class PrescriptionQueueDisplaySetting extends Model
         'require_cashier',
         'cashier_location',
         'show_patient_name',
+        'show_waiting_column',
         'play_sound_alert',
         'show_estimated_wait',
         'display_mode',
@@ -31,6 +32,7 @@ class PrescriptionQueueDisplaySetting extends Model
         'pharmacy_windows' => 'integer',
         'require_cashier' => 'boolean',
         'show_patient_name' => 'boolean',
+        'show_waiting_column' => 'boolean',
         'play_sound_alert' => 'boolean',
         'show_estimated_wait' => 'boolean',
     ];

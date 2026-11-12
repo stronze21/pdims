@@ -1,4 +1,6 @@
 import './bootstrap';
+import './prescription-entry-training';
+import './opd-spotlight';
 
 document.addEventListener('livewire:init', () => {
     // 1. The Directive
