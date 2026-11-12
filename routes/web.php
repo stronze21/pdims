@@ -71,6 +71,17 @@ Route::middleware('guest')->get('/', function () {
     return redirect('login');
 });
 
+// These routes serve the simulated OPD training workflow.
+Route::prefix('prescriptions')->name('prescriptions.')->group(function () {
+    Route::view('/opd-walkthrough/cdoe', 'pharmacy.training.prescription-entry', ['source' => 'cdoe'])->name('opd-walkthrough.cdoe');
+    Route::view('/opd-walkthrough/emr2', 'pharmacy.training.prescription-entry', ['source' => 'emr2'])->name('opd-walkthrough.emr2');
+    Route::get('/opd-walkthrough/print', \App\Http\Controllers\OpdTrainingPrintController::class)
+        ->name('opd-walkthrough.print');
+    Route::get('/opd-walkthrough/{screen?}', \App\Livewire\Pharmacy\Training\OpdWalkthrough::class)
+        ->whereIn('screen', ['dispensing'])
+        ->name('opd-walkthrough');
+});
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -177,13 +188,6 @@ Route::middleware([
             ->name('queue.index');
         Route::get('/queue/controller', PrescriptionQueueManagementTablet::class)->name('queue.controller');
         Route::get('/queue/controller/v2', PrescriptionQueueController::class)->name('queue.controller2');
-        Route::view('/opd-walkthrough/cdoe', 'pharmacy.training.prescription-entry', ['source' => 'cdoe'])->name('opd-walkthrough.cdoe');
-        Route::view('/opd-walkthrough/emr2', 'pharmacy.training.prescription-entry', ['source' => 'emr2'])->name('opd-walkthrough.emr2');
-        Route::get('/opd-walkthrough/print', \App\Http\Controllers\OpdTrainingPrintController::class)
-            ->name('opd-walkthrough.print');
-        Route::get('/opd-walkthrough/{screen?}', \App\Livewire\Pharmacy\Training\OpdWalkthrough::class)
-            ->whereIn('screen', ['dispensing'])
-            ->name('opd-walkthrough');
         Route::get('/queue-display-settings', QueueDisplaySettings::class)->name('queue.display-setting');
         Route::get('/cashier-queue', CashierQueueController::class)
             ->name('cashier.queue');

@@ -91,9 +91,11 @@
                 </div>
                 <label class="mt-4 flex items-start gap-3 border-t border-base-300 pt-4">
                     <input type="checkbox" class="checkbox checkbox-primary mt-0.5" x-model="proceedToPharmacy" data-opd-action="rx-entry-queue"
-                        data-opd-description="Check this option to add the prescription to the numbered Pharmacy queue when you save it.">
+                        aria-describedby="emr2-pharmacy-referral-note"
+                        data-opd-description="Check this option to add the prescription to the Pharmacy queue. {{ $referralNote }}">
                     <span><span class="block font-semibold">Proceed to Pharmacy?</span><span class="block text-xs text-base-content/70">Add this prescription to the numbered Pharmacy queue after it is saved.</span></span>
                 </label>
+                <p id="emr2-pharmacy-referral-note" class="mt-2 text-sm text-base-content/75">{{ $referralNote }}</p>
             </section>
         </div>
         <footer class="flex justify-end gap-2 border-t border-base-300 px-4 py-3 md:px-8">

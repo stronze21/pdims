@@ -8,6 +8,8 @@
     <div class="flex flex-wrap gap-2">
         <a href="{{ route($prescriptionSource ? 'prescriptions.opd-walkthrough.'.$prescriptionSource : 'prescriptions.opd-walkthrough') }}"
             class="btn btn-ghost btn-sm">Restart</a>
-        <a href="{{ route('prescriptions.queue.controller2') }}" class="btn btn-outline btn-sm">Exit walkthrough</a>
+        @auth
+            <a href="{{ route('prescriptions.queue.controller2') }}" class="btn btn-outline btn-sm">Exit walkthrough</a>
+        @endauth
     </div>
 </aside>

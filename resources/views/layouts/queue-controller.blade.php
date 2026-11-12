@@ -67,7 +67,7 @@
                         <x-mary-icon name="o-queue-list" class="w-8 h-8 text-primary" />
                         <div>
                             <h1 class="text-lg font-bold leading-tight">Queue Controller</h1>
-                            <p class="text-xs opacity-70">{{ auth()->user()->location->description }}</p>
+                            <p class="text-xs opacity-70">{{ auth()->user()?->location?->description ?? 'OPD training' }}</p>
                         </div>
                     </div>
                 </div>
@@ -87,30 +87,32 @@
                     @endif
                     <x-appearance-toggle class="btn btn-circle btn-ghost btn-sm" />
 
-                    <div class="dropdown dropdown-end">
-                        <label tabindex="0" class="btn btn-circle btn-ghost btn-sm">
-                            <x-mary-icon name="o-user-circle" class="w-6 h-6" />
-                        </label>
-                        <ul tabindex="0"
-                            class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-3">
-                            <li class="menu-title">
-                                <span>{{ auth()->user()->name }}</span>
-                            </li>
-                            <li><a href="{{ route('dashboard') }}">
-                                    <x-mary-icon name="o-home" class="w-4 h-4" />
-                                    Dashboard
-                                </a></li>
-                            <li>
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="w-full text-left">
-                                        <x-mary-icon name="o-arrow-right-on-rectangle" class="w-4 h-4" />
-                                        Logout
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
+                    @auth
+                        <div class="dropdown dropdown-end">
+                            <label tabindex="0" class="btn btn-circle btn-ghost btn-sm">
+                                <x-mary-icon name="o-user-circle" class="w-6 h-6" />
+                            </label>
+                            <ul tabindex="0"
+                                class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-3">
+                                <li class="menu-title">
+                                    <span>{{ auth()->user()->name }}</span>
+                                </li>
+                                <li><a href="{{ route('dashboard') }}">
+                                        <x-mary-icon name="o-home" class="w-4 h-4" />
+                                        Dashboard
+                                    </a></li>
+                                <li>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="w-full text-left">
+                                            <x-mary-icon name="o-arrow-right-on-rectangle" class="w-4 h-4" />
+                                            Logout
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    @endauth
 
                     <button onclick="toggleFullscreen()" class="btn btn-circle btn-ghost btn-sm touch-target"
                         title="Toggle Fullscreen">

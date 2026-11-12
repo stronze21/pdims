@@ -52,47 +52,49 @@
 
                     <x-appearance-toggle class="btn btn-circle btn-ghost" />
 
-                    <!-- User Menu -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open"
-                            class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                            <div class="flex items-center space-x-2">
-                                <div class="flex items-center justify-center w-8 h-8 text-primary-content rounded-full bg-primary">
-                                    {{ substr(auth()->user()->name, 0, 1) }}
+                    @auth
+                        <!-- User Menu -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open"
+                                class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex items-center justify-center w-8 h-8 text-primary-content rounded-full bg-primary">
+                                        {{ substr(auth()->user()->name, 0, 1) }}
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="text-sm font-medium text-base-content">{{ auth()->user()->name }}</div>
+                                        <div class="text-xs text-base-content/70">{{ ucfirst(auth()->user()->role) }}</div>
+                                    </div>
+                                    <x-heroicon-o-chevron-down class="w-4 h-4 text-base-content/70" />
                                 </div>
-                                <div class="text-left">
-                                    <div class="text-sm font-medium text-base-content">{{ auth()->user()->name }}</div>
-                                    <div class="text-xs text-base-content/70">{{ ucfirst(auth()->user()->role) }}</div>
+                            </button>
+                            <div x-show="open" @click.away="open = false"
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="transform opacity-0 scale-95"
+                                x-transition:enter-end="transform opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-75"
+                                x-transition:leave-start="transform opacity-100 scale-100"
+                                x-transition:leave-end="transform opacity-0 scale-95"
+                                class="absolute right-0 z-50 w-48 mt-2 origin-top-right rounded-md shadow-lg bg-base-100 ring-1 ring-black ring-opacity-5 bg-base-100">
+                                <div class="py-1 bg-base-100 rounded-md">
+                                    <a href="{{ route('dashboard') }}"
+                                        class="flex items-center px-4 py-2 text-sm text-base-content hover:bg-base-100">
+                                        <x-heroicon-o-home class="w-4 h-4 mr-2" />
+                                        Back to Dashboard
+                                    </a>
+                                    <div class="border-t border-base-100"></div>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit"
+                                            class="flex items-center w-full px-4 py-2 text-sm text-base-content hover:bg-base-100">
+                                            <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4 mr-2" />
+                                            Logout
+                                        </button>
+                                    </form>
                                 </div>
-                                <x-heroicon-o-chevron-down class="w-4 h-4 text-base-content/70" />
-                            </div>
-                        </button>
-                        <div x-show="open" @click.away="open = false"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 z-50 w-48 mt-2 origin-top-right rounded-md shadow-lg bg-base-100 ring-1 ring-black ring-opacity-5 bg-base-100">
-                            <div class="py-1 bg-base-100 rounded-md">
-                                <a href="{{ route('dashboard') }}"
-                                    class="flex items-center px-4 py-2 text-sm text-base-content hover:bg-base-100">
-                                    <x-heroicon-o-home class="w-4 h-4 mr-2" />
-                                    Back to Dashboard
-                                </a>
-                                <div class="border-t border-base-100"></div>
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit"
-                                        class="flex items-center w-full px-4 py-2 text-sm text-base-content hover:bg-base-100">
-                                        <x-heroicon-o-arrow-right-on-rectangle class="w-4 h-4 mr-2" />
-                                        Logout
-                                    </button>
-                                </form>
                             </div>
                         </div>
-                    </div>
+                    @endauth
 
                     <!-- Fullscreen Toggle -->
                     <button onclick="toggleFullscreen()"

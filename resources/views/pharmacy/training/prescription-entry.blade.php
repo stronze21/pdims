@@ -12,6 +12,7 @@
     @php
         $medication = \App\Livewire\Pharmacy\Training\OpdWalkthrough::MEDICATION;
         $sampleRemarks = \App\Livewire\Pharmacy\Training\OpdWalkthrough::REMARKS;
+        $referralNote = 'For referred patients, leave this unchecked at each earlier clinic. Only the last clinic should check it.';
         $isEmr2 = $source === 'emr2';
         $startLabel = $isEmr2 ? 'Add Prescription' : '+ Rx';
         $quantityLabel = $isEmr2 ? 'Qty / Dose' : 'Quantity';
@@ -29,7 +30,9 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('prescriptions.opd-walkthrough.'.$source) }}" class="btn btn-ghost btn-sm">Restart</a>
-                <a href="{{ route('prescriptions.queue.controller2') }}" class="btn btn-outline btn-sm">Exit walkthrough</a>
+                @auth
+                    <a href="{{ route('prescriptions.queue.controller2') }}" class="btn btn-outline btn-sm">Exit walkthrough</a>
+                @endauth
             </div>
         </aside>
 
@@ -120,11 +123,15 @@
                 </label>
 
                 <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-base-300 pt-4">
-                    <label class="flex min-h-11 items-center gap-2 font-semibold">
-                        <input type="checkbox" class="checkbox checkbox-primary" x-model="proceedToPharmacy" data-opd-action="rx-entry-queue"
-                            data-opd-description="Check this option to send the prescription to the pharmacy queue when you {{ strtolower($submitLabel) }} it.">
-                        Proceed to Pharmacy?
-                    </label>
+                    <div>
+                        <label class="flex min-h-11 items-center gap-2 font-semibold">
+                            <input type="checkbox" class="checkbox checkbox-primary" x-model="proceedToPharmacy" data-opd-action="rx-entry-queue"
+                                aria-describedby="cdoe-pharmacy-referral-note"
+                                data-opd-description="Check this option to send the prescription to the pharmacy queue. {{ $referralNote }}">
+                            Proceed to Pharmacy?
+                        </label>
+                        <p id="cdoe-pharmacy-referral-note" class="text-sm text-base-content/75">{{ $referralNote }}</p>
+                    </div>
                     <button type="submit" class="btn btn-primary min-h-11" data-opd-action="rx-entry-submit"
                         data-opd-title="{{ $submitLabel }}" x-bind:disabled="stage !== 'rx-entry-submit'">{{ $submitLabel }}</button>
                 </div>
