@@ -131,6 +131,14 @@ class DispensingEncounter extends Component
 
     // Queue Integration
     public $queueId = null;
+    #[Locked]
+    public string $queueClinicFilter = '';
+
+    #[Locked]
+    public ?int $queueWindow = null;
+
+    #[Locked]
+    public ?string $queueDate = null;
     public $currentQueueNumber = null;
     public $currentQueueStatus = null;
     public $queueChargeSlipNo = null;
@@ -239,6 +247,16 @@ class DispensingEncounter extends Component
 
     public function mount($enccode = null)
     {
+        $clinic = request()->query('clinic');
+        $this->queueClinicFilter = is_string($clinic) && strlen($clinic) <= 20 ? $clinic : '';
+        $window = request()->integer('window');
+        $this->queueWindow = $window >= 1 && $window <= 10 ? $window : null;
+        $date = request()->query('queue_date');
+        if (is_string($date) && preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $date, $parts)
+            && checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
+            $this->queueDate = $date;
+        }
+
         $this->location_id = auth()->user()->pharm_location_id;
         $this->rx_browse_date = date('Y-m-d');
 
@@ -2183,8 +2201,9 @@ class DispensingEncounter extends Component
 
     private function loadQueueContext($queueId): void
     {
-        $queue = PrescriptionQueue::find($queueId);
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)->find($queueId);
         if ($queue) {
+            $this->queueWindow ??= $queue->assigned_window ? (int) $queue->assigned_window : null;
             $this->queueId = $queue->id;
             $this->currentQueueNumber = $queue->queue_number;
             $this->currentQueueStatus = $queue->queue_status;
@@ -2265,7 +2284,8 @@ class DispensingEncounter extends Component
     public function loadQueueList(): void
     {
         $this->queueList = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
-            ->whereDate('queued_at', today())
+            ->whereDate('queued_at', $this->queueDate ?? today())
+            ->forClinicFilter($this->queueClinicFilter)
             ->whereIn('queue_status', ['waiting', 'preparing', 'charging', 'ready'])
             ->with(['patient'])
             ->orderByRaw("
@@ -2286,7 +2306,8 @@ class DispensingEncounter extends Component
     public function loadChargedQueues(): void
     {
         $this->chargedQueues = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
-            ->whereDate('queued_at', today())
+            ->whereDate('queued_at', $this->queueDate ?? today())
+            ->forClinicFilter($this->queueClinicFilter)
             ->whereIn('queue_status', ['charging', 'ready'])
             ->whereNotNull('enccode')
             ->with(['patient'])
@@ -2300,6 +2321,11 @@ class DispensingEncounter extends Component
             ->orderBy('queued_at', 'asc')
             ->get()
             ->toArray();
+
+        if ($this->queueClinicFilter !== '') {
+            $this->chargedEncounters = [];
+            return;
+        }
 
         // Also load charged encounters not in queue (have charged items but no queue entry)
         $queueEnccodes = collect($this->chargedQueues)->pluck('enccode')->filter()->toArray();
@@ -2336,7 +2362,8 @@ class DispensingEncounter extends Component
 
     public function queueSelectAndOpen($queueId): mixed
     {
-        $queue = PrescriptionQueue::find($queueId);
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->forClinicFilter($this->queueClinicFilter)->find($queueId);
         if (!$queue) {
             $this->error('Queue not found.');
             return null;
@@ -2366,26 +2393,29 @@ class DispensingEncounter extends Component
         }
 
         $encrypted = Crypt::encrypt(str_replace(' ', '--', $queue->enccode));
-        $url = route('dispensing.view.enctr', ['enccode' => $encrypted]) . '?queue_id=' . $queue->id;
+        $url = route('dispensing.view.enctr', [
+            'enccode' => $encrypted,
+            'queue_id' => $queue->id,
+            'clinic' => $this->queueClinicFilter,
+            'window' => $this->queueWindow,
+            'queue_date' => $this->queueDate,
+        ]);
 
         return $this->redirect($url, navigate: false);
     }
 
     public function queueCallNext(): mixed
     {
-        $nextQueue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
-            ->where('queue_status', 'waiting')
-            ->whereNull('assigned_window')
-            ->whereDate('queued_at', today())
-            ->orderByRaw("
-                CASE
-                    WHEN priority = 'stat' THEN 1
-                    WHEN priority = 'urgent' THEN 2
-                    ELSE 3
-                END
-            ")
-            ->orderBy('queued_at', 'asc')
-            ->first();
+        try {
+            $nextQueue = app(PrescriptionQueueService::class)->claimNextQueue(
+                auth()->user()->pharm_location_id, $this->queueDate ?? today(), $this->queueClinicFilter,
+                $this->queueWindow, auth()->user()->employeeid,
+            );
+        } catch (\Exception $exception) {
+            report($exception);
+            $this->error('Could not call the next queue.');
+            return null;
+        }
 
         if (!$nextQueue) {
             $this->warning('No waiting queues available.');

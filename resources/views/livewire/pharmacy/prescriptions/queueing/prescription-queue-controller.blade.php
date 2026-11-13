@@ -1,12 +1,12 @@
-<div class="p-6 space-y-6" @unless($opdTraining ?? false) wire:poll.5s="refreshQueues" @endunless>
+<div class="space-y-6 p-3 sm:p-6" @unless($opdTraining ?? false) wire:poll.5s="refreshQueues" @endunless>
     @if ($opdTraining ?? false)
         @include('layouts.partials.opd-training-banner')
         @includeWhen($trainingDisplay, 'layouts.partials.opd-training-tv')
     @endif
     {{-- Current Queue Window --}}
-    <div class="grid grid-cols-12 gap-6">
+    <div class="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-12">
         {{-- Left: Current Queue (col-4) --}}
-        <div class="col-span-4 space-y-4">
+        <div class="min-w-0 space-y-4 lg:col-span-4">
             <x-mary-card title="Window {{ $selectedWindow }} - Current Queue" class="border-2 border-primary">
                 @if ($currentQueue)
                     <div class="space-y-4">
@@ -58,16 +58,16 @@
                                         $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(
                                             str_replace(' ', '--', $currentQueue->enccode),
                                         );
-                                        $dispensingUrl =
-                                            route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) .
-                                            '?queue_id=' .
-                                            $currentQueue->id;
+                                        $dispensingUrl = route('dispensing.view.enctr', [
+                                            'enccode' => $encryptedEnc, 'queue_id' => $currentQueue->id,
+                                            'clinic' => $clinicFilter, 'window' => $selectedWindow, 'queue_date' => $dateFilter,
+                                        ]);
                                     @endphp
                                     <button
                                         @if ($opdTraining ?? false)
                                             wire:click="openDispensing" data-opd-action="open-dispensing"
                                         @else
-                                            onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                            onclick="const width = screen.availWidth; const height = screen.availHeight; window.open(@js($dispensingUrl), 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
                                         @endif
                                         class="btn btn-accent btn-block btn-lg touch-target">
                                         <x-mary-icon name="o-beaker" class="w-5 h-5" />
@@ -93,13 +93,13 @@
                                         $encryptedEnc = \Illuminate\Support\Facades\Crypt::encrypt(
                                             str_replace(' ', '--', $currentQueue->enccode),
                                         );
-                                        $dispensingUrl =
-                                            route('dispensing.view.enctr', ['enccode' => $encryptedEnc]) .
-                                            '?queue_id=' .
-                                            $currentQueue->id;
+                                        $dispensingUrl = route('dispensing.view.enctr', [
+                                            'enccode' => $encryptedEnc, 'queue_id' => $currentQueue->id,
+                                            'clinic' => $clinicFilter, 'window' => $selectedWindow, 'queue_date' => $dateFilter,
+                                        ]);
                                     @endphp
                                     <button
-                                        onclick="const width = screen.availWidth; const height = screen.availHeight; window.open('{{ $dispensingUrl }}', 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
+                                        onclick="const width = screen.availWidth; const height = screen.availHeight; window.open(@js($dispensingUrl), 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
                                         class="btn btn-accent btn-block btn-sm touch-target">
                                         <x-mary-icon name="o-beaker" class="w-4 h-4" />
                                         Open Dispensing
@@ -243,25 +243,37 @@
         </div>
 
         {{-- Right: Queue List (col-8) --}}
-        <div class="col-span-8">
-            <x-mary-card title="Queue List">
-                <x-slot:menu>
-                    <div class="flex items-center gap-4">
-                        <x-mary-input type="date" wire:model.live="dateFilter" class="input-sm" :disabled="$opdTraining ?? false" />
-                        <select wire:model.live="selectedWindow" class="select select-sm">
+        <div class="min-w-0 lg:col-span-8">
+            <x-mary-card>
+                <header class="mb-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+                    <h2 class="shrink-0 text-xl font-bold">Queue List</h2>
+                    <div class="flex min-w-0 flex-wrap items-center gap-2">
+                        <input type="date" wire:model.live="dateFilter" class="input input-sm w-36 max-w-full"
+                            aria-label="Queue date" @disabled($opdTraining ?? false)>
+                        <select wire:model.live="selectedWindow" class="select select-sm w-32 max-w-full" aria-label="Pharmacy window">
                             @for ($i = 1; $i <= $maxWindows; $i++)
                                 <option value="{{ $i }}">Window {{ $i }}</option>
                             @endfor
                         </select>
+                        @unless($opdTraining ?? false)
+                            <label class="flex min-w-0 max-w-full items-center gap-2 text-sm">
+                                Clinic
+                                <select wire:model.live="clinicFilter" class="select select-sm w-52 min-w-0 truncate">
+                                    @foreach ($clinicOptions as $code => $option)
+                                        <option value="{{ $code }}">{{ $option['name'] }} ({{ $option['waiting'] }} waiting)</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @endunless
                         @if (env('APP_ENV') === 'local' && !($opdTraining ?? false))
                             <x-mary-button label="Batch Create Queues" icon="o-plus-circle"
-                                class="btn-primary btn-sm" wire:click="openBatchCreateModal">
+                                class="btn-primary btn-sm shrink-0" wire:click="openBatchCreateModal">
                                 <x-mary-loading wire:loading wire:target="openBatchCreateModal,executeBatchCreate"
                                     class="loading-spinner loading-sm" />
                             </x-mary-button>
                         @endif
                     </div>
-                </x-slot:menu>
+                </header>
 
                 <div class="overflow-x-auto max-h-[calc(100vh-400px)] overflow-y-auto">
                     <table class="table table-sm">
@@ -269,6 +281,9 @@
                             <tr>
                                 <th>Queue #</th>
                                 <th>Patient</th>
+                                @unless($opdTraining ?? false)
+                                    <th>Clinic</th>
+                                @endunless
                                 <th>Status</th>
                                 <th>Priority</th>
                                 <th>Time</th>
@@ -288,6 +303,9 @@
                                             <div class="text-xs opacity-60">{{ $queue->patient->hpercode }}</div>
                                         @endif
                                     </td>
+                                    @unless($opdTraining ?? false)
+                                        <td>{{ $queue->clinic_code === null ? '—' : ($clinicOptions[$queue->clinic_code]['name'] ?? $queue->clinic_code) }}</td>
+                                    @endunless
                                     <td>
                                         <div class="badge badge-sm {{ $queue->getStatusBadgeClass() }}">
                                             {{ strtoupper($queue->queue_status) }}
@@ -331,7 +349,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-8 text-gray-400">
+                                    <td colspan="{{ ($opdTraining ?? false) ? 7 : 8 }}" class="text-center py-8 text-gray-400">
                                         No queues for this date
                                     </td>
                                 </tr>

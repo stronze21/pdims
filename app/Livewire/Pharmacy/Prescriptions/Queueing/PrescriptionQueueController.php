@@ -25,6 +25,7 @@ class PrescriptionQueueController extends Component
 
     // Window System
     public $selectedWindow = 1;
+    public string $clinicFilter = '';
     public $maxWindows = 4;
     public $isAvailable = true;
     public $requireCashier = false;
@@ -92,6 +93,7 @@ class PrescriptionQueueController extends Component
             $this->autoAssignWindow();
         }
 
+        $this->clinicFilter = session($this->clinicFilterKey(), '');
         $this->loadCurrentQueue();
     }
 
@@ -373,8 +375,46 @@ class PrescriptionQueueController extends Component
     public function updatedSelectedWindow($value)
     {
         session(['queue_window' => $value]);
+        $this->clinicFilter = session($this->clinicFilterKey(), '');
         $this->loadCurrentQueue();
         $this->resetPage();
+    }
+
+    public function updatedClinicFilter(): void
+    {
+        $this->validateOnly('clinicFilter', ['clinicFilter' => ['nullable', 'string', 'max:20']]);
+        session([$this->clinicFilterKey() => $this->clinicFilter]);
+        $this->resetPage();
+    }
+
+    private function clinicFilterKey(): string
+    {
+        return 'queue_clinic_filters.'.auth()->user()->pharm_location_id.'.'.$this->selectedWindow;
+    }
+
+    private function clinicOptions(): array
+    {
+        $counts = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->whereDate('queued_at', $this->dateFilter)
+            ->whereIn('queue_status', ['waiting', 'preparing', 'charging', 'ready'])
+            ->selectRaw("clinic_code, SUM(CASE WHEN queue_status = 'waiting' AND assigned_window IS NULL AND called_at IS NULL THEN 1 ELSE 0 END) AS waiting_count")
+            ->groupBy('clinic_code')
+            ->pluck('waiting_count', 'clinic_code');
+
+        $codes = $counts->keys()->filter(fn ($code) => $code !== '');
+        if ($this->clinicFilter !== '' && $this->clinicFilter !== PrescriptionQueue::UNASSIGNED_CLINIC) {
+            $codes->push($this->clinicFilter);
+        }
+        $names = \App\Models\References\ServiceType::whereIn('tscode', $codes->unique())
+            ->orderBy('tsdesc')->pluck('tsdesc', 'tscode');
+
+        $options = ['' => ['name' => 'All clinics', 'waiting' => $counts->sum()]];
+        foreach ($codes->unique()->sortBy(fn ($code) => $names[$code] ?? $code) as $code) {
+            $options[$code] = ['name' => $names[$code] ?? $code, 'waiting' => $counts[$code] ?? 0];
+        }
+        $options[PrescriptionQueue::UNASSIGNED_CLINIC] = ['name' => 'No clinic recorded', 'waiting' => $counts[''] ?? 0];
+
+        return $options;
     }
 
     public function getQueuesProperty()
@@ -382,6 +422,7 @@ class PrescriptionQueueController extends Component
         return PrescriptionQueue::query()
             ->with(['patient'])
             ->where('location_code', auth()->user()->pharm_location_id)
+            ->forClinicFilter($this->clinicFilter)
             ->whereDate('queued_at', $this->dateFilter)
             ->whereIn('queue_status', ['waiting', 'preparing', 'charging', 'ready'])
             ->where(function ($q) {
@@ -402,6 +443,7 @@ class PrescriptionQueueController extends Component
     public function getStatsProperty()
     {
         $baseQuery = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
+            ->forClinicFilter($this->clinicFilter)
             ->whereDate('queued_at', $this->dateFilter);
 
         return [
@@ -547,47 +589,25 @@ class PrescriptionQueueController extends Component
     #[Locked]
     public function nextQueue()
     {
-        $nextQueue = PrescriptionQueue::where('location_code', auth()->user()->pharm_location_id)
-            ->where('queue_status', 'waiting')
-            ->whereNull('assigned_window')
-            ->whereNull('called_at')
-            ->whereDate('queued_at', $this->dateFilter)
-            ->orderByRaw("
-                CASE
-                    WHEN priority = 'stat' THEN 1
-                    WHEN priority = 'urgent' THEN 2
-                    ELSE 3
-                END
-            ")
-            ->orderBy('queued_at', 'asc')
-            ->first();
+        try {
+            $nextQueue = $this->queueService->claimNextQueue(
+                auth()->user()->pharm_location_id, $this->dateFilter, $this->clinicFilter,
+                (int) $this->selectedWindow, auth()->user()->employeeid,
+            );
+        } catch (\Exception $exception) {
+            report($exception);
+            $this->error('Could not call the next queue.');
+            return;
+        }
 
         if (!$nextQueue) {
             $this->warning('No waiting queues available');
             return;
         }
 
-        $result = $this->queueService->updateQueueStatus(
-            $nextQueue->id,
-            'preparing',
-            auth()->user()->employeeid,
-            "Started on Window {$this->selectedWindow}"
-        );
-
-        if ($result['success']) {
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $nextQueue->id)
-                ->update([
-                    'assigned_window' => $this->selectedWindow,
-                    'prepared_by' => auth()->user()->employeeid,
-                    'preparing_at' => now(),
-                ]);
-            $this->selectedQueueId = $nextQueue->id;
-            $this->success("Now serving: {$nextQueue->queue_number}");
-            $this->loadCurrentQueue();
-        } else {
-            $this->error($result['message']);
-        }
+        $this->selectedQueueId = $nextQueue->id;
+        $this->success("Now serving: {$nextQueue->queue_number}");
+        $this->loadCurrentQueue();
     }
 
     #[Locked]
@@ -696,13 +716,13 @@ class PrescriptionQueueController extends Component
         $encrypted = Crypt::encrypt(str_replace(' ', '--', $this->currentQueue->enccode));
 
         return redirect()->to(
-            route('dispensing.view.enctr', ['enccode' => $encrypted]) . '?queue_id=' . $this->currentQueue->id
+            route('dispensing.view.enctr', ['enccode' => $encrypted, 'queue_id' => $this->currentQueue->id, 'clinic' => $this->clinicFilter, 'window' => $this->selectedWindow, 'queue_date' => $this->dateFilter])
         );
     }
 
     public function selectQueue($queueId)
     {
-        $queue = PrescriptionQueue::find($queueId);
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)->forClinicFilter($this->clinicFilter)->find($queueId);
         $this->selectedQueueId = $queueId;
         if (!$queue || (!$queue->isWaiting() && !$queue->isPreparing())) {
             $this->error('Queue is not available for selection');
@@ -891,6 +911,7 @@ class PrescriptionQueueController extends Component
             'queues' => $this->queues,
             'stats' => $this->stats,
             'locations' => $this->locations,
+            'clinicOptions' => $this->clinicOptions(),
         ]);
     }
 

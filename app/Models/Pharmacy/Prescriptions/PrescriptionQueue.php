@@ -15,6 +15,8 @@ class PrescriptionQueue extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const UNASSIGNED_CLINIC = '__unassigned';
+
     protected $connection = 'webapp';
     protected $table = 'prescription_queues';
 
@@ -26,6 +28,7 @@ class PrescriptionQueue extends Model
         'queue_prefix',
         'sequence_number',
         'location_code',
+        'clinic_code',
         'queue_status',
         'priority',
         'queued_at',
@@ -112,6 +115,15 @@ class PrescriptionQueue extends Model
     public function scopeWaiting($query)
     {
         return $query->where('queue_status', 'waiting');
+    }
+
+    public function scopeForClinicFilter($query, string $clinic)
+    {
+        return match ($clinic) {
+            '' => $query,
+            self::UNASSIGNED_CLINIC => $query->whereNull('clinic_code'),
+            default => $query->where('clinic_code', $clinic),
+        };
     }
 
     public function scopePreparing($query)

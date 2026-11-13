@@ -124,7 +124,10 @@
     </div>
 
     {{-- Main Content Area --}}
-    <main class="h-[calc(100vh-73px)] overflow-hidden">
+    <main @class([
+        'min-h-[calc(100vh-73px)]' => request()->routeIs('prescriptions.queue.controller2', 'prescriptions.opd-walkthrough'),
+        'h-[calc(100vh-73px)] overflow-hidden' => !request()->routeIs('prescriptions.queue.controller2', 'prescriptions.opd-walkthrough'),
+    ])>
         {{ $slot }}
     </main>
 

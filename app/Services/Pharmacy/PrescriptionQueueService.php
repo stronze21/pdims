@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueue;
 use App\Models\Pharmacy\Prescriptions\PrescriptionQueueLog;
 use App\Models\Record\Prescriptions\Prescription;
+use App\Models\Record\Encounters\OpdLog;
 use Illuminate\Support\Facades\Log;
 
 class PrescriptionQueueService
@@ -79,6 +80,7 @@ class PrescriptionQueueService
             );
 
             // Create queue
+            $clinicCode = trim((string) OpdLog::where('enccode', $validated['enccode'])->value('tscode'));
             $queue = PrescriptionQueue::create([
                 'prescription_id' => $validated['prescription_id'],
                 'enccode' => $validated['enccode'],
@@ -87,6 +89,7 @@ class PrescriptionQueueService
                 'queue_prefix' => $validated['queue_prefix'] ?? 'RX',
                 'sequence_number' => $queueData['sequence_number'],
                 'location_code' => $validated['location_code'],
+                'clinic_code' => $clinicCode !== '' ? $clinicCode : null,
                 'queue_status' => 'waiting',
                 'priority' => $validated['priority'] ?? 'normal',
                 'queued_at' => now(),
@@ -120,6 +123,46 @@ class PrescriptionQueueService
                 'message' => 'Failed to create queue',
             ];
         }
+    }
+
+    public function claimNextQueue($location, $date, string $clinic, ?int $window, $employee): ?PrescriptionQueue
+    {
+        $queue = DB::connection('webapp')->transaction(function () use ($location, $date, $clinic, $window, $employee) {
+            $queue = PrescriptionQueue::forLocation($location)
+                ->forClinicFilter($clinic)
+                ->waiting()
+                ->whereNull('assigned_window')
+                ->whereNull('called_at')
+                ->whereDate('queued_at', $date)
+                ->orderByPriority()
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $queue) return null;
+
+            $queue->update([
+                'queue_status' => 'preparing',
+                'assigned_window' => $window,
+                'preparing_at' => now(),
+                'prepared_by' => $employee,
+            ]);
+            PrescriptionQueueLog::create([
+                'queue_id' => $queue->id,
+                'status_from' => 'waiting',
+                'status_to' => 'preparing',
+                'changed_by' => $employee,
+                'remarks' => $window ? "Started on Window {$window}" : 'Selected from dispensing encounter',
+            ]);
+
+            return $queue;
+        }, 3);
+
+        if ($queue) {
+            rescue(fn () => \App\Events\Pharmacy\QueueStatusChanged::dispatch($queue, 'waiting', 'preparing'));
+        }
+
+        return $queue;
     }
 
     /**
