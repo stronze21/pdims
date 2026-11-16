@@ -71,9 +71,10 @@ class PrescriptionPrintService
     private function formatItem(object $item, float $issued, bool $deductIssued): object
     {
         $ordered = is_numeric($item->qty) ? (float) $item->qty : null;
-        $dose = strtoupper(trim((string) $item->entry_source)) === 'EMR2'
-            && is_numeric($item->qty_per_intake) && $item->qty_per_intake > 0
-            ? (float) $item->qty_per_intake
+        $source = strtoupper(trim((string) ($item->entry_source ?? '')));
+        $qtyPerIntake = $item->qty_per_intake ?? null;
+        $dose = $source === 'EMR2' && is_numeric($qtyPerIntake) && $qtyPerIntake > 0
+            ? (float) $qtyPerIntake
             : null;
         $issued = max(0, $issued);
 
