@@ -69,26 +69,25 @@
                                         @else
                                             onclick="const width = screen.availWidth; const height = screen.availHeight; window.open(@js($dispensingUrl), 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
                                         @endif
-                                        class="btn btn-accent btn-block btn-lg touch-target">
+                                        class="btn btn-outline btn-block min-h-11 touch-target text-base font-semibold">
                                         <x-mary-icon name="o-beaker" class="w-5 h-5" />
-                                        OPEN DISPENSING
+                                        Open Dispensing
                                     </button>
                                 @else
                                     <div class="alert alert-warning">
                                         <span class="text-xs">No encounter linked to this queue.</span>
                                     </div>
                                 @endif
-                                <div class="alert alert-info">
-                                    <span class="text-xs">Preparing medications. Open dispensing to charge and issue
-                                        items.</span>
-                                </div>
                                 @unless($opdTraining ?? false)
                                     <x-mary-button label="Mark Ready for Claiming" icon="o-bell-alert"
-                                        class="btn-success btn-block touch-target"
+                                        class="btn-primary btn-block min-h-11 touch-target text-base font-bold"
                                         wire:click="markReadyForClaiming({{ $currentQueue->id }})"
                                         wire:mary-confirm="Mark queue {{ $currentQueue->queue_number }} as ready for claiming?"
                                         spinner="markReadyForClaiming" />
                                 @endunless
+                                @if ($currentQueue->enccode)
+                                    <p class="text-sm opacity-80">Open dispensing to charge and issue items.</p>
+                                @endif
                             @elseif ($currentQueue->isReady())
                                 {{-- Ready → Waiting for patient to claim --}}
                                 <div class="alert alert-success">

@@ -277,7 +277,7 @@
                     @endif
                     @if ($currentQueueStatus === 'preparing' && !($opdTraining ?? false))
                         <x-mary-button label="Mark Ready for Claiming" icon="o-bell-alert"
-                            class="btn-sm btn-outline btn-success"
+                            class="btn-sm btn-primary text-base font-bold"
                             wire:click="markReadyForClaiming"
                             wire:mary-confirm="Mark queue {{ $currentQueueNumber }} as ready for claiming?"
                             spinner="markReadyForClaiming" />
