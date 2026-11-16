@@ -583,38 +583,37 @@ class PrescriptionQueueController extends Component
     }
 
     #[Locked]
-    public function dispenseQueue()
+    public function dispenseQueue(int $queueId): void
     {
-        if (!$this->currentQueue) {
-            $this->warning('No queue to dispense');
-            return;
-        }
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->where('assigned_window', $this->selectedWindow)
+            ->whereDate('queued_at', $this->dateFilter)
+            ->find($queueId);
 
-        if (!$this->currentQueue->isReady()) {
-            $this->warning('Queue must be ready for dispensing');
+        if (!$queue) {
+            $this->warning('This queue is no longer assigned to the selected window and date.');
+            $this->refreshQueues();
             return;
         }
 
         $result = $this->queueService->updateQueueStatus(
-            $this->currentQueue->id,
+            $queue->id,
             'dispensed',
             auth()->user()->employeeid,
-            'Items dispensed to patient'
+            'Items claimed by patient',
+            expectedStatus: 'ready',
         );
 
         if ($result['success']) {
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $this->currentQueue->id)
-                ->update([
-                    'dispensed_by' => auth()->user()->employeeid,
-                    'dispensed_at' => now(),
-                ]);
-
-            $this->success("Queue {$this->currentQueue->queue_number} completed!");
-            $this->loadCurrentQueue();
+            if ((int) $this->selectedQueueId === $queueId) {
+                $this->selectedQueueId = null;
+            }
+            $this->success("Queue {$queue->queue_number} marked as claimed.");
         } else {
             $this->error($result['message']);
         }
+
+        $this->refreshQueues();
     }
 
     #[Locked]
@@ -800,45 +799,6 @@ class PrescriptionQueueController extends Component
         }
 
         $this->loadCurrentQueue();
-    }
-
-    public function dispenseAndNext()
-    {
-        if (!$this->currentQueue) {
-            $this->warning('No queue to dispense');
-            return;
-        }
-
-        if (!$this->currentQueue->isReady()) {
-            $this->warning('Queue must be ready for dispensing');
-            return;
-        }
-
-        $result = $this->queueService->updateQueueStatus(
-            $this->currentQueue->id,
-            'dispensed',
-            auth()->user()->employeeid,
-            'Items dispensed to patient'
-        );
-
-        if ($result['success']) {
-            DB::connection('webapp')->table('prescription_queues')
-                ->where('id', $this->currentQueue->id)
-                ->update([
-                    'dispensed_by' => auth()->user()->employeeid,
-                    'dispensed_at' => now(),
-                ]);
-
-            $this->success("Queue {$this->currentQueue->queue_number} completed!");
-
-            // Auto-call the next waiting queue
-            $this->loadCurrentQueue();
-            if (!$this->currentQueue) {
-                $this->nextQueue();
-            }
-        } else {
-            $this->error($result['message']);
-        }
     }
 
     public function viewQueue($queueId)

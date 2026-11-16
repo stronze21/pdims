@@ -2460,69 +2460,63 @@ class DispensingEncounter extends Component
         return $this->queueSelectAndOpen($nextQueue->id);
     }
 
-    public function queueCompleteAndNext(): mixed
+    public function markClaimed(): void
     {
-        // Complete current queue first
-        if ($this->queueId) {
-            $queue = PrescriptionQueue::find($this->queueId);
-            if ($queue && !$queue->isDispensed()) {
-                $queueService = app(PrescriptionQueueService::class);
-                $result = $queueService->updateQueueStatus(
-                    $this->queueId,
-                    'dispensed',
-                    auth()->user()->employeeid,
-                    'Completed, moving to next queue'
-                );
-
-                if ($result['success']) {
-                    DB::connection('webapp')->table('prescription_queues')
-                        ->where('id', $this->queueId)
-                        ->update([
-                            'dispensed_by' => auth()->user()->employeeid,
-                            'dispensed_at' => now(),
-                        ]);
-                }
-            }
-
-            $this->currentQueueStatus = 'dispensed';
+        if (!$this->queueId || !$this->enccode) {
+            $this->warning('No queue linked to this dispensing encounter.');
+            return;
         }
 
-        // Then call next (will redirect if queue found, or update state if not)
-        $result = $this->queueCallNext();
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->where('enccode', $this->decryptEnccode())
+            ->find($this->queueId);
 
-        // If no next queue was found, refresh state so UI shows completed status
-        if ($result === null) {
-            $this->refreshQueueStatus();
-            $this->loadQueueList();
+        if (!$queue) {
+            $this->warning('No queue linked to this dispensing encounter.');
+            return;
         }
 
-        return $result;
+        $result = app(PrescriptionQueueService::class)->updateQueueStatus(
+            $queue->id,
+            'dispensed',
+            auth()->user()->employeeid,
+            'Items claimed by patient',
+            expectedStatus: 'ready',
+        );
+
+        $this->refreshQueueStatus();
+        $this->loadQueueList();
+
+        if (!$result['success']) {
+            $this->error($result['message']);
+            return;
+        }
+
+        $this->success("Queue {$queue->queue_number} marked as claimed.");
     }
 
     private function autoUpdateQueueOnIssue(): void
     {
         if (!$this->queueId) return;
 
-        $queue = PrescriptionQueue::find($this->queueId);
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->where('enccode', $this->decryptEnccode())
+            ->find($this->queueId);
         if (!$queue || $queue->isDispensed() || $queue->isCancelled()) return;
 
-        // Mark as dispensed when items are issued (from any active state)
-        $queueService = app(PrescriptionQueueService::class);
-        $queueService->updateQueueStatus(
-            $this->queueId,
-            'dispensed',
+        $result = app(PrescriptionQueueService::class)->updateQueueStatus(
+            $queue->id,
+            'ready',
             auth()->user()->employeeid,
-            'Auto-dispensed via dispensing encounter'
+            'Items issued, ready for claiming',
         );
 
-        DB::connection('webapp')->table('prescription_queues')
-            ->where('id', $this->queueId)
-            ->update([
-                'dispensed_by' => auth()->user()->employeeid,
-                'dispensed_at' => now(),
-            ]);
+        $this->refreshQueueStatus();
+        $this->loadQueueList();
 
-        $this->currentQueueStatus = 'dispensed';
+        if (!$result['success']) {
+            $this->warning('Items were issued. Check the queue status before calling the patient.');
+        }
     }
 
     public function completeQueueAndReturn(): mixed

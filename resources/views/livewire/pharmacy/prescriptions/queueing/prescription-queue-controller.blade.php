@@ -106,27 +106,22 @@
                                     @endphp
                                     <button
                                         onclick="const width = screen.availWidth; const height = screen.availHeight; window.open(@js($dispensingUrl), 'dispensingApp', `toolbar=no,menubar=no,location=no,status=no,width=${width},height=${height},left=0,top=0`); return false;"
-                                        class="btn btn-accent btn-block btn-sm touch-target">
+                                        class="btn btn-outline btn-block min-h-11 touch-target text-base font-semibold">
                                         <x-mary-icon name="o-beaker" class="w-4 h-4" />
                                         Open Dispensing
                                     </button>
                                 @endif
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button wire:click="dispenseQueue" class="btn btn-success btn-sm touch-target">
-                                        <x-mary-icon name="o-check" class="w-4 h-4" />
-                                        Mark Dispensed
-                                    </button>
-                                    <button wire:click="dispenseAndNext" class="btn btn-primary btn-sm touch-target">
-                                        <x-mary-icon name="o-forward" class="w-4 h-4" />
-                                        Dispense & Next
-                                    </button>
-                                </div>
+                                <x-mary-button label="Mark Claimed" icon="o-check"
+                                    class="btn-primary btn-block min-h-11 touch-target text-base font-bold"
+                                    wire:click="dispenseQueue({{ $currentQueue->id }})"
+                                    wire:confirm="Mark this queue as claimed? Confirm the patient has collected the items."
+                                    spinner="dispenseQueue" />
                             @endif
 
                             @unless($opdTraining ?? false)
                             {{-- Next Queue (always visible) --}}
                             <button wire:click="nextQueue"
-                                class="btn btn-outline btn-primary btn-block btn-sm touch-target">
+                                class="btn btn-outline btn-block btn-sm touch-target text-base font-semibold">
                                 <x-mary-icon name="o-arrow-right" class="w-4 h-4" />
                                 Next Queue
                             </button>

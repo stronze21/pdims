@@ -41,6 +41,9 @@ class OpdWalkthrough extends Component
     #[Locked]
     public bool $patientCalled = false;
 
+    #[Locked]
+    public bool $itemIssued = false;
+
     public int $selectedWindow = 1;
 
     public string $dateFilter = '';
@@ -137,7 +140,7 @@ class OpdWalkthrough extends Component
 
     public function openIssueModal(): void
     {
-        $this->showIssueModal = $this->patientCalled && $this->hasSelectedOrder('ready');
+        $this->showIssueModal = !$this->itemIssued && $this->patientCalled && $this->hasSelectedOrder('ready');
         if ($this->showIssueModal) {
             $this->deptcode = self::PRESCRIBING_CLINIC;
         }
@@ -160,16 +163,23 @@ class OpdWalkthrough extends Component
 
     public function issue_order(): array
     {
-        if (! $this->patientCalled || ! $this->showIssueModal || ! $this->hasSelectedOrder('ready') || ! isset(self::OPD_CLINICS[$this->deptcode])) {
+        if ($this->itemIssued || ! $this->patientCalled || ! $this->showIssueModal || ! $this->hasSelectedOrder('ready') || ! isset(self::OPD_CLINICS[$this->deptcode])) {
             return ['status' => 'error', 'message' => 'Select the prescribing OPD clinic before confirming the issue.'];
         }
 
-        $this->stage = 'dispensed';
-        $this->showTrainingDisplay = true;
+        $this->itemIssued = true;
         $this->showIssueModal = false;
         $this->selected_items = [];
 
-        return ['status' => 'success', 'message' => 'The sample item is issued and the queue is Dispensed.'];
+        return ['status' => 'success', 'message' => 'The sample item was issued. The queue remains Ready for Claiming.'];
+    }
+
+    public function markClaimed(): void
+    {
+        if ($this->screen === 'dispensing' && $this->stage === 'ready' && $this->itemIssued) {
+            $this->stage = 'dispensed';
+            $this->showTrainingDisplay = true;
+        }
     }
 
     public function openPrintPrescriptionsModal(): void
@@ -306,7 +316,7 @@ class OpdWalkthrough extends Component
     {
         $status = match ($this->stage) {
             'preparing' => 'U',
-            'ready' => 'P',
+            'ready' => $this->itemIssued ? 'S' : 'P',
             'dispensed' => 'S',
         };
         $chargeSlip = $status === 'U' ? null : 'DEMO-CHARGE-001';
@@ -344,9 +354,11 @@ class OpdWalkthrough extends Component
                 'opdTraining' => true,
                 'trainingHint' => match ($this->stage) {
                     'preparing' => 'Verify the sample encounter, select the pending medication, then choose Charge.',
-                    'ready' => $this->patientCalled
-                        ? 'Select the charged medication and choose Issue. Review the prefilled prescribing clinic, then confirm.'
-                        : 'Choose Call for Patient to see the claiming alert on the pharmacy TV display.',
+                    'ready' => match (true) {
+                        $this->itemIssued => 'Choose Mark Claimed after the patient collects the medication.',
+                        $this->patientCalled => 'Select the charged medication and choose Issue. Review the prefilled prescribing clinic, then confirm.',
+                        default => 'Choose Call for Patient to see the claiming alert on the pharmacy TV display.',
+                    },
                     'dispensed' => 'Open Tools → Print Rx. Select the medication and clear the deduction option to preview the full prescribed quantity.',
                 },
                 'hasEncounter' => true,

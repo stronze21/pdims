@@ -15,7 +15,7 @@ const guidance = {
     'tv-preparing': ['Now Preparing', 'RX-001 has moved to Window 1. The smaller Waiting column shows numbers that haven’t been called.'],
     'tv-ready': ['Ready for Claiming', 'Charging moves RX-001 to Ready for Claiming. It shows Window 1 before staff call for the patient.'],
     'tv-calling': ['Now Calling', 'RX-001 is ready to claim. The Waiting column still shows the uncalled numbers.'],
-    'tv-dispensed': ['After Dispensing', 'RX-001 disappears from the patient display once the medicine is issued. Other waiting numbers stay on screen.'],
+    'tv-dispensed': ['After Pickup', 'RX-001 disappears from the patient display once the queue is marked as claimed. Other waiting numbers stay on screen.'],
     'open-dispensing': ['Open Dispensing', 'Check that the patient and queue number match before opening the dispensing encounter.'],
     'select-pending': ['Select the pending item', 'Check the box beside Sample Medication A to prepare it for charging.'],
     charge: ['Charge', 'Charge the selected sample medication. The queue will move to Ready.'],
@@ -24,7 +24,8 @@ const guidance = {
     'select-charged': ['Select the charged item', 'Check the charged medication before issuing it to the patient.'],
     issue: ['Issue', 'Open the issue confirmation to review the transaction details.'],
     department: ['Choose the prescribing clinic', 'Select the OPD clinic that prescribed the sample medication.'],
-    'confirm-issue': ['Confirm Issue', 'Review the OPD clinic prefilled from the prescription, then confirm the handover. The queue will move to Dispensed.'],
+    'confirm-issue': ['Confirm Issue', 'Review the prefilled OPD clinic, then confirm the issue. The queue stays Ready for Claiming.'],
+    'mark-claimed': ['Mark Claimed', 'Confirm pickup after the patient collects the medication.'],
     'processing-done': ['Done', 'Close the transaction result to continue the walkthrough.'],
     tools: ['Open Tools', 'The prescription printing action is in the dispensing Tools menu.'],
     'print-rx': ['Print Rx', 'Open the prescription and choose which items to include on the form.'],
@@ -76,6 +77,7 @@ function nextAction(root) {
             if (action('open-dispensing')) return [action('open-dispensing'), 'open-dispensing'];
             return available(action('charge')) ? [action('charge'), 'charge'] : [action('select-order'), 'select-pending'];
         case 'ready':
+            if (available(action('mark-claimed'))) return [action('mark-claimed'), 'mark-claimed'];
             {
                 const confirmCall = document.querySelector('.modal-open [data-opd-action="confirm-call"]');
                 if (confirmCall) return [confirmCall, 'confirm-call'];

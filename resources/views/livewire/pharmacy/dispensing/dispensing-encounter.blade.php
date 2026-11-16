@@ -283,10 +283,18 @@
                             spinner="markReadyForClaiming" />
                     @elseif ($currentQueueStatus === 'ready')
                         <x-mary-button label="Call for Patient" icon="o-megaphone"
-                            :class="'btn-sm btn-warning '.(($opdTraining ?? false) ? '' : 'animate-pulse')"
+                            class="btn-sm btn-outline text-base font-bold"
                             data-opd-action="call-patient"
                             wire:click="callForPatient"
                             wire:mary-confirm="Call patient for queue {{ $currentQueueNumber }}?" />
+                    @endif
+                    @if ($currentQueueStatus === 'ready' && (!($opdTraining ?? false) || $itemIssued))
+                        <x-mary-button label="Mark Claimed" icon="o-check"
+                            class="btn-sm btn-primary text-base font-bold"
+                            data-opd-action="mark-claimed"
+                            wire:click="markClaimed"
+                            wire:confirm="Mark this queue as claimed? Confirm the patient has collected the items."
+                            spinner="markClaimed" />
                     @endif
                 @else
                     <div class="flex items-center gap-2">
@@ -301,17 +309,9 @@
             </div>
             @unless($opdTraining ?? false)
             <div class="flex flex-wrap items-center justify-start gap-2 w-full sm:w-auto sm:justify-end">
-                @if ($queueId)
-                    @if ($currentQueueStatus !== 'dispensed')
-                        <x-mary-button label="Complete & Next" icon="o-forward" class="btn-sm btn-success"
-                            wire:click="queueCompleteAndNext"
-                            wire:mary-confirm="Mark this queue as dispensed and open the next queue?" />
-                    @else
-                        <x-mary-button label="Next Queue" icon="o-arrow-right" class="btn-sm btn-primary"
-                            wire:click="queueCallNext" />
-                    @endif
-                @else
-                    <x-mary-button label="Call Next Queue" icon="o-arrow-right" class="btn-sm btn-primary"
+                @if (!$queueId || $currentQueueStatus === 'dispensed')
+                    <x-mary-button :label="$queueId ? 'Next Queue' : 'Call Next Queue'" icon="o-arrow-right"
+                        class="btn-sm btn-primary text-base font-bold"
                         wire:click="queueCallNext" />
                 @endif
                 <button wire:click="toggleQueuePanel" class="btn btn-sm btn-ghost gap-1">
@@ -678,7 +678,7 @@
                                 :data-opd-requires-call="($opdTraining ?? false) ? 'yes' : null"
                                 x-bind:disabled="!selectionMatches('P') || ($el.dataset.opdRequiresCall === 'yes' && !$wire.patientCalled)"
                                 icon="o-paper-airplane"
-                                class="btn-sm btn-success"
+                                class="btn-sm btn-primary text-base font-bold"
                                 x-on:click="openIssueDialog()" />
 
                         </div>
