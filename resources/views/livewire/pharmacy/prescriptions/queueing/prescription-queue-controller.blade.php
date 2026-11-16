@@ -82,11 +82,18 @@
                                     <span class="text-xs">Preparing medications. Open dispensing to charge and issue
                                         items.</span>
                                 </div>
+                                @unless($opdTraining ?? false)
+                                    <x-mary-button label="Mark Ready for Claiming" icon="o-bell-alert"
+                                        class="btn-success btn-block touch-target"
+                                        wire:click="markReadyForClaiming({{ $currentQueue->id }})"
+                                        wire:mary-confirm="Mark queue {{ $currentQueue->queue_number }} as ready for claiming?"
+                                        spinner="markReadyForClaiming" />
+                                @endunless
                             @elseif ($currentQueue->isReady())
                                 {{-- Ready → Waiting for patient to claim --}}
                                 <div class="alert alert-success">
                                     <x-mary-icon name="o-check-circle" class="w-5 h-5" />
-                                    <span class="text-xs">Items charged. Waiting for patient to claim.</span>
+                                    <span class="text-xs">Ready for claiming. Waiting for patient to collect the items.</span>
                                 </div>
                                 @if ($currentQueue->enccode)
                                     @php

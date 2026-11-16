@@ -168,7 +168,7 @@ class PrescriptionQueueService
     /**
      * Update queue status
      */
-    public function updateQueueStatus($queueId, $newStatus, $userId = null, $remarks = null)
+    public function updateQueueStatus($queueId, $newStatus, $userId = null, $remarks = null, ?string $expectedStatus = null)
     {
         DB::connection('webapp')->beginTransaction();
         try {
@@ -178,6 +178,10 @@ class PrescriptionQueueService
             if ($oldStatus === $newStatus) {
                 DB::connection('webapp')->commit();
                 return ['success' => true, 'queue' => $queue, 'message' => 'Queue already has this status'];
+            }
+            if ($expectedStatus !== null && $oldStatus !== $expectedStatus) {
+                DB::connection('webapp')->rollBack();
+                return ['success' => false, 'message' => 'The queue status has changed. Check its current status.'];
             }
             if (!in_array($newStatus, ['waiting', 'preparing', 'charging', 'ready', 'dispensed', 'cancelled'], true)) {
                 throw new \InvalidArgumentException('Invalid queue status.');

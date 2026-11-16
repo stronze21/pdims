@@ -456,6 +456,37 @@ class PrescriptionQueueController extends Component
         ];
     }
 
+    public function markReadyForClaiming(int $queueId): void
+    {
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->where('assigned_window', $this->selectedWindow)
+            ->whereDate('queued_at', $this->dateFilter)
+            ->find($queueId);
+
+        if (!$queue) {
+            $this->warning('This queue is no longer assigned to the selected window and date.');
+            $this->refreshQueues();
+            return;
+        }
+
+        $result = $this->queueService->updateQueueStatus(
+            $queue->id,
+            'ready',
+            auth()->user()->employeeid,
+            'Marked ready for claiming from queue controller',
+            expectedStatus: 'preparing',
+        );
+
+        $this->refreshQueues();
+
+        if (!$result['success']) {
+            $this->error($result['message']);
+            return;
+        }
+
+        $this->success("Queue {$queue->queue_number} is ready for claiming.");
+    }
+
     #[Locked]
     public function callQueue()
     {

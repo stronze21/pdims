@@ -2230,6 +2230,41 @@ class DispensingEncounter extends Component
         }
     }
 
+    public function markReadyForClaiming(): void
+    {
+        if (!$this->queueId) {
+            $this->warning('No queue linked to this dispensing encounter.');
+            return;
+        }
+
+        $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)
+            ->where('enccode', $this->decryptEnccode())
+            ->find($this->queueId);
+
+        if (!$queue) {
+            $this->warning('No queue linked to this dispensing encounter.');
+            return;
+        }
+
+        $result = app(PrescriptionQueueService::class)->updateQueueStatus(
+            $queue->id,
+            'ready',
+            auth()->user()->employeeid,
+            'Marked ready for claiming from dispensing encounter',
+            expectedStatus: 'preparing',
+        );
+
+        $this->refreshQueueStatus();
+        $this->loadQueueList();
+
+        if (!$result['success']) {
+            $this->error($result['message']);
+            return;
+        }
+
+        $this->success("Queue {$queue->queue_number} is ready for claiming.");
+    }
+
     public function callForPatient(): void
     {
         if (!$this->queueId) {

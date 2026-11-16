@@ -275,7 +275,13 @@
                             <x-heroicon-o-check-circle class="w-3 h-3" /> Completed
                         </div>
                     @endif
-                    @if ($currentQueueStatus === 'ready')
+                    @if ($currentQueueStatus === 'preparing' && !($opdTraining ?? false))
+                        <x-mary-button label="Mark Ready for Claiming" icon="o-bell-alert"
+                            class="btn-sm btn-outline btn-success"
+                            wire:click="markReadyForClaiming"
+                            wire:mary-confirm="Mark queue {{ $currentQueueNumber }} as ready for claiming?"
+                            spinner="markReadyForClaiming" />
+                    @elseif ($currentQueueStatus === 'ready')
                         <x-mary-button label="Call for Patient" icon="o-megaphone"
                             :class="'btn-sm btn-warning '.(($opdTraining ?? false) ? '' : 'animate-pulse')"
                             data-opd-action="call-patient"
