@@ -22,6 +22,7 @@ class OpdTrainingPrintController
         $items = collect([(object) [
             'drug_concat' => OpdWalkthrough::MEDICATION,
             'print_qty' => $remaining ? 0 : 1,
+            'remaining_qty' => 0,
             'deduct_issued' => $remaining,
             'qty_issued' => 1,
             'order_type' => 'Basic',

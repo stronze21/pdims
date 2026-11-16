@@ -82,6 +82,7 @@ class PrescriptionPrintService
             'ordered_qty' => $ordered,
             'qty_per_administration' => $dose,
             'qty_issued' => $issued,
+            'remaining_qty' => $this->quantity($ordered, $issued, true),
             'print_qty' => $this->quantity($ordered, $issued, $deductIssued),
             'deduct_issued' => $deductIssued,
             'schedule_text' => trim((string) $item->remark),

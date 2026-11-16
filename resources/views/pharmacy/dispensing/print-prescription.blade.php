@@ -25,8 +25,7 @@
         .location { display: grid; grid-template-columns: minmax(0, 1fr) 32%; gap: 16px; }
         .rx { border-top: 3px double; padding-top: 8px; display: flex; gap: 8px; min-height: 48mm; }
         .rx-mark { font: bold 23pt/1 Georgia, serif; }
-        .columns { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-        ol { margin: 0; padding-left: 2em; }
+        ol { flex: 1; min-width: 0; margin: 0; padding-left: 2em; }
         li { padding-left: 2px; margin-bottom: 6px; break-inside: avoid; }
         .quantity { white-space: nowrap; }
         .directions { font-size: 9pt; }
@@ -80,11 +79,6 @@
     </div>
 
     @foreach ($pages->isEmpty() ? [collect()] : $pages as $page)
-        @php
-            $firstNumber = $loop->index * 10 + 1;
-            $columns = [$page->take(6), $page->skip(6)];
-        @endphp
-
         <main class="form">
             <header>
                 @if ($opdTraining ?? false)
@@ -113,44 +107,38 @@
 
             <section class="rx" aria-label="Prescription items">
                 <span class="rx-mark" aria-hidden="true">℞</span>
-                <div class="columns">
-                    @foreach ($columns as $column)
-                        @if ($column->isNotEmpty())
-                            <ol start="{{ $firstNumber + $loop->index * 6 }}">
-                                @foreach ($column as $item)
-                                    <li>
-                                        <strong>{{ $item->drug_concat }}</strong>
-                                        @if ($item->print_qty !== null)
-                                            <strong class="quantity">#{{ $item->print_qty }}</strong>
-                                        @endif
-                                        <div class="directions">
-                                            {{ $item->deduct_issued ? 'Remaining qty' : 'Full prescribed qty' }}
-                                            @if ($item->print_qty === null)
-                                                unavailable
-                                            @endif
-                                            · Issued qty {{ $item->qty_issued }}
-                                            · {{ $item->order_type ?: 'Basic' }}
-                                        </div>
-                                        @if ($item->qty_per_administration !== null || $item->schedule_text || $item->days_to_cover)
-                                            <div class="directions">
-                                                @if ($item->qty_per_administration !== null)
-                                                    Qty per dose {{ $item->qty_per_administration }}
-                                                @endif
-                                                {{ $item->schedule_text }}
-                                                @if ($item->days_to_cover)
-                                                    ({{ $item->days_to_cover }} day(s))
-                                                @endif
-                                            </div>
-                                        @endif
-                                        @if ($item->addtl_remarks)
-                                            <div class="directions note"><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
-                                        @endif
-                                    </li>
-                                @endforeach
-                            </ol>
+                <ol start="{{ $loop->index * 10 + 1 }}">
+                    @foreach ($page as $item)
+                    <li>
+                        <strong>{{ $item->drug_concat }}</strong>
+                        @if ($item->print_qty !== null)
+                            <strong class="quantity">#{{ $item->print_qty }}</strong>
                         @endif
+                        <div class="directions">
+                            @unless ($item->deduct_issued)
+                                Full prescribed qty {{ $item->print_qty ?? 'Unavailable' }} ·
+                            @endunless
+                            Remaining qty {{ $item->remaining_qty ?? 'Unavailable' }}
+                            · Issued qty {{ $item->qty_issued ?? 0 }}
+                            · {{ $item->order_type ?: 'Basic' }}
+                        </div>
+                        @if ($item->qty_per_administration !== null || $item->schedule_text || $item->days_to_cover)
+                            <div class="directions">
+                                @if ($item->qty_per_administration !== null)
+                                    Qty per dose {{ $item->qty_per_administration }}
+                                @endif
+                                {{ $item->schedule_text }}
+                                @if ($item->days_to_cover)
+                                    ({{ $item->days_to_cover }} day(s))
+                                @endif
+                            </div>
+                        @endif
+                        @if ($item->addtl_remarks)
+                            <div class="directions note"><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
+                        @endif
+                    </li>
                     @endforeach
-                </div>
+                </ol>
             </section>
 
             <footer>
