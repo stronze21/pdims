@@ -214,9 +214,17 @@ Route::middleware([
         SELECT
             pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type, pd.entry_source, pd.qty_per_intake,
             pd.remark, pd.addtl_remarks, pd.tkehome, pd.stat,
-            pd.frequency, pd.duration, dm.drug_concat
+            pd.frequency, pd.duration, dm.drug_concat,
+            sig.signature_id, sig.png_base64 AS signature_png, sig.prescriber_name, provider.licno AS prescriber_license
         FROM prescription_data pd
         INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+        LEFT JOIN webapp.dbo.rx_signed_items sig ON sig.item_id = pd.id
+        OUTER APPLY (
+            SELECT MIN(licno) AS licno
+            FROM hospital.dbo.hprovider
+            WHERE employeeid = pd.entry_by AND sig.signature_id IS NOT NULL
+            HAVING COUNT(licno) = 1
+        ) provider
         WHERE pd.presc_id = ? {$statusFilter} AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
         ORDER BY pd.created_at ASC
     ", array_merge([$queue->prescription_id], $printItems)));
@@ -257,10 +265,18 @@ Route::middleware([
             SELECT
                 pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type, pd.entry_source, pd.qty_per_intake,
                 pd.remark, pd.addtl_remarks, pd.stat,
-                pd.frequency, pd.duration, dm.drug_concat
+                pd.frequency, pd.duration, dm.drug_concat,
+                sig.signature_id, sig.png_base64 AS signature_png, sig.prescriber_name, provider.licno AS prescriber_license
             FROM prescription_data pd
             INNER JOIN prescription rx ON pd.presc_id = rx.id
             INNER JOIN hospital.dbo.hdmhdr dm ON pd.dmdcomb = dm.dmdcomb AND pd.dmdctr = dm.dmdctr
+            LEFT JOIN webapp.dbo.rx_signed_items sig ON sig.item_id = pd.id
+            OUTER APPLY (
+                SELECT MIN(licno) AS licno
+                FROM hospital.dbo.hprovider
+                WHERE employeeid = pd.entry_by AND sig.signature_id IS NOT NULL
+                HAVING COUNT(licno) = 1
+            ) provider
             WHERE rx.enccode = ? {$statusFilter} AND pd.id IN (" . implode(',', array_fill(0, count($printItems), '?')) . ")
             ORDER BY pd.created_at ASC
         ", array_merge([$enccode], $printItems)));

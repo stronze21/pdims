@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-16
+
+### Prescriptions
+
+- Printed OPD prescriptions from CDOE now show the saved prescriber signature on the pages for the medicines that prescriber signed.
+
 ## 2026-11-04
 
 ### Improvements

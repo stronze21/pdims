@@ -32,6 +32,7 @@
         .note { white-space: pre-line; }
         .signature, .processing { break-inside: avoid; }
         .signature { display: grid; grid-template-columns: minmax(0, 1fr) 42%; gap: 16px; align-items: end; }
+        .prescriber-signature { display: block; width: auto; max-width: 100%; height: auto; max-height: 15mm; }
         .generics { margin: 0 0 4px; font: bold 15pt Georgia, serif; }
         .credentials .field { display: grid; grid-template-columns: minmax(0, 1fr) 65px; }
         .processing { border-top: 3px double; padding-top: 5px; display: grid; grid-template-columns: 60% minmax(0, 1fr); gap: 0 12px; }
@@ -65,7 +66,11 @@
             : '';
         $date = now();
         $address = $patient?->primaryAddress ? $patient->getFullAddress() : '';
-        $pages = $items->values()->chunk(10);
+        $pages = $items->values()
+            ->chunkWhile(fn ($item, $key, $group) =>
+                ($item->signature_id ?? null) === ($group->last()->signature_id ?? null))
+            ->flatMap(fn ($group) => $group->values()->chunk(10));
+        $itemNumber = 1;
     @endphp
 
     <div class="toolbar">
@@ -79,6 +84,10 @@
     </div>
 
     @foreach ($pages->isEmpty() ? [collect()] : $pages as $page)
+        @php
+            $firstItem = $page->first();
+            $prescriber = isset($firstItem->signature_id) && !($opdTraining ?? false) ? $firstItem : null;
+        @endphp
         <main class="form">
             <header>
                 @if ($opdTraining ?? false)
@@ -90,8 +99,8 @@
                 <h1>PRESCRIPTION FORM</h1>
             </header>
 
-            <div class="field"><strong>PRINT:</strong><span class="line"></span><strong>MD</strong></div>
-            <div class="field license"><span class="line"></span><strong>LICENSE NO.</strong></div>
+            <div class="field"><strong>PRINT:</strong><span class="line">{{ $prescriber->prescriber_name ?? '' }}</span><strong>MD</strong></div>
+            <div class="field license"><span class="line">{{ trim($prescriber->prescriber_license ?? '') }}</span><strong>LICENSE NO.</strong></div>
 
             <div class="patient">
                 <div><span class="line">{{ $patientName }}</span><strong>NAME OF PATIENT</strong></div>
@@ -107,7 +116,7 @@
 
             <section class="rx" aria-label="Prescription items">
                 <span class="rx-mark" aria-hidden="true">℞</span>
-                <ol start="{{ $loop->index * 10 + 1 }}">
+                <ol start="{{ $itemNumber }}">
                     @foreach ($page as $item)
                     <li>
                         <strong>{{ $item->drug_concat }}</strong>
@@ -144,7 +153,15 @@
                 <div class="signature">
                     <p class="generics">“mag generics tayo”</p>
                     <div class="credentials">
-                        <div class="field"><span class="line"></span><strong>MD</strong></div>
+                        <div class="field">
+                            <span class="line">
+                                @if (!empty($prescriber->signature_png))
+                                    <img class="prescriber-signature" src="data:image/png;base64,{{ $prescriber->signature_png }}"
+                                        alt="Prescriber's signature">
+                                @endif
+                            </span>
+                            <strong>MD</strong>
+                        </div>
                         <div class="field"><span class="line"></span><strong>PTR NO.</strong></div>
                         <div class="field"><span class="line"></span><strong>S2 NO.</strong></div>
                     </div>
@@ -156,6 +173,7 @@
                 </div>
             </footer>
         </main>
+        @php($itemNumber += $page->count())
     @endforeach
 </body>
 

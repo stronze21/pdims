@@ -43,5 +43,10 @@ auth.json
 !/tests/Unit/PharmacyReportTest.php
 /.codex-remote-attachments
 /tests
+!/tests/
+/tests/*
+!/tests/Unit/
+/tests/Unit/*
+!/tests/Unit/PrescriptionPrintSignatureTest.php
 /docs
 /.codex-attachments
