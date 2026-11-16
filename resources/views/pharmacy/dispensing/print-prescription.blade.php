@@ -120,7 +120,6 @@
                             @endunless
                             Remaining qty {{ $item->remaining_qty ?? 'Unavailable' }}
                             · Issued qty {{ $item->qty_issued ?? 0 }}
-                            · {{ $item->order_type ?: 'Basic' }}
                         </div>
                         @if ($item->qty_per_administration !== null || $item->schedule_text || $item->days_to_cover)
                             <div class="directions">
