@@ -489,7 +489,7 @@
                                                 wire:click="selectAllItems">
                                         </th>
                                         <th>Drug</th>
-                                        <th>Qty/Admin</th>
+                                        <th>Ordered Qty</th>
                                         <th>Schedule</th>
                                         <th>Days</th>
                                         <th>Type</th>
@@ -510,7 +510,7 @@
                                                     <div class="text-xs text-warning">Inactive</div>
                                                 @endif
                                             </td>
-                                            <td>{{ $item['qty_per_administration'] }}</td>
+                                            <td>{{ $item['ordered_qty'] ?? '—' }}</td>
                                             <td>{{ $item['schedule_text'] ?? 'N/A' }}</td>
                                             <td>{{ $item['days_to_cover'] ?? 'N/A' }}</td>
                                             <td>

@@ -128,18 +128,20 @@
                                             @if ($item->print_qty === null)
                                                 unavailable
                                             @endif
-                                            · Issued {{ $item->qty_issued }}
+                                            · Issued qty {{ $item->qty_issued }}
                                             · {{ $item->order_type ?: 'Basic' }}
                                         </div>
-                                        <div class="directions">
-                                            Qty per dose {{ $item->qty_per_administration }}
-                                            @if ($item->schedule_text)
-                                                · {{ $item->schedule_text }}
-                                            @endif
-                                            @if ($item->days_to_cover)
-                                                · {{ $item->days_to_cover }} day(s)
-                                            @endif
-                                        </div>
+                                        @if ($item->qty_per_administration !== null || $item->schedule_text || $item->days_to_cover)
+                                            <div class="directions">
+                                                @if ($item->qty_per_administration !== null)
+                                                    Qty per dose {{ $item->qty_per_administration }}
+                                                @endif
+                                                {{ $item->schedule_text }}
+                                                @if ($item->days_to_cover)
+                                                    ({{ $item->days_to_cover }} day(s))
+                                                @endif
+                                            </div>
+                                        @endif
                                         @if ($item->addtl_remarks)
                                             <div class="directions note"><strong>Note:</strong> {{ $item->addtl_remarks }}</div>
                                         @endif

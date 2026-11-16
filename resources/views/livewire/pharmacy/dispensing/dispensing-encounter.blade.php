@@ -2264,7 +2264,7 @@
                                             wire:click="selectAllPrintItems">
                                     </th>
                                     <th>Drug</th>
-                                    <th>Qty/Admin</th>
+                                    <th>Ordered Qty</th>
                                     <th>Schedule</th>
                                     <th>Days</th>
                                     <th>Type</th>
@@ -2286,7 +2286,7 @@
                                                 <div class="text-xs text-warning">Inactive</div>
                                             @endif
                                         </td>
-                                        <td>{{ $pItem['qty_per_administration'] ?? ($pItem['qty'] ?? '') }}</td>
+                                        <td>{{ $pItem['ordered_qty'] ?? '—' }}</td>
                                         <td>{{ $pItem['schedule_text'] ?? ($pItem['remark'] ?? '') }}</td>
                                         <td>{{ $pItem['days_to_cover'] ?? '' }}</td>
                                         <td>

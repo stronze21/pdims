@@ -212,7 +212,7 @@ Route::middleware([
 
         $items = collect(DB::connection('webapp')->select("
         SELECT
-            pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+            pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type, pd.entry_source, pd.qty_per_intake,
             pd.remark, pd.addtl_remarks, pd.tkehome, pd.stat,
             pd.frequency, pd.duration, dm.drug_concat
         FROM prescription_data pd
@@ -255,7 +255,7 @@ Route::middleware([
 
         $items = collect(DB::connection('webapp')->select("
             SELECT
-                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type, pd.entry_source, pd.qty_per_intake,
                 pd.remark, pd.addtl_remarks, pd.stat,
                 pd.frequency, pd.duration, dm.drug_concat
             FROM prescription_data pd

@@ -2599,7 +2599,7 @@ class DispensingEncounter extends Component
 
         $prescriptionItems = DB::connection('webapp')->select("
             SELECT
-                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type,
+                pd.id, pd.dmdcomb, pd.dmdctr, pd.qty, pd.order_type, pd.entry_source, pd.qty_per_intake,
                 pd.remark, pd.addtl_remarks,
                 pd.frequency, pd.duration, pd.stat, dm.drug_concat
             FROM prescription_data pd
@@ -2609,9 +2609,9 @@ class DispensingEncounter extends Component
             ORDER BY pd.created_at ASC
         ", [$enccode]);
 
-        $this->printItems = app(PrescriptionReactivationService::class)
-            ->enrichItems($prescriptionItems)
-            ->values()
+        $this->printItems = app(\App\Services\Pharmacy\PrescriptionPrintService::class)
+            ->prepare($prescriptionItems)
+            ->map(fn ($item) => (array) $item)
             ->all();
 
         $this->printSelectedItems = array_column($this->printItems, 'id');

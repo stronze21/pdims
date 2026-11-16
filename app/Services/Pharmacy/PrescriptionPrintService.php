@@ -29,21 +29,63 @@ class PrescriptionPrintService
     public function prepare(iterable $items, bool $deductIssued = true): Collection
     {
         $items = collect($items);
-        $issued = $items->isEmpty() ? collect() : DB::connection('webapp')
-            ->table('prescription_data_issued')
-            ->whereIn('presc_data_id', $items->pluck('id'))
-            ->selectRaw('presc_data_id, SUM(qtyissued) AS total_issued')
-            ->groupBy('presc_data_id')->pluck('total_issued', 'presc_data_id');
+        if ($items->isEmpty()) {
+            return $items;
+        }
+
+        $connection = DB::connection('webapp');
+        $ids = $items->pluck('id');
+        $logged = $connection->table('webapp.dbo.prescription_data_issued')
+            ->whereIn('presc_data_id', $ids)
+            ->select('presc_data_id', 'docointkey')
+            ->selectRaw('SUM(qtyissued) AS qtyissued')
+            ->groupBy('presc_data_id', 'docointkey');
+
+        // HRXO reflects returns. Keep logged quantities for transactions absent from HRXO.
+        $transactions = $connection->query()->fromSub($logged, 'logged')
+            ->leftJoin('hospital.dbo.hrxo as hrxo', 'hrxo.docointkey', '=', 'logged.docointkey')
+            ->select('logged.presc_data_id')
+            ->selectRaw('CASE WHEN hrxo.docointkey IS NULL THEN logged.qtyissued ELSE COALESCE(hrxo.qtyissued, 0) END AS qtyissued')
+            ->unionAll(
+                $connection->table('hospital.dbo.hrxo as hrxo')
+                    ->whereIn('hrxo.prescription_data_id', $ids)
+                    ->whereNotExists(function ($query) {
+                        $query->selectRaw('1')->from('webapp.dbo.prescription_data_issued as issue')
+                            ->whereColumn('issue.docointkey', 'hrxo.docointkey')
+                            ->whereColumn('issue.presc_data_id', 'hrxo.prescription_data_id');
+                    })
+                    ->select('hrxo.prescription_data_id as presc_data_id', 'hrxo.qtyissued')
+            );
+
+        $issued = $connection->query()->fromSub($transactions, 'transactions')
+            ->select('presc_data_id')
+            ->selectRaw('SUM(qtyissued) AS total_issued')
+            ->groupBy('presc_data_id')
+            ->pluck('total_issued', 'presc_data_id');
 
         return $items->map(function ($item) use ($issued, $deductIssued) {
-            $row = (array) $item;
-            $row['total_issued'] = (float) ($issued[$row['id']] ?? 0);
-            $row = app(PrescriptionReactivationService::class)->enrichItem($row);
-            $row['print_qty'] = $this->quantity($row['computed_total_qty'], $row['qty_issued'], $deductIssued);
-            $row['deduct_issued'] = $deductIssued;
-
-            return (object) $row;
+            return $this->formatItem($item, (float) ($issued[$item->id] ?? 0), $deductIssued);
         });
+    }
+
+    private function formatItem(object $item, float $issued, bool $deductIssued): object
+    {
+        $ordered = is_numeric($item->qty) ? (float) $item->qty : null;
+        $dose = strtoupper(trim((string) $item->entry_source)) === 'EMR2'
+            && is_numeric($item->qty_per_intake) && $item->qty_per_intake > 0
+            ? (float) $item->qty_per_intake
+            : null;
+        $issued = max(0, $issued);
+
+        return (object) array_merge((array) $item, [
+            'ordered_qty' => $ordered,
+            'qty_per_administration' => $dose,
+            'qty_issued' => $issued,
+            'print_qty' => $this->quantity($ordered, $issued, $deductIssued),
+            'deduct_issued' => $deductIssued,
+            'schedule_text' => trim((string) $item->remark),
+            'days_to_cover' => app(PrescriptionReactivationService::class)->durationDays($item),
+        ]);
     }
 
     public function quantity(?float $total, float $issued, bool $deductIssued): ?float

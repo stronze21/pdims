@@ -372,7 +372,7 @@ class OpdWalkthrough extends Component
                 'printItems' => [[
                     'id' => 1,
                     'drug_concat' => self::MEDICATION,
-                    'qty_per_administration' => 1,
+                    'ordered_qty' => 1,
                     'schedule_text' => 'Once daily',
                     'days_to_cover' => 1,
                     'order_type' => 'Basic',
