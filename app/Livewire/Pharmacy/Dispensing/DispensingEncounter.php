@@ -148,7 +148,7 @@ class DispensingEncounter extends Component
     public $chargedEncounters = [];
 
     // Patient / Encounter
-    public $enccode, $code, $encdate, $hpercode, $toecode, $mssikey;
+    public $enccode, $code, $encdate, $hpercode, $toecode, $mssikey, $tacode;
     public $patlast, $patfirst, $patmiddle;
     public $diagtext, $wardname, $rmname, $billstat;
     public $location_id;
@@ -293,10 +293,18 @@ class DispensingEncounter extends Component
             $this->autoDetectQueueByEnccode($decrypted);
         }
 
-        $encounter = collect(DB::connection('hospital')->select("SELECT TOP 1 enctr.hpercode, enctr.toecode, enctr.enccode, enctr.encdate, diag.diagtext,
+        $encounter = collect(DB::connection('hospital')->select("SELECT TOP 1 enctr.hpercode, enctr.toecode,
+                                                COALESCE(NULLIF(LTRIM(RTRIM(CASE
+                                                    WHEN enctr.toecode IN ('ADM', 'OPDAD', 'ERADM') THEN accommodation_adm.tacode
+                                                    WHEN enctr.toecode = 'ER' THEN accommodation_er.tacode
+                                                    WHEN enctr.toecode = 'OPD' THEN accommodation_opd.tacode
+                                                END)), ''), enctr.tacode) AS tacode, enctr.enccode, enctr.encdate, diag.diagtext,
                                                 pat.patlast, pat.patfirst, pat.patmiddle,
                                                 mss.mssikey, ward.wardname, room.rmname, track.billstat
                                 FROM henctr as enctr
+                                LEFT JOIN hadmlog as accommodation_adm ON enctr.enccode = accommodation_adm.enccode
+                                LEFT JOIN herlog as accommodation_er ON enctr.enccode = accommodation_er.enccode
+                                LEFT JOIN hopdlog as accommodation_opd ON enctr.enccode = accommodation_opd.enccode
                                 LEFT JOIN hactrack as track ON enctr.enccode = track.enccode
                                 LEFT JOIN hencdiag as diag ON enctr.enccode = diag.enccode
                                 INNER JOIN hperson as pat ON enctr.hpercode = pat.hpercode
@@ -316,6 +324,7 @@ class DispensingEncounter extends Component
         }
 
         $this->mssikey = $encounter->mssikey;
+        $this->tacode = $encounter->tacode;
         $this->encounter = $encounter;
         $this->code = $encounter->enccode;
         $this->encdate = $encounter->encdate;
@@ -893,6 +902,7 @@ class DispensingEncounter extends Component
                 'hpercode',
                 'toecode',
                 'mssikey',
+                'tacode',
                 'patlast',
                 'patfirst',
                 'patmiddle',
@@ -1004,6 +1014,7 @@ class DispensingEncounter extends Component
                 'hpercode',
                 'toecode',
                 'mssikey',
+                'tacode',
                 'patlast',
                 'patfirst',
                 'patmiddle',
@@ -1774,6 +1785,51 @@ class DispensingEncounter extends Component
         return $newEnccode;
     }
 
+    protected function mappedAccommodationType(): ?string
+    {
+        // Legacy encounter logs retain accommodation when henctr is reclassified for PHIC.
+        switch (strtoupper(trim((string) $this->tacode))) {
+            case 'ADPAY':
+            case 'PAY':
+            case 'MEDPY':
+            case 'SECIT':
+            case 'PHPAD':
+            case 'NPHPA':
+                return 'pay';
+            case 'SERVI':
+            case 'MEDCH':
+            case 'PHSED':
+            case 'PHICI':
+            case 'NPHSE':
+                return 'service';
+            case 'EMS':
+            case 'EMSME':
+            case 'EMSDE':
+                return 'ems';
+            default:
+                return null;
+        }
+    }
+
+    public function getAccommodationLabel(): string
+    {
+        $type = $this->mappedAccommodationType();
+
+        return $type === 'ems' ? 'EMS' : ($type ? ucfirst($type) : 'Unclassified');
+    }
+
+    protected function accommodationTransactionType(): string
+    {
+        $type = $this->mappedAccommodationType();
+        if ($type !== null) {
+            return $type;
+        }
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'transaction' => 'The encounter accommodation is missing or unrecognized. Correct it in registration before dispensing.',
+        ]);
+    }
+
     private function resolveTransactionType(): string
     {
         if ($this->isMghTransaction()) {
@@ -1781,7 +1837,7 @@ class DispensingEncounter extends Component
         }
 
         if ($this->isAdmittedEncounter()) {
-            return $this->bnb ? 'pay' : 'service';
+            return $this->accommodationTransactionType();
         }
 
         return match (true) {
@@ -1802,10 +1858,10 @@ class DispensingEncounter extends Component
     public function getMssClassification(): string
     {
         return match ($this->mssikey) {
-            'MSSA11111999', 'MSSB11111999' => 'Pay',
-            'MSSC111111999' => 'PP1',
-            'MSSC211111999' => 'PP2',
-            'MSSC311111999' => 'PP3',
+            'MSSA11111999', 'MSSB11111999' => 'Fully Pay',
+            'MSSC111111999' => 'Partial Pay',
+            'MSSC211111999' => 'Partial Pay',
+            'MSSC311111999' => 'Partial Pay',
             'MSSD11111999' => 'Indigent',
             default => '---',
         };

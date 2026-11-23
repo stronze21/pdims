@@ -541,7 +541,10 @@
                                     @endif
                                 </span>
                                 <span>|</span>
-                                <span>Class: <strong>{{ $this->getMssClassification() }}</strong></span>
+                                <span>Classification: <strong>{{ $this->getAccommodationLabel() }}</strong></span>
+                                @error('transaction')
+                                    <div class="text-error" role="alert">{{ $message }}</div>
+                                @enderror
                                 @if ($diagtext)
                                     <x-mary-hr />
                                     <span>Dx: {{ \Illuminate\Support\Str::limit($diagtext, 255) }}</span>
@@ -1395,14 +1398,9 @@
                         </div>
                     </div>
                 @elseif ($toecode == 'ADM' || $toecode == 'OPDAD' || $toecode == 'ERADM')
-                    {{-- Admitted patient: Basic/Non-Basic toggle --}}
-                    <div class="form-control">
-                        <label class="label font-bold"><span class="label-text">TAG</span></label>
-                        <label class="flex items-center gap-3 cursor-pointer">
-                            <span class="label-text flex-1 text-end">Basic (Service)</span>
-                            <input type="checkbox" wire:model="bnb" class="toggle toggle-success" />
-                            <span class="label-text flex-1">NON-Basic (Pay)</span>
-                        </label>
+                    <div class="text-sm">
+                        Accommodation: <strong>{{ $this->getAccommodationLabel() }}</strong>
+                        <p>The transaction type follows the encounter accommodation recorded in registration.</p>
                     </div>
                 @else
                     {{-- OPD/ER/WALKN: Tag selection --}}
