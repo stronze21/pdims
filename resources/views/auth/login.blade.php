@@ -87,6 +87,11 @@
                         </button>
                     </form>
 
+                    <a href="{{ route('queue.display-location') }}" class="btn btn-outline btn-primary w-full mt-5">
+                        <x-mary-icon name="o-tv" class="w-5 h-5" />
+                        Open TV display
+                    </a>
+
                     <div class="login-help">
                         <x-mary-icon name="o-question-mark-circle" class="w-5 h-5 shrink-0" />
                         <div><h3>Need help signing in?</h3><p>Contact the IT Department or Pharmacy Administration for login assistance.</p></div>

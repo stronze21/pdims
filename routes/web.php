@@ -309,6 +309,10 @@ Route::middleware([
 });
 
 // Public Queue Display (can be accessed without auth for TV displays)
+Route::get('/queue-display-location', \App\Http\Controllers\QueueDisplayLocationController::class)
+    ->name('queue.display-location')
+    ->middleware('throttle:60,1');
+
 Route::get('/queue-display/{locationCode?}', PrescriptionQueueDisplay::class)
     ->name('queue.display')
     ->middleware('throttle:60,1'); // Rate limit for security

@@ -17,7 +17,13 @@ class PrescriptionQueueDisplay extends Component
 
     public function mount($locationCode = null)
     {
-        $this->locationCode = $locationCode ?? auth()->user()->pharm_location_id;
+        $this->locationCode = $locationCode ?? auth()->user()?->pharm_location_id;
+
+        if ($this->locationCode === null) {
+            return redirect()->route('queue.display-location');
+        }
+
+        abort_unless(\App\Models\PharmLocation::whereKey($this->locationCode)->exists(), 404);
         $this->displaySettings = PrescriptionQueueDisplaySetting::getForLocation($this->locationCode);
         $this->loadQueues();
     }
