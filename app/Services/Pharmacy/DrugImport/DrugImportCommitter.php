@@ -16,16 +16,23 @@ class DrugImportCommitter
     {
         $db = DB::connection('hospital');
         $result = $db->transaction(function () use ($db, $batch) {
-            $rows = DrugImportRow::query()->where('batch_id', $batch->id)->where('row_status', 'ready')->where('action', 'import')->lockForUpdate()->get();
+            $rows = DrugImportRow::query()->where('batch_id', $batch->id)->where('row_status', 'ready')->where('action', 'import')->orderBy('id')->lockForUpdate()->get();
             if ($rows->isEmpty()) {
                 throw new RuntimeException('There are no ready rows to import.');
             }
 
+            // Validate and build descriptions before taking the broad master-code
+            // range lock. Keep staged rows locked and the import atomic.
+            $prepared = [];
+            foreach ($rows as $row) {
+                $drug = $this->validatedDrug($db, $row);
+                $prepared[$row->id] = [$drug, $this->writer->description($db, $drug)];
+            }
             $nextCode = (int) $this->writer->nextDrugCodeLocked($db);
             $imported = 0;
             $duplicates = 0;
             foreach ($rows as $row) {
-                $drug = $this->validatedDrug($db, $row);
+                [$drug, $description] = $prepared[$row->id];
                 if ($duplicate = $this->writer->duplicate($db, $drug)) {
                     $row->update(['row_status' => 'duplicate', 'existing_dmdcomb' => $duplicate->dmdcomb, 'existing_dmdctr' => $duplicate->dmdctr]);
                     $duplicates++;
@@ -43,7 +50,7 @@ class DrugImportCommitter
                     'techspec' => $row->technical_spec ? mb_substr($row->technical_spec, 0, 255) : null,
                     'begbal' => 0, 'stockbal' => 0, 'baldteasof' => $now, 'lot_no' => '',
                     'packvolno' => $row->packvolno, 'packvolunitcode' => $row->packvolunitcode,
-                    'drug_concat' => $this->writer->description($db, $drug),
+                    'drug_concat' => $description,
                 ]);
                 $raw = $row->raw_json ?? [];
                 $db->table('pharm_drug_metadata')->insert([

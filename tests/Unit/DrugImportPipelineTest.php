@@ -147,3 +147,15 @@ it('leaves combination strengths and multiple routes for manual review', functio
         ->and($row->rtecode)->toBeNull()
         ->and($row->row_status)->toBe('needs_mapping');
 });
+
+it('validates every mapping before acquiring the master-code lock', function () {
+    $batch = pipelineBatch([pipelineCandidate()]);
+    DB::connection('hospital')->table('hroute')->delete();
+    $writer = Mockery::mock(\App\Services\Pharmacy\DrugImport\DrugMasterWriter::class)->makePartial();
+    $writer->shouldNotReceive('nextDrugCodeLocked');
+    $committer = new DrugImportCommitter($writer, app(DrugImportMapper::class));
+
+    expect(fn () => $committer->commit($batch, 'approver'))->toThrow(RuntimeException::class);
+    expect(DB::connection('hospital')->table('hdmhdr')->count())->toBe(0)
+        ->and(DB::connection('hospital')->transactionLevel())->toBe(0);
+});

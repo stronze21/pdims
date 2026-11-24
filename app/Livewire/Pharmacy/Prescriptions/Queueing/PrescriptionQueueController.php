@@ -9,6 +9,7 @@ use App\Services\Pharmacy\PrescriptionReactivationService;
 use App\Services\Pharmacy\PrescriptionQueueService;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -186,8 +187,7 @@ class PrescriptionQueueController extends Component
     public function executeBatchCreate()
     {
         try {
-            DB::beginTransaction();
-
+            // Each queue is committed by PrescriptionQueueService on webapp.
             $prescriptions = $this->getPrescriptionsForQueue(
                 $this->batchDate,
                 $this->batchLocation,
@@ -235,8 +235,6 @@ class PrescriptionQueueController extends Component
                 }
             }
 
-            DB::commit();
-
             $this->showBatchCreateModal = false;
 
             $message = "Batch creation completed: {$stats['created']} created, {$stats['skipped']} skipped";
@@ -247,8 +245,6 @@ class PrescriptionQueueController extends Component
             $this->success($message);
             $this->dispatch('refresh-queues');
         } catch (\Exception $e) {
-            DB::rollBack();
-
             Log::error('Batch queue creation failed', [
                 'batch_date'     => $this->batchDate,
                 'batch_location' => $this->batchLocation,

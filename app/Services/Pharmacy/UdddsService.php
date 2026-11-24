@@ -70,7 +70,7 @@ class UdddsService
     {
         $source = $order;
         if (!empty($order->uddds_source_docointkey)) {
-            $source = DB::selectOne('SELECT * FROM hospital.dbo.hrxo WHERE docointkey = ?', [$order->uddds_source_docointkey]);
+            $source = DB::connection('hospital')->selectOne('SELECT * FROM hospital.dbo.hrxo WHERE docointkey = ?', [$order->uddds_source_docointkey]);
             if (!$source || !$source->is_uddds || !empty($source->uddds_source_docointkey)) {
                 return false;
             }
@@ -106,7 +106,7 @@ class UdddsService
         if (!$keys || !self::hasHrxoColumns()) return null;
         $keys = array_map(fn ($key) => trim((string) $key, "'\""), $keys);
         $placeholders = implode(',', array_fill(0, count($keys), '?'));
-        $rows = DB::select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
+        $rows = DB::connection('hospital')->select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
         foreach ($rows as $row) {
             if (empty($row->uddds_source_docointkey)) continue;
             try {
@@ -122,7 +122,7 @@ class UdddsService
     {
         if (!$keys) return null;
         $placeholders = implode(',', array_fill(0, count($keys), '?'));
-        $orders = DB::select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
+        $orders = DB::connection('hospital')->select("SELECT * FROM hospital.dbo.hrxo WHERE docointkey IN ({$placeholders})", $keys);
         if (count($orders) !== count(array_unique($keys))) return 'One or more UDDDS orders no longer exist. Reload the queue.';
         foreach ($orders as $order) {
             try {
@@ -188,7 +188,7 @@ class UdddsService
             return false;
         }
 
-        $row = DB::selectOne(
+        $row = DB::connection('hospital')->selectOne(
             'SELECT TOP 1 toecode FROM hospital.dbo.henctr WHERE enccode = ?',
             [$enccode]
         );
@@ -228,7 +228,7 @@ class UdddsService
                 return ['ok' => false, 'message' => 'Remove the active UDDDS enrollment before enrolling again.'];
             }
 
-            DB::update(
+            DB::connection('hospital')->update(
                 "UPDATE hospital.dbo.hrxo
                     SET is_uddds = 1,
                         uddds_start_date = ?,
@@ -264,7 +264,7 @@ class UdddsService
             $schedule = $this->enrollmentSchedule($order->uddds_start_date, $order->uddds_end_date, $order->uddds_interval_days ?? null);
             if (!$schedule['ok']) return $schedule;
 
-            DB::update(
+            DB::connection('hospital')->update(
                 "UPDATE hospital.dbo.hrxo
                     SET is_uddds = 1,
                         uddds_source_docointkey = NULL
@@ -334,7 +334,7 @@ class UdddsService
             return ['ok' => false, 'message' => 'End date must be on or after the start date.'];
         }
 
-        DB::update(
+        DB::connection('hospital')->update(
             "UPDATE hospital.dbo.hrxo
                 SET is_uddds = 1,
                     uddds_start_date = ?,
@@ -358,7 +358,7 @@ class UdddsService
 
         $sourceKey = $order->uddds_source_docointkey ?: $order->docointkey;
 
-        DB::update(
+        DB::connection('hospital')->update(
             "UPDATE hospital.dbo.hrxo SET is_uddds = 0 WHERE docointkey = ? OR uddds_source_docointkey = ?",
             [$sourceKey, $sourceKey]
         );
@@ -370,7 +370,7 @@ class UdddsService
     {
         $today = UdddsSchedule::date($referenceDate ?: now('Asia/Manila'))->format('Y-m-d');
 
-        $enrollments = DB::select("
+        $enrollments = DB::connection('hospital')->select("
             SELECT hrxo.*
             FROM hospital.dbo.hrxo
             INNER JOIN hospital.dbo.henctr enctr ON enctr.enccode = hrxo.enccode
@@ -402,7 +402,7 @@ class UdddsService
                 continue;
             }
 
-            $existing = DB::selectOne("
+            $existing = DB::connection('hospital')->selectOne("
                 SELECT TOP 1 docointkey
                 FROM hospital.dbo.hrxo
                 WHERE uddds_source_docointkey = ?
@@ -459,7 +459,7 @@ class UdddsService
             $params[] = $wardcode;
         }
 
-        $items = DB::select("
+        $items = DB::connection('hospital')->select("
             SELECT
                 hrxo.docointkey,
                 hrxo.enccode,
@@ -584,7 +584,7 @@ class UdddsService
             $params[] = $wardcode;
         }
 
-        $items = DB::select("
+        $items = DB::connection('hospital')->select("
             SELECT hrxo.*, {$drugDescription} AS drug_concat, hcharge.chrgdesc,
                 pt.patfirst, pt.patmiddle, pt.patlast, pt.patsuffix,
                 ward.wardname, room.rmname, pd.remark AS frequency,
@@ -801,7 +801,7 @@ class UdddsService
 
         $date = UdddsSchedule::date($referenceDate ?: now('Asia/Manila'))->format('Y-m-d');
         $placeholders = implode(',', array_fill(0, count($docointkeys), '?'));
-        $orders = DB::select(
+        $orders = DB::connection('hospital')->select(
             "SELECT hrxo.*
              FROM hospital.dbo.hrxo
              WHERE hrxo.docointkey IN ({$placeholders})
@@ -829,7 +829,7 @@ class UdddsService
                 continue;
             }
 
-            $existing = DB::selectOne(
+            $existing = DB::connection('hospital')->selectOne(
                 "SELECT TOP 1 docointkey
                  FROM hospital.dbo.hrxo
                  WHERE uddds_source_docointkey = ?

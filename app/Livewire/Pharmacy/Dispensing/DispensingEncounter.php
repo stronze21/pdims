@@ -639,29 +639,32 @@ class DispensingEncounter extends Component
         if ($cnt && $cnt != 0) {
             $this->processingStep(3, $this->queueId ? null : 'No linked queue to update.');
             // Auto-link charge slip number and update queue status to ready
-            if ($this->queueId) {
-                $queue = PrescriptionQueue::find($this->queueId);
-                if ($queue && !$queue->isDispensed() && !$queue->isCancelled()) {
-                    $queueService = app(PrescriptionQueueService::class);
-                    $queueService->updateQueueStatus(
-                        $this->queueId,
-                        'ready',
-                        auth()->user()->employeeid,
-                        'Charge slip issued, ready for claiming: ' . $pcchrgcod
-                    );
+            DB::connection('hospital')->afterCommit(function () use ($pcchrgcod) {
+                if ($this->queueId) {
+                    $queue = PrescriptionQueue::find($this->queueId);
+                    if ($queue && !$queue->isDispensed() && !$queue->isCancelled()) {
+                        $queueService = app(PrescriptionQueueService::class);
+                        $queueService->updateQueueStatus(
+                            $this->queueId,
+                            'ready',
+                            auth()->user()->employeeid,
+                            'Charge slip issued, ready for claiming: ' . $pcchrgcod
+                        );
 
-                    DB::connection('webapp')->table('prescription_queues')
-                        ->where('id', $this->queueId)
-                        ->update([
-                            'charge_slip_no' => $pcchrgcod,
-                            'charging_at' => now(),
-                            'charged_by' => auth()->user()->employeeid,
-                            'ready_at' => now(),
-                        ]);
-                    $this->queueChargeSlipNo = $pcchrgcod;
-                    $this->currentQueueStatus = 'ready';
+                        DB::connection('webapp')->table('prescription_queues')
+                            ->where('id', $this->queueId)
+                            ->update([
+                                'charge_slip_no' => $pcchrgcod,
+                                'charging_at' => now(),
+                                'charged_by' => auth()->user()->employeeid,
+                                'ready_at' => now(),
+                            ]);
+                        $this->queueChargeSlipNo = $pcchrgcod;
+                        $this->currentQueueStatus = 'ready';
+                    }
                 }
-            }
+
+            });
 
             $this->processingOutcome = ['status' => 'success', 'message' => 'Items charged successfully. Charge slip: ' . $pcchrgcod, 'pcchrgcod' => $pcchrgcod];
         } else {
@@ -2553,6 +2556,11 @@ class DispensingEncounter extends Component
 
     private function autoUpdateQueueOnIssue(): void
     {
+        // Queue reads and immediate broadcasts must not prolong inventory locks.
+        if (DB::connection('hospital')->transactionLevel() > 0) {
+            DB::connection('hospital')->afterCommit(fn () => $this->autoUpdateQueueOnIssue());
+            return;
+        }
         if (!$this->queueId) return;
 
         $queue = PrescriptionQueue::forLocation(auth()->user()->pharm_location_id)

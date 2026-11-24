@@ -50,3 +50,6 @@ auth.json
 !/tests/Unit/PrescriptionPrintSignatureTest.php
 /docs
 /.codex-attachments
+
+!/tests/Unit/DatabaseLockingTest.php
+!/tests/Unit/SubmissionDomainTest.php

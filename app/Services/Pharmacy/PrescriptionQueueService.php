@@ -351,7 +351,7 @@ class PrescriptionQueueService
      */
     public function batchCreateQueues($locationCode, $date, $encounterTypes = [], $userId = null)
     {
-        DB::connection('webapp')->beginTransaction();
+        // Each createQueue call owns its transaction and releases its queue lock.
         try {
             $prescriptions = DB::connection('webapp')
                 ->table('prescriptions as p')
@@ -389,16 +389,12 @@ class PrescriptionQueueService
                 }
             }
 
-            DB::connection('webapp')->commit();
-
             return [
                 'success' => true,
                 'created_count' => $created,
                 'message' => "Successfully created {$created} queue(s)",
             ];
         } catch (\Exception $e) {
-            DB::connection('webapp')->rollBack();
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),

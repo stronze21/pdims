@@ -169,8 +169,7 @@ class PrescriptionQueueManagement extends Component
     public function executeBatchCreate()
     {
         try {
-            DB::beginTransaction();
-
+            // Each queue is committed by PrescriptionQueueService on webapp.
             $prescriptions = $this->getPrescriptionsForQueue(
                 $this->batchDate,
                 $this->batchLocation,
@@ -218,8 +217,6 @@ class PrescriptionQueueManagement extends Component
                 }
             }
 
-            DB::commit();
-
             $this->showBatchCreateModal = false;
 
             $message = "Batch creation completed: {$stats['created']} created, {$stats['skipped']} skipped";
@@ -230,8 +227,6 @@ class PrescriptionQueueManagement extends Component
             $this->success($message);
             $this->dispatch('refresh-queues');
         } catch (\Exception $e) {
-            DB::rollBack();
-
             Log::error('Batch queue creation failed', [
                 'batch_date'     => $this->batchDate,
                 'batch_location' => $this->batchLocation,

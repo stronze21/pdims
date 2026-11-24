@@ -32,15 +32,15 @@ class DrugStockDefinitionSync
 
     public function syncLocation(string $location): int
     {
-        return DB::connection('hospital')->transaction(function () use ($location) {
-            $drugs = DB::connection('hospital')->table('pharm_drug_stocks')
-                ->where('loc_code', $location)->select('dmdcomb', 'dmdctr')->distinct()->get();
-            $updated = 0;
-            foreach ($drugs as $drug) {
-                $updated += $this->syncDrug((string) $drug->dmdcomb, (string) $drug->dmdctr, $location);
-            }
+        // Labels can be refreshed independently; do not retain write locks for
+        // the entire location. A failed refresh can safely be run again.
+        $drugs = DB::connection('hospital')->table('pharm_drug_stocks')
+            ->where('loc_code', $location)->select('dmdcomb', 'dmdctr')->distinct()->get();
+        $updated = 0;
+        foreach ($drugs as $drug) {
+            $updated += $this->syncDrug((string) $drug->dmdcomb, (string) $drug->dmdctr, $location);
+        }
 
-            return $updated;
-        });
+        return $updated;
     }
 }

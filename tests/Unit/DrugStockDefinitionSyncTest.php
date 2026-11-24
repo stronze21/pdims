@@ -81,6 +81,20 @@ class DrugStockDefinitionSyncTest extends TestCase
         $this->assertSame('25', $db->table('pharm_drug_stocks')->where('loc_code', 'A')->where('dmdctr', '1')->value('dmdnost'));
     }
 
+    public function test_location_sync_does_not_hold_a_transaction_across_stock_updates(): void
+    {
+        $db = DB::connection('hospital');
+        $levels = [];
+        $db->listen(function ($query) use ($db, &$levels) {
+            if ($query->connectionName === 'hospital' && str_starts_with(strtolower($query->sql), 'update')) {
+                $levels[] = $db->transactionLevel();
+            }
+        });
+
+        $this->assertSame(1, app(DrugStockDefinitionSync::class)->syncLocation('A'));
+        $this->assertSame([0], $levels);
+    }
+
     public function test_descriptions_remove_only_insignificant_decimal_zeros(): void
     {
         $db = DB::connection('hospital');
