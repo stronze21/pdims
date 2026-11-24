@@ -24,7 +24,7 @@ class DatabaseLockingTest extends TestCase
             return new class(new \PDO('sqlite::memory:'), ':memory:', '', $config) extends \Illuminate\Database\SQLiteConnection {
                 protected function run($query, $bindings, \Closure $callback)
                 {
-                    return parent::run(str_replace(['"hospital"."dbo".', 'hospital.dbo.'], '', $query), $bindings, $callback);
+                    return parent::run(str_replace(['"hospital"."dbo".', 'hospital.dbo.', '"webapp"."dbo".', 'webapp.dbo.'], '', $query), $bindings, $callback);
                 }
             };
         });
@@ -59,6 +59,44 @@ class DatabaseLockingTest extends TestCase
             $db->rollBack();
         }
         $this->assertSame(1, (int) $db->table('hrxo')->value('is_uddds'));
+    }
+
+    public function test_prescription_matching_reads_its_own_uncommitted_changes(): void
+    {
+        config()->set('database.connections.webapp', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+        DB::purge('webapp');
+        $db = DB::connection('hospital');
+        $schema = $db->getSchemaBuilder();
+        $schema->create('hdmhdr', function (Blueprint $table) {
+            $table->string('dmdcomb'); $table->string('dmdctr'); $table->string('drug_concat');
+        });
+        $schema->create('prescription', function (Blueprint $table) {
+            $table->id(); $table->string('enccode');
+        });
+        $schema->create('prescription_data', function (Blueprint $table) {
+            $table->id(); $table->integer('presc_id'); $table->string('dmdcomb');
+            $table->string('dmdctr'); $table->string('stat'); $table->string('archive')->nullable();
+        });
+        $db->table('hdmhdr')->insert(['dmdcomb' => 'D', 'dmdctr' => '1', 'drug_concat' => 'Test drug']);
+        $db->table('prescription')->insert(['id' => 1, 'enccode' => 'ENC']);
+        foreach ([1, 2] as $id) {
+            $db->table('prescription_data')->insert(['id' => $id, 'presc_id' => 1, 'dmdcomb' => 'D', 'dmdctr' => '1', 'stat' => 'A']);
+        }
+        $component = new \App\Livewire\Pharmacy\Dispensing\DispensingEncounter;
+        $match = new \ReflectionMethod($component, 'findActivePrescriptionDataMatch');
+        $db->beginTransaction();
+        try {
+            $db->table('prescription_data')->where('id', 1)->update(['stat' => 'I']);
+            $item = $match->invoke($component, 'ENC', 'D', '1');
+            $this->assertSame(2, $item->id);
+            $this->assertSame('hospital', $item->getConnectionName());
+            $db->table('prescription_data')->where('id', 2)->update(['stat' => 'I']);
+            $this->assertNull($match->invoke($component, 'ENC', 'D', '1'));
+        } finally {
+            $db->rollBack();
+            DB::purge('webapp');
+        }
+        $this->assertSame(2, $db->table('prescription_data')->where('stat', 'A')->count());
     }
 
     public function test_stock_cards_join_the_inventory_transaction(): void

@@ -2051,18 +2051,20 @@ class DispensingEncounter extends Component
     private function findActivePrescriptionDataMatch(string $enccode, string $dmdcomb, string $dmdctr): ?PrescriptionData
     {
         $targetDrugName = $this->normalizeDrugName($this->resolveDrugNameFromCodes($dmdcomb, $dmdctr));
-        $prescriptions = Prescription::where('enccode', $enccode)->with('data_active.dm')->get();
+        // Read through the inventory session: earlier items may have changed
+        // prescription rows here before the hospital transaction commits.
+        $items = PrescriptionData::on('hospital')
+            ->whereIn('presc_id', Prescription::on('hospital')->where('enccode', $enccode)->select('id'))
+            ->where('stat', 'A')->whereNull('archive')->with('dm')->get();
 
-        foreach ($prescriptions as $prescription) {
-            foreach (($prescription->data_active ?? []) as $rxData) {
-                if ($rxData->dmdcomb === $dmdcomb && $rxData->dmdctr === $dmdctr) {
-                    return $rxData;
-                }
+        foreach ($items as $rxData) {
+            if ($rxData->dmdcomb === $dmdcomb && $rxData->dmdctr === $dmdctr) {
+                return $rxData;
+            }
 
-                $rxDrugName = $this->normalizeDrugName($rxData->dm?->drug_concat());
-                if ($targetDrugName && $rxDrugName === $targetDrugName) {
-                    return $rxData;
-                }
+            $rxDrugName = $this->normalizeDrugName($rxData->dm?->drug_concat());
+            if ($targetDrugName && $rxDrugName === $targetDrugName) {
+                return $rxData;
             }
         }
 
@@ -2231,25 +2233,22 @@ class DispensingEncounter extends Component
                 'qtyissued' => $pchrgqty,
             ]);
         } else {
-            $rx_header = Prescription::where('enccode', $enccode)->with('data_active')->get();
-            if ($rx_header) {
-                $rx_data = $this->findActivePrescriptionDataMatch($enccode, $dmdcomb, $dmdctr);
+            $rx_data = $this->findActivePrescriptionDataMatch($enccode, $dmdcomb, $dmdctr);
 
-                if ($rx_data) {
-                    PrescriptionDataIssued::on('hospital')->create([
-                        'presc_data_id' => $rx_data->id,
-                        'docointkey' => $docointkey,
-                        'qtyissued' => $pchrgqty,
-                    ]);
+            if ($rx_data) {
+                PrescriptionDataIssued::on('hospital')->create([
+                    'presc_data_id' => $rx_data->id,
+                    'docointkey' => $docointkey,
+                    'qtyissued' => $pchrgqty,
+                ]);
 
-                    DB::connection('hospital')->update(
-                        "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
-                        [$rx_data->id, $rx_data->entry_by, $docointkey]
-                    );
+                DB::connection('hospital')->update(
+                    "UPDATE hospital.dbo.hrxo SET prescription_data_id = ?, prescribed_by = ? WHERE docointkey = ?",
+                    [$rx_data->id, $rx_data->entry_by, $docointkey]
+                );
 
-                    $rx_data->stat = 'I';
-                    $rx_data->setConnection('hospital')->save();
-                }
+                $rx_data->stat = 'I';
+                $rx_data->setConnection('hospital')->save();
             }
         }
     }
